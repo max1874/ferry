@@ -1,0 +1,30 @@
+.DS_Store
+.idea/
+
+# Xcode user and build output
+build/
+DerivedData/
+*.xcuserstate
+**/xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.xcresult
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Agent-generated visual evidence
+artifacts/
+**/artifacts/
+*.noindex/
