@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>Ferry</title>
+    <link rel="stylesheet" href="/app.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand" aria-label="Ferry">
+        <span class="brand-mark" aria-hidden="true">F</span>
+        <span>Ferry</span>
+      </div>
+      <span class="connection" id="connection">Local</span>
+    </header>
+
+    <main class="conversation" id="conversation" aria-live="polite">
+      <section class="welcome" id="welcome">
+        <span class="welcome-mark" aria-hidden="true">F</span>
+        <h1>What should we ferry?</h1>
+        <p>Send text or a file to your other devices.</p>
+      </section>
+      <div class="messages" id="messages"></div>
+    </main>
+
+    <footer class="composer-shell">
+      <form class="composer" id="composer">
+        <div class="file-chip" id="file-chip" hidden>
+          <span id="file-name"></span>
+          <button type="button" id="remove-file" aria-label="Remove selected file">×</button>
+        </div>
+        <div class="composer-row">
+          <label class="attach" aria-label="Attach a file">
+            <input type="file" id="file" hidden>
+            <span aria-hidden="true">＋</span>
+          </label>
+          <textarea id="text" rows="1" placeholder="Message Ferry" aria-label="Message"></textarea>
+          <button class="send" id="send" type="submit" aria-label="Send" disabled>↑</button>
+        </div>
+      </form>
+      <p class="footnote" id="status">Your data stays on this Ferry server.</p>
+    </footer>
+  </body>
+</html>

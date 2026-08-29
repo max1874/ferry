@@ -1,0 +1,170 @@
+openapi: 3.1.0
+info:
+  title: Ferry API
+  version: 0.1.0
+servers:
+  - url: http://127.0.0.1:8080
+paths:
+  /healthz:
+    get:
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { const: ok }
+                additionalProperties: false
+  /api/v1/messages:
+    get:
+      parameters:
+        - name: after
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 100 }
+      responses:
+        "200":
+          description: Messages ordered by sequence ascending
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [messages, next_cursor]
+                properties:
+                  messages:
+                    type: array
+                    items: { $ref: "#/components/schemas/Message" }
+                  next_cursor: { type: integer, minimum: 0 }
+                additionalProperties: false
+  /api/v1/messages/text:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sender_name, text]
+              properties:
+                sender_name:
+                  type: string
+                  minLength: 1
+                  description: At most 64 UTF-8 bytes after surrounding whitespace is removed; control characters are rejected.
+                text:
+                  type: string
+                  minLength: 1
+                  description: Must contain a non-whitespace character and be at most 65,536 UTF-8 bytes.
+              additionalProperties: false
+      responses:
+        "201":
+          description: Created text message
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TextMessage" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "413": { $ref: "#/components/responses/Error" }
+        "415": { $ref: "#/components/responses/Error" }
+  /api/v1/messages/file:
+    post:
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [sender_name, file]
+              properties:
+                sender_name:
+                  type: string
+                  minLength: 1
+                  description: At most 64 UTF-8 bytes after surrounding whitespace is removed; control characters are rejected.
+                file:
+                  type: string
+                  contentMediaType: application/octet-stream
+                  description: At most 67,108,864 bytes.
+              additionalProperties: false
+      responses:
+        "201":
+          description: Created file message
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FileMessage" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "413": { $ref: "#/components/responses/Error" }
+  /api/v1/files/{message_id}:
+    get:
+      parameters:
+        - name: message_id
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[0-9a-f]{32}$" }
+      responses:
+        "200":
+          description: Original file bytes
+          content:
+            "*/*": {}
+        "404": { $ref: "#/components/responses/Error" }
+components:
+  schemas:
+    TextMessage:
+      type: object
+      required: [id, sequence, kind, sender_name, created_at, text]
+      properties:
+        id: { type: string, pattern: "^[0-9a-f]{32}$" }
+        sequence: { type: integer, minimum: 1 }
+        kind: { const: text }
+        sender_name: { type: string }
+        created_at: { type: string, format: date-time }
+        text: { type: string }
+      additionalProperties: false
+    FileInfo:
+      type: object
+      required: [name, media_type, size, download_url]
+      properties:
+        name: { type: string }
+        media_type: { type: string }
+        size: { type: integer, minimum: 0, maximum: 67108864 }
+        download_url: { type: string }
+      additionalProperties: false
+    FileMessage:
+      type: object
+      required: [id, sequence, kind, sender_name, created_at, file]
+      properties:
+        id: { type: string, pattern: "^[0-9a-f]{32}$" }
+        sequence: { type: integer, minimum: 1 }
+        kind: { const: file }
+        sender_name: { type: string }
+        created_at: { type: string, format: date-time }
+        file: { $ref: "#/components/schemas/FileInfo" }
+      additionalProperties: false
+    Message:
+      oneOf:
+        - $ref: "#/components/schemas/TextMessage"
+        - $ref: "#/components/schemas/FileMessage"
+      discriminator:
+        propertyName: kind
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+          additionalProperties: false
+      additionalProperties: false
+  responses:
+    Error:
+      description: Request failed
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }

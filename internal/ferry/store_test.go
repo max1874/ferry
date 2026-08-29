@@ -1,0 +1,245 @@
+package ferry
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestTextBoundariesAndPreservation(t *testing.T) {
+	store := openTestStore(t)
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+		text string
+		want error
+	}{
+		{name: "empty", text: "", want: ErrInvalid},
+		{name: "whitespace", text: " \n\t", want: ErrInvalid},
+		{name: "maximum", text: "x" + strings.Repeat(" ", MaxTextBytes-1)},
+		{name: "over maximum", text: strings.Repeat("x", MaxTextBytes+1), want: ErrTooLarge},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			message, err := store.CreateText(ctx, " Web ", test.text)
+			if test.want != nil {
+				if !errors.Is(err, test.want) {
+					t.Fatalf("CreateText() error = %v, want %v", err, test.want)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("CreateText() error = %v", err)
+			}
+			if message.Text == nil || *message.Text != test.text {
+				t.Fatalf("text was not preserved")
+			}
+			if message.SenderName != "Web" {
+				t.Fatalf("sender = %q, want Web", message.SenderName)
+			}
+		})
+	}
+}
+
+func TestFileNameCannotSelectBlobPathAndPersists(t *testing.T) {
+	dataDir := t.TempDir()
+	ctx := context.Background()
+	store, err := OpenStore(ctx, dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	contents := []byte("ferry file\n")
+	message, err := store.CreateFile(ctx, "Web", `..\..\ferry.db`, "text/plain", bytes.NewReader(contents))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if message.File == nil || message.File.Name != "ferry.db" {
+		t.Fatalf("display name = %#v, want ferry.db", message.File)
+	}
+	entries, err := os.ReadDir(filepath.Join(dataDir, "blobs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != message.ID+".blob" {
+		t.Fatalf("blob entries = %v, want server-generated name", entries)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := OpenStore(ctx, dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { reopened.Close() })
+	messages, cursor, err := reopened.ListMessages(ctx, 0, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(messages) != 1 || cursor != message.Sequence || messages[0].ID != message.ID {
+		t.Fatalf("reopened messages = %#v, cursor = %d", messages, cursor)
+	}
+	_, file, err := reopened.OpenFile(ctx, message.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	got, err := os.ReadFile(file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, contents) {
+		t.Fatalf("download bytes = %q, want %q", got, contents)
+	}
+}
+
+func TestFileInsertFailureRemovesInstalledBlob(t *testing.T) {
+	dataDir := t.TempDir()
+	store, err := OpenStore(context.Background(), dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateFile(context.Background(), "Web", "hello.txt", "text/plain", strings.NewReader("hello")); err == nil {
+		t.Fatal("CreateFile() succeeded after database close")
+	}
+	entries, err := os.ReadDir(filepath.Join(dataDir, "blobs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("orphan blobs after insert failure: %v", entries)
+	}
+}
+
+func TestFileReadFailureRemovesPartialBlob(t *testing.T) {
+	store := openTestStore(t)
+	if _, err := store.CreateFile(context.Background(), "Web", "hello.txt", "text/plain", failingReader{}); err == nil {
+		t.Fatal("CreateFile() accepted a failed source")
+	}
+	entries, err := os.ReadDir(store.blobsDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("partial blobs after read failure: %v", entries)
+	}
+}
+
+func TestFileSizeBoundaries(t *testing.T) {
+	store := openTestStore(t)
+	ctx := context.Background()
+	if message, err := store.CreateFile(ctx, "Web", "empty.bin", "application/octet-stream", strings.NewReader("")); err != nil || message.File == nil || message.File.Size != 0 {
+		t.Fatalf("empty file message = %#v, error = %v", message, err)
+	}
+	message, err := store.CreateFile(ctx, "Web", "maximum.bin", "application/octet-stream", io.LimitReader(zeroReader{}, MaxFileBytes))
+	if err != nil {
+		t.Fatalf("maximum file error = %v", err)
+	}
+	if message.File == nil || message.File.Size != MaxFileBytes {
+		t.Fatalf("maximum file message = %#v", message)
+	}
+}
+
+func TestDotDotFileNameIsRejected(t *testing.T) {
+	store := openTestStore(t)
+	if _, err := store.CreateFile(context.Background(), "Web", "..", "text/plain", strings.NewReader("hello")); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("CreateFile() error = %v, want ErrInvalid", err)
+	}
+}
+
+func TestCorruptStoredFileMetadataFailsClosed(t *testing.T) {
+	store := openTestStore(t)
+	ctx := context.Background()
+	message, err := store.CreateFile(ctx, "Web", "hello.txt", "text/plain", strings.NewReader("hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.db.ExecContext(ctx, "UPDATE messages SET file_size = ? WHERE id = ?", MaxFileBytes+1, message.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.ListMessages(ctx, 0, 100); err == nil || !strings.Contains(err.Error(), "stored file message is invalid") {
+		t.Fatalf("ListMessages() error = %v, want invalid stored file", err)
+	}
+}
+
+func TestBlobSizeMismatchFailsBeforeDownload(t *testing.T) {
+	store := openTestStore(t)
+	ctx := context.Background()
+	message, err := store.CreateFile(ctx, "Web", "hello.txt", "text/plain", strings.NewReader("hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(store.blobsDir, message.ID+".blob"), []byte("changed"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, file, err := store.OpenFile(ctx, message.ID); err == nil || file != nil || !strings.Contains(err.Error(), "size does not match") {
+		t.Fatalf("OpenFile() file = %v, error = %v", file, err)
+	}
+}
+
+func TestUnknownStoredKindFailsClosed(t *testing.T) {
+	store := openTestStore(t)
+	ctx := context.Background()
+	if _, err := store.db.ExecContext(ctx, "PRAGMA ignore_check_constraints = ON"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.db.ExecContext(ctx, `
+        INSERT INTO messages (id, kind, sender_name, created_at)
+        VALUES ('0123456789abcdef0123456789abcdef', 'link', 'Web', '2026-08-29T00:00:00Z')
+    `); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.ListMessages(ctx, 0, 100); err == nil || !strings.Contains(err.Error(), "unknown stored message kind") {
+		t.Fatalf("ListMessages() error = %v, want unknown kind failure", err)
+	}
+}
+
+func TestCursorOrdersMessagesIndependentlyOfTimestamp(t *testing.T) {
+	store := openTestStore(t)
+	ctx := context.Background()
+	first, err := store.CreateText(ctx, "Web", "first")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := store.CreateText(ctx, "Web", "second")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.db.ExecContext(ctx, "UPDATE messages SET created_at = '2026-08-29T00:00:00Z'"); err != nil {
+		t.Fatal(err)
+	}
+	messages, cursor, err := store.ListMessages(ctx, first.Sequence, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(messages) != 1 || messages[0].ID != second.ID || cursor != second.Sequence {
+		t.Fatalf("messages after cursor = %#v, cursor = %d", messages, cursor)
+	}
+}
+
+func openTestStore(t *testing.T) *Store {
+	t.Helper()
+	store, err := OpenStore(context.Background(), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	return store
+}
+
+type failingReader struct{}
+
+func (failingReader) Read(buffer []byte) (int, error) {
+	copy(buffer, "partial")
+	return len("partial"), errors.New("injected read failure")
+}

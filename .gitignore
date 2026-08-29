@@ -28,3 +28,6 @@ DerivedData/
 artifacts/
 **/artifacts/
 *.noindex/
+
+# Default local server data
+/ferry-data/
