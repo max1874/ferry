@@ -31,3 +31,9 @@ artifacts/
 
 # Default local server data
 /ferry-data/
+
+# Android local configuration and build output
+/android/.gradle/
+/android/.gradle-home/
+/android/local.properties
+/android/**/build/
