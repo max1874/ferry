@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/max1874/ferry/internal/webui"
@@ -24,38 +25,36 @@ const (
 )
 
 type server struct {
-	store   *Store
-	pairing *PairingManager
-	logger  *log.Logger
+	store    *Store
+	logger   *log.Logger
+	accessMu sync.Mutex
 }
 
 type HandlerOptions struct {
-	Pairing       *PairingManager
 	AllowLANHosts bool
 	Logger        *log.Logger
 }
 
 func NewHandler(store *Store, options HandlerOptions) http.Handler {
-	if options.Pairing == nil {
-		panic("ferry: PairingManager is required")
-	}
 	if options.Logger == nil {
 		options.Logger = log.Default()
 	}
-	s := &server{store: store, pairing: options.Pairing, logger: options.Logger}
+	s := &server{store: store, logger: options.Logger}
 	api := http.NewServeMux()
 	api.HandleFunc("GET /api/v1/session", s.session)
 	api.HandleFunc("GET /api/v1/messages", s.listMessages)
 	api.HandleFunc("POST /api/v1/messages/text", s.createText)
 	api.HandleFunc("POST /api/v1/messages/file", s.createFile)
 	api.HandleFunc("GET /api/v1/files/{message_id}", s.downloadFile)
-	api.HandleFunc("POST /api/v1/pairing/codes", s.createPairingCode)
 	api.HandleFunc("GET /api/v1/devices", s.listDevices)
 	api.HandleFunc("DELETE /api/v1/devices/{device_id}", s.deleteDevice)
+	api.HandleFunc("GET /api/v1/settings/access", s.accessSettings)
+	api.HandleFunc("PUT /api/v1/settings/access", s.updateAccessSettings)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
-	mux.HandleFunc("POST /api/v1/pairing/claim", s.claimPairingCode)
+	mux.HandleFunc("GET /api/v1/access", s.accessStatus)
+	mux.HandleFunc("POST /api/v1/access/join", s.join)
 	mux.Handle("/api/v1/", s.requireDevice(api))
 	mux.Handle("/", webui.Handler())
 	return requestBoundary(securityHeaders(mux), options.AllowLANHosts)
@@ -167,32 +166,42 @@ func currentDevice(r *http.Request) Device {
 
 func (s *server) unauthorized(w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate", "Bearer")
-	writeError(w, http.StatusUnauthorized, "unauthorized", "pair this device with Ferry")
+	writeError(w, http.StatusUnauthorized, "unauthorized", "connect this device to Ferry")
 }
 
 func (s *server) session(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]Device{"device": currentDevice(r)})
 }
 
-type pairingClaimRequest struct {
-	Code       strictString
+type accessJoinRequest struct {
 	DeviceName strictString
+	Password   strictString
 }
 
-func (s *server) claimPairingCode(w http.ResponseWriter, r *http.Request) {
+func (s *server) accessStatus(w http.ResponseWriter, r *http.Request) {
+	verifier, err := s.store.AccessPassword(r.Context())
+	if err != nil {
+		s.internalError(w, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, map[string]bool{"password_required": verifier != nil})
+}
+
+func (s *server) join(w http.ResponseWriter, r *http.Request) {
 	if !hasMediaType(r.Header.Get("Content-Type"), "application/json") {
 		writeError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "Content-Type must be application/json")
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBody)
-	request, err := decodePairingClaimRequest(r.Body)
+	request, err := decodeAccessJoinRequest(r.Body)
 	if err != nil {
 		var maxBytesError *http.MaxBytesError
 		if errors.As(err, &maxBytesError) {
 			writeError(w, http.StatusRequestEntityTooLarge, "payload_too_large", "request body is too large")
 			return
 		}
-		writeError(w, http.StatusBadRequest, "invalid_request", "request body must contain only code and device_name")
+		writeError(w, http.StatusBadRequest, "invalid_request", "request body must contain only device_name and password")
 		return
 	}
 	name, err := normalizeSenderName(string(request.DeviceName))
@@ -200,63 +209,83 @@ func (s *server) claimPairingCode(w http.ResponseWriter, r *http.Request) {
 		s.domainError(w, err)
 		return
 	}
-	reservation, ok := s.pairing.Reserve(string(request.Code))
-	if !ok {
-		writeError(w, http.StatusUnauthorized, "invalid_pairing_code", "pairing code is invalid or expired")
+	password := string(request.Password)
+	if password != "" && !validAccessPassword(password) {
+		writeError(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("password must be valid UTF-8 and at most %d bytes", maxAccessPasswordBytes))
 		return
 	}
-	committed := false
-	defer func() {
-		if !committed {
-			reservation.Rollback()
-		}
-	}()
+	s.accessMu.Lock()
+	defer s.accessMu.Unlock()
+	verifier, err := s.store.AccessPassword(r.Context())
+	if err != nil {
+		s.internalError(w, err)
+		return
+	}
+	if verifier != nil && !verifyAccessPassword(password, *verifier) {
+		writeError(w, http.StatusUnauthorized, "invalid_password", "password is incorrect")
+		return
+	}
 	token, tokenHash, err := newDeviceToken()
 	if err != nil {
 		s.internalError(w, err)
 		return
 	}
-	var device Device
-	if reservation.IssuerID() == "" {
-		device, err = s.store.CreateDevice(r.Context(), name, tokenHash)
-	} else {
-		device, err = s.store.CreateDeviceForIssuer(r.Context(), name, tokenHash, reservation.IssuerID())
-	}
-	if errors.Is(err, ErrNotFound) {
-		s.pairing.RevokeIssuer(reservation.IssuerID())
-		writeError(w, http.StatusUnauthorized, "invalid_pairing_code", "pairing code is invalid or expired")
-		return
-	}
+	device, err := s.store.CreateDevice(r.Context(), name, tokenHash)
 	if err != nil {
 		s.domainError(w, err)
 		return
 	}
-	reservation.Commit()
-	committed = true
 	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, http.StatusCreated, map[string]any{"device": device, "token": token})
 }
 
-func (s *server) createPairingCode(w http.ResponseWriter, r *http.Request) {
-	issuerID := currentDevice(r).ID
-	code, err := s.pairing.NewCode(issuerID)
-	if err != nil {
-		s.internalError(w, err)
+func (s *server) accessSettings(w http.ResponseWriter, r *http.Request) {
+	s.accessStatus(w, r)
+}
+
+type accessSettingsRequest struct {
+	Password strictString
+}
+
+func (s *server) updateAccessSettings(w http.ResponseWriter, r *http.Request) {
+	if !hasMediaType(r.Header.Get("Content-Type"), "application/json") {
+		writeError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "Content-Type must be application/json")
 		return
 	}
-	exists, err := s.store.DeviceExists(r.Context(), issuerID)
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBody)
+	request, err := decodeAccessSettingsRequest(r.Body)
 	if err != nil {
-		s.pairing.RevokeIssuer(issuerID)
-		s.internalError(w, err)
+		var maxBytesError *http.MaxBytesError
+		if errors.As(err, &maxBytesError) {
+			writeError(w, http.StatusRequestEntityTooLarge, "payload_too_large", "request body is too large")
+			return
+		}
+		writeError(w, http.StatusBadRequest, "invalid_request", "request body must contain only password")
 		return
 	}
-	if !exists {
-		s.pairing.RevokeIssuer(issuerID)
+	password := string(request.Password)
+	var verifier *AccessPasswordVerifier
+	if password != "" {
+		derived, err := newAccessPasswordVerifier(password)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+			return
+		}
+		verifier = &derived
+	}
+	s.accessMu.Lock()
+	err = s.store.SetAccessPasswordForDevice(r.Context(), currentDevice(r).ID, verifier)
+	s.accessMu.Unlock()
+	if errors.Is(err, ErrUnauthorized) {
 		s.unauthorized(w)
 		return
 	}
+	if err != nil {
+		s.internalError(w, err)
+		return
+	}
 	w.Header().Set("Cache-Control", "no-store")
-	writeJSON(w, http.StatusCreated, code)
+	writeJSON(w, http.StatusOK, map[string]bool{"password_required": verifier != nil})
 }
 
 func (s *server) listDevices(w http.ResponseWriter, r *http.Request) {
@@ -287,7 +316,6 @@ func (s *server) deleteDevice(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, err)
 		return
 	}
-	s.pairing.RevokeIssuer(id)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -461,11 +489,19 @@ func decodeTextRequest(source io.Reader) (textRequest, error) {
 	return request, err
 }
 
-func decodePairingClaimRequest(source io.Reader) (pairingClaimRequest, error) {
-	var request pairingClaimRequest
+func decodeAccessJoinRequest(source io.Reader) (accessJoinRequest, error) {
+	var request accessJoinRequest
 	err := decodeStrictObject(source, map[string]func(*json.Decoder) error{
-		"code":        func(decoder *json.Decoder) error { return decoder.Decode(&request.Code) },
 		"device_name": func(decoder *json.Decoder) error { return decoder.Decode(&request.DeviceName) },
+		"password":    func(decoder *json.Decoder) error { return decoder.Decode(&request.Password) },
+	})
+	return request, err
+}
+
+func decodeAccessSettingsRequest(source io.Reader) (accessSettingsRequest, error) {
+	var request accessSettingsRequest
+	err := decodeStrictObject(source, map[string]func(*json.Decoder) error{
+		"password": func(decoder *json.Decoder) error { return decoder.Decode(&request.Password) },
 	})
 	return request, err
 }

@@ -11,18 +11,20 @@ const fileName = document.querySelector("#file-name");
 const removeFileButton = document.querySelector("#remove-file");
 const statusElement = document.querySelector("#status");
 const connectionElement = document.querySelector("#connection");
-const pairingElement = document.querySelector("#pairing");
-const pairingForm = document.querySelector("#pairing-form");
-const pairingError = document.querySelector("#pairing-error");
-const pairingCodeInput = document.querySelector("#pairing-code");
+const accessElement = document.querySelector("#access");
+const accessForm = document.querySelector("#access-form");
+const accessError = document.querySelector("#access-error");
+const passwordField = document.querySelector("#password-field");
+const accessPasswordInput = document.querySelector("#access-password");
 const deviceNameInput = document.querySelector("#device-name");
 const deviceButton = document.querySelector("#device-button");
 const devicesDialog = document.querySelector("#devices-dialog");
 const closeDevicesButton = document.querySelector("#close-devices");
 const currentDeviceElement = document.querySelector("#current-device");
 const deviceList = document.querySelector("#device-list");
-const generateCodeButton = document.querySelector("#generate-code");
-const generatedCode = document.querySelector("#generated-code");
+const settingsPasswordInput = document.querySelector("#settings-password");
+const saveAccessButton = document.querySelector("#save-access");
+const accessSettingsStatus = document.querySelector("#access-settings-status");
 
 let cursor = 0;
 let loading = false;
@@ -36,6 +38,18 @@ let connectionError = "";
 let sendError = "";
 let storageError = "";
 const rendered = new Set();
+
+deviceNameInput.value = defaultDeviceName();
+
+function defaultDeviceName() {
+  const platform = navigator.userAgentData?.platform || navigator.platform || "";
+  if (/iphone/i.test(platform)) return "iPhone Web";
+  if (/ipad/i.test(platform)) return "iPad Web";
+  if (/mac/i.test(platform)) return "Mac Web";
+  if (/win/i.test(platform)) return "Windows Web";
+  if (/android/i.test(navigator.userAgent)) return "Android Web";
+  return "Web Browser";
+}
 
 function readStoredToken() {
   try {
@@ -71,7 +85,7 @@ function resetTimeline() {
   welcome.hidden = false;
 }
 
-function showPairing(message = "", clearCredential = true) {
+function showAccess(message = "", clearCredential = true, passwordRequired = false) {
   authController.abort();
   authController = new AbortController();
   authGeneration += 1;
@@ -79,7 +93,7 @@ function showPairing(message = "", clearCredential = true) {
   if (clearCredential) {
     deviceToken = "";
     // localStorage is shared by every same-origin tab. A stale tab must not
-    // delete a newer token written by another tab; a successful claim replaces it.
+    // delete a newer token written by another tab; a successful join replaces it.
     textInput.value = "";
     fileInput.value = "";
     activityStatus = "";
@@ -88,12 +102,13 @@ function showPairing(message = "", clearCredential = true) {
     resizeComposer();
     updateComposer();
   }
-  pairingElement.hidden = false;
+  accessElement.hidden = false;
+  passwordField.hidden = !passwordRequired;
   conversationElement.hidden = true;
   composerShell.hidden = true;
   deviceButton.hidden = true;
-  connectionElement.textContent = "Pair required";
-  pairingError.textContent = message;
+  connectionElement.textContent = passwordRequired ? "Password required" : "Connect";
+  accessError.textContent = message;
   connectionError = "";
   if (devicesDialog.open) devicesDialog.close();
 }
@@ -105,13 +120,13 @@ function showApp(device) {
   currentDevice = device;
   activityStatus = "";
   connectionError = "";
-  pairingElement.hidden = true;
+  accessElement.hidden = true;
   conversationElement.hidden = false;
   composerShell.hidden = false;
   deviceButton.hidden = false;
   currentDeviceElement.textContent = `Current device: ${device.name}`;
   connectionElement.textContent = "Local";
-  pairingError.textContent = "";
+  accessError.textContent = "";
   updateComposer();
   renderStatus();
 }
@@ -214,11 +229,17 @@ function renderMessage(message) {
 }
 
 async function readError(response) {
+  return (await responseError(response)).message;
+}
+
+async function responseError(response) {
   try {
     const body = await response.json();
-    return body.error?.message || `Request failed (${response.status})`;
+    const error = new Error(body.error?.message || `Request failed (${response.status})`);
+    error.code = body.error?.code || "";
+    return error;
   } catch {
-    return `Request failed (${response.status})`;
+    return new Error(`Request failed (${response.status})`);
   }
 }
 
@@ -231,7 +252,7 @@ async function downloadMessageFile(message) {
     const response = await authenticatedFetch(message.file.download_url, { cache: "no-store", signal: authController.signal });
     if (generation !== authGeneration) return;
     if (response.status === 401) {
-      showPairing("This device is no longer paired.");
+      showAccess("This device is no longer connected.");
       return;
     }
     if (!response.ok) throw new Error(await readError(response));
@@ -265,7 +286,7 @@ async function loadMessages() {
     const response = await authenticatedFetch(`/api/v1/messages?after=${cursor}&limit=200`, { cache: "no-store", signal: authController.signal });
     if (generation !== authGeneration) return;
     if (response.status === 401) {
-      showPairing("This device is no longer paired.");
+      showAccess("This device is no longer connected.");
       return;
     }
     if (!response.ok) throw new Error(await readError(response));
@@ -295,7 +316,7 @@ async function sendText(text) {
     signal: authController.signal,
   });
   if (generation !== authGeneration) return false;
-  if (response.status === 401) showPairing("This device is no longer paired.");
+  if (response.status === 401) showAccess("This device is no longer connected.");
   if (!response.ok) throw new Error(await readError(response));
   return true;
 }
@@ -306,7 +327,7 @@ async function sendFile(file) {
   form.append("file", file, file.name);
   const response = await authenticatedFetch("/api/v1/messages/file", { method: "POST", body: form, signal: authController.signal });
   if (generation !== authGeneration) return false;
-  if (response.status === 401) showPairing("This device is no longer paired.");
+  if (response.status === 401) showAccess("This device is no longer connected.");
   if (!response.ok) throw new Error(await readError(response));
   return true;
 }
@@ -314,7 +335,7 @@ async function sendFile(file) {
 async function loadSession() {
   if (sessionLoading) return;
   if (!deviceToken) {
-    showPairing();
+    await beginAccess();
     return;
   }
   const generation = authGeneration;
@@ -324,7 +345,7 @@ async function loadSession() {
     const response = await authenticatedFetch("/api/v1/session", { cache: "no-store", signal: authController.signal });
     if (generation !== authGeneration || token !== deviceToken) return;
     if (response.status === 401) {
-      showPairing();
+      await beginAccess();
       return;
     }
     if (!response.ok) throw new Error(await readError(response));
@@ -333,11 +354,57 @@ async function loadSession() {
     await loadMessages();
   } catch (error) {
     if (generation !== authGeneration || token !== deviceToken || error.name === "AbortError") return;
-    showPairing(error.message, false);
+    showAccess(error.message, false);
     connectionElement.textContent = "Offline";
   } finally {
     sessionLoading = false;
   }
+}
+
+async function beginAccess() {
+  try {
+    const response = await fetch("/api/v1/access", { cache: "no-store" });
+    if (!response.ok) throw new Error(await readError(response));
+    const payload = await response.json();
+    if (payload.password_required) {
+      showAccess("", true, true);
+    } else {
+      try {
+        await joinAccess("");
+      } catch (error) {
+        // The setting can change after the public status read. Never leave a
+        // credential-less browser at a dead end with its password field hidden.
+        showJoinFailure(error);
+      }
+    }
+  } catch (error) {
+    showAccess(error.message, false);
+    connectionElement.textContent = "Offline";
+  }
+}
+
+function showJoinFailure(error) {
+  const passwordRequired = error.code === "invalid_password";
+  const keepPasswordField = passwordRequired || !passwordField.hidden;
+  showAccess(error.message, true, keepPasswordField);
+  if (!passwordRequired) connectionElement.textContent = "Offline";
+}
+
+async function joinAccess(password) {
+  if (!storageWritable()) throw new Error("Browser storage is unavailable. Enable site storage before connecting this device.");
+  const response = await fetch("/api/v1/access/join", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ device_name: deviceNameInput.value, password }),
+  });
+  if (!response.ok) throw await responseError(response);
+  const payload = await response.json();
+  accessPasswordInput.value = "";
+  resetTimeline();
+  deviceToken = payload.token;
+  storageError = storeToken(payload.token) ? "" : "Browser storage is unavailable. Keep this tab open until you reconnect.";
+  showApp(payload.device);
+  await loadMessages();
 }
 
 function pollServer() {
@@ -348,28 +415,15 @@ function pollServer() {
   }
 }
 
-pairingForm.addEventListener("submit", async (event) => {
+accessForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const submit = pairingForm.querySelector("button[type=submit]");
+  const submit = accessForm.querySelector("button[type=submit]");
   submit.disabled = true;
-  pairingError.textContent = "";
+  accessError.textContent = "";
   try {
-    if (!storageWritable()) throw new Error("Browser storage is unavailable. Enable site storage before pairing this device.");
-    const response = await fetch("/api/v1/pairing/claim", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: pairingCodeInput.value, device_name: deviceNameInput.value }),
-    });
-    if (!response.ok) throw new Error(await readError(response));
-    const payload = await response.json();
-    pairingCodeInput.value = "";
-    resetTimeline();
-    deviceToken = payload.token;
-    storageError = storeToken(payload.token) ? "" : "Browser storage is unavailable. Keep this tab open and pair another device before closing it.";
-    showApp(payload.device);
-    await loadMessages();
+    await joinAccess(accessPasswordInput.value);
   } catch (error) {
-    pairingError.textContent = error.message;
+    showJoinFailure(error);
   } finally {
     submit.disabled = false;
   }
@@ -380,7 +434,7 @@ async function loadDevices() {
   const response = await authenticatedFetch("/api/v1/devices", { cache: "no-store", signal: authController.signal });
   if (generation !== authGeneration) return;
   if (response.status === 401) {
-    showPairing("This device is no longer paired.");
+    showAccess("This device is no longer connected.");
     return;
   }
   if (!response.ok) throw new Error(await readError(response));
@@ -395,7 +449,7 @@ async function loadDevices() {
     name.textContent = device.name;
     const meta = document.createElement("div");
     meta.className = "device-meta";
-    meta.textContent = device.id === currentDevice.id ? "This device" : `Paired ${new Date(device.created_at).toLocaleDateString()}`;
+    meta.textContent = device.id === currentDevice.id ? "This device" : `Connected ${new Date(device.created_at).toLocaleDateString()}`;
     copy.append(name, meta);
     row.append(copy);
     if (device.id !== currentDevice.id) {
@@ -410,14 +464,14 @@ async function loadDevices() {
           const result = await authenticatedFetch(`/api/v1/devices/${device.id}`, { method: "DELETE", signal: authController.signal });
           if (generation !== authGeneration) return;
           if (result.status === 401) {
-            showPairing("This device is no longer paired.");
+            showAccess("This device is no longer connected.");
             return;
           }
           if (!result.ok) throw new Error(await readError(result));
           await loadDevices();
         } catch (error) {
           if (generation !== authGeneration || error.name === "AbortError") return;
-          generatedCode.textContent = error.message;
+          accessSettingsStatus.textContent = error.message;
           revoke.disabled = false;
         }
       });
@@ -428,36 +482,54 @@ async function loadDevices() {
 }
 
 deviceButton.addEventListener("click", async () => {
-  generatedCode.textContent = "";
+  accessSettingsStatus.textContent = "";
+  settingsPasswordInput.value = "";
   devicesDialog.showModal();
   try {
-    await loadDevices();
+    const [, response] = await Promise.all([
+      loadDevices(),
+      authenticatedFetch("/api/v1/settings/access", { cache: "no-store", signal: authController.signal }),
+    ]);
+    if (response.status === 401) {
+      showAccess("This device is no longer connected.");
+      return;
+    }
+    if (!response.ok) throw new Error(await readError(response));
+    const setting = await response.json();
+    accessSettingsStatus.textContent = setting.password_required ? "Password is enabled." : "No password is required.";
   } catch (error) {
     if (error.name === "AbortError") return;
-    generatedCode.textContent = error.message;
+    accessSettingsStatus.textContent = error.message;
   }
 });
 
 closeDevicesButton.addEventListener("click", () => devicesDialog.close());
 
-generateCodeButton.addEventListener("click", async () => {
-  generateCodeButton.disabled = true;
+saveAccessButton.addEventListener("click", async () => {
+  saveAccessButton.disabled = true;
+  accessSettingsStatus.textContent = "Saving…";
   const generation = authGeneration;
   try {
-    const response = await authenticatedFetch("/api/v1/pairing/codes", { method: "POST", signal: authController.signal });
+    const response = await authenticatedFetch("/api/v1/settings/access", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: settingsPasswordInput.value }),
+      signal: authController.signal,
+    });
     if (generation !== authGeneration) return;
     if (response.status === 401) {
-      showPairing("This device is no longer paired.");
+      showAccess("This device is no longer connected.");
       return;
     }
     if (!response.ok) throw new Error(await readError(response));
-    const code = await response.json();
-    generatedCode.textContent = `${code.code} · expires ${new Date(code.expires_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    const setting = await response.json();
+    settingsPasswordInput.value = "";
+    accessSettingsStatus.textContent = setting.password_required ? "Password enabled for new devices." : "Password disabled; new devices join directly.";
   } catch (error) {
     if (generation !== authGeneration || error.name === "AbortError") return;
-    generatedCode.textContent = error.message;
+    accessSettingsStatus.textContent = error.message;
   } finally {
-    generateCodeButton.disabled = false;
+    saveAccessButton.disabled = false;
   }
 });
 

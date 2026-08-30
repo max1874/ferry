@@ -53,7 +53,7 @@ struct MessagePayload: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-struct PairingClaim: Decodable, Sendable { let device: Device; let token: String }
+struct AccessClaim: Decodable, Sendable { let device: Device; let token: String }
 struct SessionPayload: Decodable, Sendable { let device: Device }
 struct MessagesPage: Decodable, Sendable {
     let messages: [MessagePayload]

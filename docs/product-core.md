@@ -6,6 +6,8 @@
 - **Decided（Max，2026-08-29）**：产品包含 iOS App、Android App、Web 与 Server；Web 和 Server 由用户 self-host。
 - **Decided（Max，2026-08-29）**：主要交互是一条学习 ChatGPT 信息层级的聊天时间线。
 - **Decided（Max，2026-08-30）**：iOS App 最低支持 iOS 26，默认使用 Liquid Glass，不维护旧系统视觉 fallback。
+- **Decided（Max，2026-08-30）**：所有设备使用同一接入流程，不再使用设备配对码；Server 部署者可选择无密码直接接入，或配置一个共享访问密码。
+- **Decided（Max，2026-08-30）**：当前里程碑把同一局域网内接入 Ferry 的设备视为可信设备，不引入管理员账号、设备所有权或抢首台设备的防守机制；共享密码是可选的接入门槛，不是账户权限体系。
 - **Recommended**：一句话定义为“把文字和文件像给自己发消息一样，摆渡到自己的其他设备”。
 
 ## 目标用户与核心问题

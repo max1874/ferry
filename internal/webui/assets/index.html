@@ -20,16 +20,16 @@
       </div>
     </header>
 
-    <section class="pairing" id="pairing" hidden>
-      <form class="pairing-card" id="pairing-form">
+    <section class="access" id="access" hidden>
+      <form class="access-card" id="access-form">
         <span class="welcome-mark" aria-hidden="true">F</span>
-        <h1>Pair this device</h1>
-        <p>Enter a code from the Ferry Server or another paired device.</p>
+        <h1>Connect to Ferry</h1>
+        <p>This Ferry is ready on your local network.</p>
         <label>Device name<input id="device-name" name="device_name" maxlength="64" autocomplete="nickname" required></label>
-        <label>Pairing code<input id="pairing-code" name="code" type="text" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="one-time-code" spellcheck="false" required></label>
-        <button class="primary" type="submit">Pair device</button>
-        <p class="form-error" id="pairing-error" role="alert"></p>
-        <small>Ferry currently uses unencrypted HTTP. Pair only on a trusted network.</small>
+        <label id="password-field" hidden>Password<input id="access-password" name="password" type="password" maxlength="256" autocomplete="current-password"></label>
+        <button class="primary" type="submit">Enter Ferry</button>
+        <p class="form-error" id="access-error" role="alert"></p>
+        <small>Ferry currently uses unencrypted HTTP. Connect only on a trusted network.</small>
       </form>
     </section>
 
@@ -63,9 +63,12 @@
     <dialog class="devices-dialog" id="devices-dialog">
       <div class="dialog-head"><div><h2>Devices</h2><p id="current-device"></p></div><button id="close-devices" type="button" aria-label="Close">×</button></div>
       <div class="device-list" id="device-list"></div>
-      <div class="pair-another">
-        <button class="secondary" id="generate-code" type="button">Pair another device</button>
-        <output id="generated-code" aria-live="polite"></output>
+      <div class="access-settings">
+        <h3>Access password</h3>
+        <p>Leave empty to let new devices join without a password.</p>
+        <label>Password<input id="settings-password" type="password" maxlength="256" autocomplete="new-password"></label>
+        <button class="secondary" id="save-access" type="button">Save access setting</button>
+        <output id="access-settings-status" aria-live="polite"></output>
       </div>
     </dialog>
   </body>

@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 protocol FerryServicing {
-    func claim(endpoint: ServerEndpoint, code: String, name: String) async throws -> PairingClaim
+    func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device
     func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage
     func sendText(endpoint: ServerEndpoint, token: String, text: String) async throws -> MessagePayload
@@ -17,7 +17,7 @@ struct FerryClient: FerryServicing {
 
         var errorDescription: String? {
             switch self {
-            case .unauthorized: "This device is no longer paired."
+            case .unauthorized: "This device is no longer connected."
             case .rejected(let message): message
             case .invalidResponse: "The Ferry Server returned an invalid response."
             }
@@ -27,9 +27,9 @@ struct FerryClient: FerryServicing {
     let session: URLSession
     init(session: URLSession = .shared) { self.session = session }
 
-    func claim(endpoint: ServerEndpoint, code: String, name: String) async throws -> PairingClaim {
-        try await json(endpoint: endpoint, path: "/api/v1/pairing/claim", method: "POST", token: nil,
-                       body: try JSONSerialization.data(withJSONObject: ["code": code, "device_name": name]))
+    func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim {
+        try await json(endpoint: endpoint, path: "/api/v1/access/join", method: "POST", token: nil,
+                       body: try JSONSerialization.data(withJSONObject: ["password": password, "device_name": name]))
     }
 
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device {

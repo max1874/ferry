@@ -3,32 +3,41 @@ import XCTest
 
 @MainActor
 final class FerryTests: XCTestCase {
-    func testPairingCodeInputRejectsInsteadOfRewritingInvalidCredentials() {
-        XCTAssertEqual(validatedPairingCodeInput("0123", current: ""), "0123")
-        XCTAssertEqual(validatedPairingCodeInput("", current: "0123"), "")
-        for invalid in ["12a34", "1²234", "12345", "１２３４"] {
-            XCTAssertEqual(validatedPairingCodeInput(invalid, current: "9876"), "9876", invalid)
-        }
-    }
-
-    func testShortPairingCodeNeverReachesClient() async {
-        let service = ScriptedService()
-        let model = makeModel(client: service, credentials: MemoryCredentials())
-        model.pairingCode = "123"
-
-        await model.pair()
-
-        XCTAssertEqual(service.claimCount, 0)
-        XCTAssertEqual(model.phase, .pairing)
-        XCTAssertEqual(model.statusMessage, "Pairing code must be exactly four digits.")
-    }
-
     func testServerEndpointNormalizesOriginAndRejectsPathsOrCredentials() throws {
         XCTAssertEqual(try ServerEndpoint(" HTTPS://Example.COM:443/ ").origin, "https://example.com")
         XCTAssertEqual(try ServerEndpoint("http://EXAMPLE.com:80").origin, "http://example.com")
         XCTAssertThrowsError(try ServerEndpoint("ftp://example.com"))
         XCTAssertThrowsError(try ServerEndpoint("http://user:secret@example.com"))
         XCTAssertThrowsError(try ServerEndpoint("http://example.com/admin"))
+    }
+
+    func testChangingServerDoesNotSendPreviousServersPassword() async {
+        let service = ScriptedService()
+        let model = makeModel(client: service, credentials: MemoryCredentials())
+        model.accessPassword = "old server secret"
+
+        model.serverAddress = "http://new.example"
+        await model.connect()
+
+        XCTAssertEqual(service.lastPassword, "")
+        XCTAssertEqual(model.serverAddress, "http://new.example")
+        model.setActive(false)
+    }
+
+    func testChangingServerDuringJoinInvalidatesOldResponse() async throws {
+        let service = DelayedJoinService()
+        let model = makeModel(client: service, credentials: MemoryCredentials())
+
+        let oldConnection = Task { await model.connect() }
+        await waitUntil { service.isWaiting }
+        model.serverAddress = "http://new.example"
+        service.finishJoin()
+        await oldConnection.value
+
+        XCTAssertEqual(model.serverAddress, "http://new.example")
+        XCTAssertEqual(model.phase, .setup)
+        XCTAssertNil(model.currentDevice)
+        model.setActive(false)
     }
 
     func testMessageDecoderRejectsUnknownAndMismatchedKinds() throws {
@@ -54,29 +63,41 @@ final class FerryTests: XCTestCase {
         }
     }
 
-    func testClientPreservesInvalidPairingCodeMessageFromPublicClaim() async throws {
+    func testClientSendsPasswordAndPreservesJoinRejection() async throws {
         let session = URLSession(configuration: configuration())
         let client = FerryClient(session: session)
         URLStub.handler = { request in
-            XCTAssertEqual(request.url?.path, "/api/v1/pairing/claim")
+            XCTAssertEqual(request.url?.path, "/api/v1/access/join")
             XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+            let stream = try XCTUnwrap(request.httpBodyStream)
+            stream.open()
+            defer { stream.close() }
+            var requestData = Data()
+            var buffer = [UInt8](repeating: 0, count: 1024)
+            while stream.hasBytesAvailable {
+                let count = stream.read(&buffer, maxLength: buffer.count)
+                if count <= 0 { break }
+                requestData.append(buffer, count: count)
+            }
+            let payload = try JSONSerialization.jsonObject(with: requestData) as? [String: String]
+            XCTAssertEqual(payload, ["device_name": "Test iPhone", "password": "right horse"])
             let body = Data("""
-            {"error":{"code":"invalid_pairing_code","message":"pairing code is invalid or expired"}}
+            {"error":{"code":"invalid_password","message":"password is incorrect"}}
             """.utf8)
             return (HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!, body)
         }
 
         do {
-            let _: PairingClaim = try await client.claim(
-                endpoint: ServerEndpoint("http://127.0.0.1:8080"), code: "WRONG", name: "Test iPhone"
+            let _: AccessClaim = try await client.join(
+                endpoint: ServerEndpoint("http://127.0.0.1:8080"), password: "right horse", name: "Test iPhone"
             )
-            XCTFail("Expected pairing rejection")
+            XCTFail("Expected access rejection")
         } catch {
-            XCTAssertEqual(error as? FerryClient.ClientError, .rejected("pairing code is invalid or expired"))
+            XCTAssertEqual(error as? FerryClient.ClientError, .rejected("password is incorrect"))
         }
     }
 
-    func testPollingRestartsAfterRevocationAndRepair() async throws {
+    func testPollingRestartsAfterRevocationAndReconnect() async throws {
         let service = ScriptedService()
         let credentials = MemoryCredentials()
         let suite = "FerryTests.\(UUID().uuidString)"
@@ -85,21 +106,21 @@ final class FerryTests: XCTestCase {
         let model = AppModel(client: service, credentials: credentials, defaults: defaults)
         model.serverAddress = "http://127.0.0.1:8080"
         model.deviceName = "Test iPhone"
-        model.pairingCode = "1111"
+        model.accessPassword = "1111"
 
-        await model.pair()
-        await waitUntil { model.phase == .pairing }
+        await model.connect()
+        await waitUntil { model.phase == .setup }
         XCTAssertNil(credentials.token)
 
-        model.pairingCode = "2222"
-        await model.pair()
+        model.accessPassword = "2222"
+        await model.connect()
         await waitUntil { service.messageCalls >= 4 }
         XCTAssertEqual(model.phase, .connected)
-        XCTAssertGreaterThanOrEqual(service.messageCalls, 4, "A repaired session must own a fresh polling task")
+        XCTAssertGreaterThanOrEqual(service.messageCalls, 4, "A reconnected session must own a fresh polling task")
         model.setActive(false)
     }
 
-    func testStaleAuthenticationCannotReplaceNewPairing() async throws {
+    func testStaleAuthenticationCannotReplaceNewConnection() async throws {
         let service = DelayedAuthenticationService()
         let credentials = MemoryCredentials()
         credentials.token = "old-token"
@@ -113,8 +134,8 @@ final class FerryTests: XCTestCase {
         await waitUntil { service.isWaiting }
         model.serverAddress = "http://new.example"
         model.deviceName = "New iPhone"
-        model.pairingCode = "3333"
-        await model.pair()
+        model.accessPassword = "3333"
+        await model.connect()
         service.finishOldAuthentication()
         await oldAuthentication.value
 
@@ -127,8 +148,8 @@ final class FerryTests: XCTestCase {
     func testBackgroundCancellationDoesNotTurnConnectedSessionOffline() async throws {
         let service = CancellablePollingService()
         let model = makeModel(client: service, credentials: MemoryCredentials())
-        model.pairingCode = "4444"
-        await model.pair()
+        model.accessPassword = "4444"
+        await model.connect()
         await waitUntil { service.isPolling }
 
         model.setActive(false)
@@ -141,8 +162,8 @@ final class FerryTests: XCTestCase {
         let credentials = MemoryCredentials()
         credentials.saveError = TestError.keychain
         let model = makeModel(client: FileSendingService(), credentials: credentials)
-        model.pairingCode = "4444"
-        await model.pair()
+        model.accessPassword = "4444"
+        await model.connect()
 
         XCTAssertEqual(model.phase, .connected)
         XCTAssertEqual(model.credentialWarning, "Test Keychain failure")
@@ -152,8 +173,8 @@ final class FerryTests: XCTestCase {
     func testSendingFilePreservesExistingTextDraft() async throws {
         let service = FileSendingService()
         let model = makeModel(client: service, credentials: MemoryCredentials())
-        model.pairingCode = "4444"
-        await model.pair()
+        model.accessPassword = "4444"
+        await model.connect()
         let fileURL = FileManager.default.temporaryDirectory.appending(path: "ferry-\(UUID().uuidString).txt")
         try Data("fixture".utf8).write(to: fileURL)
         defer { try? FileManager.default.removeItem(at: fileURL) }
@@ -186,8 +207,8 @@ final class FerryTests: XCTestCase {
     func testSendFailureSurvivesAHealthyMessagePoll() async throws {
         let service = FailedSendService(error: FerryClient.ClientError.rejected("Upload rejected"))
         let model = makeModel(client: service, credentials: MemoryCredentials())
-        model.pairingCode = "4444"
-        await model.pair()
+        model.accessPassword = "4444"
+        await model.connect()
         model.draft = "keep me"
 
         await model.send()
@@ -204,8 +225,8 @@ final class FerryTests: XCTestCase {
     func testSlowTextSendDoesNotClearDraftEditedAwayAndBackToSameValue() async throws {
         let service = DelayedSendService()
         let model = makeModel(client: service, credentials: MemoryCredentials())
-        model.pairingCode = "4444"
-        await model.pair()
+        model.accessPassword = "4444"
+        await model.connect()
         model.draft = "first"
         let send = Task { await model.send() }
         await waitUntil { service.isSendingText }
@@ -223,8 +244,8 @@ final class FerryTests: XCTestCase {
     func testSelectingAFileDuringSlowTextSendDoesNotRetainSentDraft() async throws {
         let service = DelayedSendService()
         let model = makeModel(client: service, credentials: MemoryCredentials())
-        model.pairingCode = "4444"
-        await model.pair()
+        model.accessPassword = "4444"
+        await model.connect()
         model.draft = "first"
         let send = Task { await model.send() }
         await waitUntil { service.isSendingText }
@@ -244,8 +265,8 @@ final class FerryTests: XCTestCase {
     func testSlowFileSendDoesNotClearSameFileReselectedAfterRemoval() async throws {
         let service = DelayedSendService()
         let model = makeModel(client: service, credentials: MemoryCredentials())
-        model.pairingCode = "4444"
-        await model.pair()
+        model.accessPassword = "4444"
+        await model.connect()
         let first = FileManager.default.temporaryDirectory.appending(path: "first-\(UUID().uuidString).txt")
         try Data("first".utf8).write(to: first)
         defer {
@@ -265,19 +286,19 @@ final class FerryTests: XCTestCase {
         model.setActive(false)
     }
 
-    func testOfflineUserCanDisconnectAndReturnToPairing() async throws {
+    func testOfflineUserCanDisconnectAndReturnToSetup() async throws {
         let credentials = MemoryCredentials()
         let service = FailedSendService(error: URLError(.cannotConnectToHost))
         let model = makeModel(client: service, credentials: credentials)
-        model.pairingCode = "4444"
-        await model.pair()
+        model.accessPassword = "4444"
+        await model.connect()
         model.draft = "old server draft"
 
         await model.send()
         XCTAssertEqual(model.phase, .offline)
         model.disconnect()
 
-        XCTAssertEqual(model.phase, .pairing)
+        XCTAssertEqual(model.phase, .setup)
         XCTAssertEqual(model.serverAddress, "http://127.0.0.1:8080")
         XCTAssertNil(credentials.token)
         XCTAssertEqual(model.draft, "")
@@ -328,15 +349,15 @@ final class FerryTests: XCTestCase {
     func testRevocationClearsOldDraftAndInFlightSendState() async throws {
         let service = RevokingDuringSendService()
         let model = makeModel(client: service, credentials: MemoryCredentials())
-        model.pairingCode = "4444"
-        await model.pair()
+        model.accessPassword = "4444"
+        await model.connect()
         await waitUntil { service.isPolling }
         model.draft = "secret from old identity"
         let send = Task { await model.send() }
         await waitUntil { service.isSending }
 
         service.revoke()
-        await waitUntil { model.phase == .pairing }
+        await waitUntil { model.phase == .setup }
 
         XCTAssertEqual(model.draft, "")
         XCTAssertFalse(model.isSending)
@@ -398,12 +419,14 @@ private final class URLStub: URLProtocol, @unchecked Sendable {
 @MainActor
 private final class ScriptedService: FerryServicing {
     var messageCalls = 0
-    private(set) var claimCount = 0
+    private(set) var joinCount = 0
+    private(set) var lastPassword: String?
     private let device = Device(id: "ios", name: "Test iPhone", createdAt: "2026-08-30T00:00:00Z")
 
-    func claim(endpoint: ServerEndpoint, code: String, name: String) async throws -> PairingClaim {
-        claimCount += 1
-        return PairingClaim(device: device, token: "token-\(claimCount)")
+    func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim {
+        joinCount += 1
+        lastPassword = password
+        return AccessClaim(device: device, token: "token-\(joinCount)")
     }
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
     func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
@@ -416,14 +439,39 @@ private final class ScriptedService: FerryServicing {
 }
 
 @MainActor
+private final class DelayedJoinService: FerryServicing {
+    var isWaiting = false
+    private var continuation: CheckedContinuation<AccessClaim, Never>?
+    private let device = Device(id: "old", name: "Old iPhone", createdAt: "2026-08-30T00:00:00Z")
+
+    func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim {
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+            isWaiting = true
+        }
+    }
+    func finishJoin() {
+        isWaiting = false
+        continuation?.resume(returning: AccessClaim(device: device, token: "old-token"))
+        continuation = nil
+    }
+    func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
+    func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
+        MessagesPage(messages: [], nextCursor: after)
+    }
+    func sendText(endpoint: ServerEndpoint, token: String, text: String) async throws -> MessagePayload { fatalError() }
+    func sendFile(endpoint: ServerEndpoint, token: String, file: SelectedFile) async throws -> MessagePayload { fatalError() }
+}
+
+@MainActor
 private final class DelayedAuthenticationService: FerryServicing {
     var isWaiting = false
     private var continuation: CheckedContinuation<Device, Never>?
     private let oldDevice = Device(id: "old", name: "Old iPhone", createdAt: "2026-08-30T00:00:00Z")
     private let newDevice = Device(id: "new", name: "New iPhone", createdAt: "2026-08-30T00:00:00Z")
 
-    func claim(endpoint: ServerEndpoint, code: String, name: String) async throws -> PairingClaim {
-        PairingClaim(device: newDevice, token: "new-token")
+    func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim {
+        AccessClaim(device: newDevice, token: "new-token")
     }
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device {
         await withCheckedContinuation { continuation in
@@ -447,7 +495,7 @@ private final class CancellablePollingService: FerryServicing {
     var isPolling = false
     private var calls = 0
     private let device = Device(id: "ios", name: "Test iPhone", createdAt: "2026-08-30T00:00:00Z")
-    func claim(endpoint: ServerEndpoint, code: String, name: String) async throws -> PairingClaim { PairingClaim(device: device, token: "token") }
+    func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim { AccessClaim(device: device, token: "token") }
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
     func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
         calls += 1
@@ -464,7 +512,7 @@ private final class CancellablePollingService: FerryServicing {
 @MainActor
 private final class FileSendingService: FerryServicing {
     private let device = Device(id: "ios", name: "Test iPhone", createdAt: "2026-08-30T00:00:00Z")
-    func claim(endpoint: ServerEndpoint, code: String, name: String) async throws -> PairingClaim { PairingClaim(device: device, token: "token") }
+    func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim { AccessClaim(device: device, token: "token") }
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
     func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage { MessagesPage(messages: [], nextCursor: after) }
     func sendText(endpoint: ServerEndpoint, token: String, text: String) async throws -> MessagePayload { fatalError() }
@@ -482,8 +530,8 @@ private final class FailedSendService: FerryServicing {
     let error: Error
     private let device = Device(id: "ios", name: "Test iPhone", createdAt: "2026-08-30T00:00:00Z")
     init(error: Error) { self.error = error }
-    func claim(endpoint: ServerEndpoint, code: String, name: String) async throws -> PairingClaim {
-        PairingClaim(device: device, token: "token")
+    func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim {
+        AccessClaim(device: device, token: "token")
     }
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
     func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
@@ -503,8 +551,8 @@ private final class DelayedSendService: FerryServicing {
     private var pendingText = ""
     private var pendingFile: SelectedFile?
     private let device = Device(id: "ios", name: "Test iPhone", createdAt: "2026-08-30T00:00:00Z")
-    func claim(endpoint: ServerEndpoint, code: String, name: String) async throws -> PairingClaim {
-        PairingClaim(device: device, token: "token")
+    func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim {
+        AccessClaim(device: device, token: "token")
     }
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
     func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
@@ -549,7 +597,7 @@ private final class RevokingDuringSendService: FerryServicing {
     private var pollContinuation: CheckedContinuation<MessagesPage, Error>?
     private let device = Device(id: "ios", name: "Old iPhone", createdAt: "2026-08-30T00:00:00Z")
 
-    func claim(endpoint: ServerEndpoint, code: String, name: String) async throws -> PairingClaim { PairingClaim(device: device, token: "old-token") }
+    func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim { AccessClaim(device: device, token: "old-token") }
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
     func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
         messageCalls += 1

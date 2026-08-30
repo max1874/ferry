@@ -4,13 +4,28 @@ import UIKit
 
 @MainActor @Observable
 final class AppModel {
-    enum Phase: Equatable { case pairing, connecting, connected, offline }
+    enum Phase: Equatable { case setup, connecting, connected, offline }
 
-    var serverAddress: String
+    var serverAddress: String {
+        didSet {
+            guard serverAddress != oldValue else { return }
+            accessPassword = ""
+            // A response belongs to the address that started it. If the user
+            // edits that address while connecting, the old request may finish,
+            // but it must no longer be allowed to replace the new input.
+            if phase == .connecting, serverAddress != endpoint?.origin {
+                generation = UUID()
+                endpoint = nil
+                token = nil
+                currentDevice = nil
+                phase = .setup
+            }
+        }
+    }
     var deviceName: String
-    var pairingCode = ""
+    var accessPassword = ""
     var draft = "" { didSet { draftRevision &+= 1 } }
-    private(set) var phase: Phase = .pairing
+    private(set) var phase: Phase = .setup
     private(set) var currentDevice: Device?
     private(set) var messages: [MessagePayload] = []
     private(set) var selectedFile: SelectedFile?
@@ -47,7 +62,7 @@ final class AppModel {
     }
 
     func start() async {
-        guard phase == .pairing, let endpoint = try? ServerEndpoint(serverAddress) else { return }
+        guard phase == .setup, let endpoint = try? ServerEndpoint(serverAddress) else { return }
         do {
             guard let stored = try credentials.token(for: endpoint.origin) else { return }
             let current = resetSession(endpoint: endpoint, token: stored)
@@ -58,11 +73,7 @@ final class AppModel {
         }
     }
 
-    func pair() async {
-        guard isValidPairingCode(pairingCode) else {
-            statusMessage = "Pairing code must be exactly four digits."
-            return
-        }
+    func connect() async {
         let current: UUID
         let endpoint: ServerEndpoint
         do {
@@ -72,7 +83,7 @@ final class AppModel {
         phase = .connecting
         statusMessage = nil
         do {
-            let claim = try await client.claim(endpoint: endpoint, code: pairingCode, name: deviceName)
+            let claim = try await client.join(endpoint: endpoint, password: accessPassword, name: deviceName)
             guard current == generation else { return }
             token = claim.token
             currentDevice = claim.device
@@ -80,7 +91,7 @@ final class AppModel {
             serverAddress = endpoint.origin
             do { try credentials.save(token: claim.token, for: endpoint.origin) }
             catch { credentialWarning = error.localizedDescription }
-            pairingCode = ""
+            accessPassword = ""
             phase = .connected
             await refreshMessages(generation: current)
             startPolling()
@@ -148,7 +159,7 @@ final class AppModel {
     func fileImportFailed(_ error: Error) { sendError = error.localizedDescription }
 
     func disconnect() {
-        guard let endpoint else { phase = .pairing; return }
+        guard let endpoint else { phase = .setup; return }
         let removalError: String?
         do {
             try credentials.removeToken(for: endpoint.origin)
@@ -157,7 +168,7 @@ final class AppModel {
             removalError = error.localizedDescription
         }
         _ = resetSession(endpoint: endpoint, token: nil)
-        phase = .pairing
+        phase = .setup
         statusMessage = removalError
     }
 
@@ -252,12 +263,12 @@ final class AppModel {
         guard current == generation else { return }
         statusMessage = error.localizedDescription
         if error as? FerryClient.ClientError == .unauthorized {
-            guard let endpoint else { phase = .pairing; return }
+            guard let endpoint else { phase = .setup; return }
             try? credentials.removeToken(for: endpoint.origin)
             _ = resetSession(endpoint: endpoint, token: nil)
-            phase = .pairing
+            phase = .setup
         } else {
-            phase = token == nil ? .pairing : .offline
+            phase = token == nil ? .setup : .offline
         }
     }
 }

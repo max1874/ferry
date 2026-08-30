@@ -1,4 +1,6 @@
-# Four-digit pairing
+# Four-digit pairing (historical)
+
+> Superseded on 2026-08-30 by `docs/password-access.md`. The live product no longer uses pairing codes.
 
 ## Scope and decision
 

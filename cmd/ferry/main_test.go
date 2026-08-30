@@ -21,9 +21,6 @@ func TestDefaultConfigBindsLoopback(t *testing.T) {
 	if value.lan {
 		t.Fatal("LAN mode was enabled by default")
 	}
-	if value.pair {
-		t.Fatal("pair recovery was enabled by default")
-	}
 }
 
 func TestConfigRequiresExplicitLANModeAndPrivateAddress(t *testing.T) {
@@ -62,19 +59,6 @@ func TestConfigValidatesPublishedHostAgainstListenerBoundary(t *testing.T) {
 	}
 	if _, err := parseConfig([]string{"-published-host", "10.0.0.2"}); err == nil {
 		t.Fatal("accepted private published host without LAN mode")
-	}
-}
-
-func TestConfigAcceptsExplicitPairRecovery(t *testing.T) {
-	value, err := parseConfig([]string{"-pair"})
-	if err != nil || !value.pair {
-		t.Fatalf("config = %#v, error = %v", value, err)
-	}
-}
-
-func TestPairingCodeIssuancePolicy(t *testing.T) {
-	if !shouldIssuePairingCode(0, false) || shouldIssuePairingCode(1, false) || !shouldIssuePairingCode(1, true) {
-		t.Fatal("pairing code issuance policy changed")
 	}
 }
 

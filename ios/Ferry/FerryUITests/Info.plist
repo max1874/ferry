@@ -14,8 +14,8 @@
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
-	<key>FERRY_UI_CODE</key>
-	<string>$(FERRY_UI_CODE)</string>
+	<key>FERRY_UI_PASSWORD</key>
+	<string>$(FERRY_UI_PASSWORD)</string>
 	<key>FERRY_UI_SERVER</key>
 	<string>$(FERRY_UI_SERVER)</string>
 </dict>

@@ -23,7 +23,6 @@ type config struct {
 	dataDir       string
 	publishedHost string
 	lan           bool
-	pair          bool
 }
 
 func parseConfig(arguments []string) (config, error) {
@@ -34,7 +33,6 @@ func parseConfig(arguments []string) (config, error) {
 	flags.StringVar(&value.dataDir, "data-dir", "./ferry-data", "directory for the SQLite database and uploaded files")
 	flags.StringVar(&value.publishedHost, "published-host", "", "optional host IP that publishes this listener")
 	flags.BoolVar(&value.lan, "lan", false, "allow an authenticated HTTP listener on private LAN addresses")
-	flags.BoolVar(&value.pair, "pair", false, "issue a bootstrap code even when paired devices already exist")
 	if err := flags.Parse(arguments); err != nil {
 		return config{}, err
 	}
@@ -98,27 +96,13 @@ func run(ctx context.Context, value config) error {
 		return err
 	}
 	defer store.Close()
-	pairing := ferry.NewPairingManager()
-	deviceCount, err := store.DeviceCount(ctx)
-	if err != nil {
-		return err
-	}
-	if shouldIssuePairingCode(deviceCount, value.pair) {
-		code, err := pairing.NewCode("")
-		if err != nil {
-			return err
-		}
-		log.Printf("Ferry bootstrap code: %s (expires %s)", code.Code, code.ExpiresAt)
-	}
 	if value.lan {
 		log.Printf("LAN mode uses unencrypted HTTP; use only on a trusted network")
 	}
 
 	server := &http.Server{
-		Addr: value.listen,
-		Handler: ferry.NewHandler(store, ferry.HandlerOptions{
-			Pairing: pairing, AllowLANHosts: value.lan, Logger: log.Default(),
-		}),
+		Addr:              value.listen,
+		Handler:           ferry.NewHandler(store, ferry.HandlerOptions{AllowLANHosts: value.lan, Logger: log.Default()}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       5 * time.Minute,
 		WriteTimeout:      5 * time.Minute,
@@ -149,10 +133,6 @@ func run(ctx context.Context, value config) error {
 		}
 		return err
 	}
-}
-
-func shouldIssuePairingCode(deviceCount int, force bool) bool {
-	return deviceCount == 0 || force
 }
 
 func main() {

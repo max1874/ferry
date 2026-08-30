@@ -558,6 +558,53 @@ func TestOpeningPreAuthDataAddsDevicesWithoutLosingMessages(t *testing.T) {
 	}
 }
 
+func TestAccessPasswordVerifierPersistsWithoutRawPassword(t *testing.T) {
+	dataDir := t.TempDir()
+	ctx := context.Background()
+	store, err := OpenStore(ctx, dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value, err := store.AccessPassword(ctx); err != nil || value != nil {
+		t.Fatalf("default access password = %#v, %v", value, err)
+	}
+	const password = "a raw password that must never persist"
+	verifier, err := newAccessPasswordVerifier(password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetAccessPassword(ctx, &verifier); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	for _, suffix := range []string{"", "-wal", "-shm"} {
+		contents, err := os.ReadFile(filepath.Join(dataDir, "ferry.db") + suffix)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			t.Fatal(err)
+		}
+		if bytes.Contains(contents, []byte(password)) {
+			t.Fatalf("raw password persisted in database file %q", suffix)
+		}
+	}
+	reopened, err := OpenStore(ctx, dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { reopened.Close() })
+	loaded, err := reopened.AccessPassword(ctx)
+	if err != nil || loaded == nil || !verifyAccessPassword(password, *loaded) {
+		t.Fatalf("reopened verifier = %#v, %v", loaded, err)
+	}
+	if err := reopened.SetAccessPassword(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	if loaded, err := reopened.AccessPassword(ctx); err != nil || loaded != nil {
+		t.Fatalf("disabled verifier = %#v, %v", loaded, err)
+	}
+}
+
 func openTestStore(t *testing.T) *Store {
 	t.Helper()
 	store, err := OpenStore(context.Background(), t.TempDir())

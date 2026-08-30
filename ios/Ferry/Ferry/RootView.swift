@@ -1,17 +1,5 @@
 import SwiftUI
 
-func isValidPairingCode(_ value: String) -> Bool {
-    value.utf8.count == 4 && value.utf8.allSatisfy { $0 >= 48 && $0 <= 57 }
-}
-
-func validatedPairingCodeInput(_ proposed: String, current: String) -> String {
-    guard proposed.utf8.count <= 4,
-          proposed.utf8.allSatisfy({ $0 >= 48 && $0 <= 57 }) else {
-        return current
-    }
-    return proposed
-}
-
 struct RootView: View {
     @Bindable var model: AppModel
 
@@ -19,17 +7,17 @@ struct RootView: View {
         ZStack {
             LinearGradient(colors: [Color(.systemBackground), Color.accentColor.opacity(0.08)],
                            startPoint: .top, endPoint: .bottomTrailing).ignoresSafeArea()
-            if model.phase == .pairing || model.phase == .connecting { PairingView(model: model) }
+            if model.phase == .setup || model.phase == .connecting { AccessView(model: model) }
             else { TimelineView(model: model) }
         }
         .task { await model.start() }
     }
 }
 
-private struct PairingView: View {
+private struct AccessView: View {
     @Bindable var model: AppModel
     @FocusState private var focused: Field?
-    private enum Field { case server, name, code }
+    private enum Field { case server, name, password }
 
     var body: some View {
         ScrollView {
@@ -51,33 +39,24 @@ private struct PairingView: View {
                             .accessibilityIdentifier("server-address")
                         TextField("Device name", text: $model.deviceName)
                             .focused($focused, equals: .name).accessibilityIdentifier("device-name")
-                        TextField("Pairing code", text: pairingCode)
-                            .textContentType(.oneTimeCode).keyboardType(.numberPad)
-                            .focused($focused, equals: .code).accessibilityIdentifier("pairing-code")
+                        SecureField("Password (if enabled)", text: $model.accessPassword)
+                            .textContentType(.password)
+                            .focused($focused, equals: .password).accessibilityIdentifier("access-password")
                         if let message = model.statusMessage {
                             Text(message).font(.footnote).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading)
-                                .accessibilityIdentifier("pairing-error")
+                                .accessibilityIdentifier("access-error")
                         }
-                        Button { focused = nil; Task { await model.pair() } } label: {
-                            HStack { if model.phase == .connecting { ProgressView() }; Text("Pair device").frame(maxWidth: .infinity) }
+                        Button { focused = nil; Task { await model.connect() } } label: {
+                            HStack { if model.phase == .connecting { ProgressView() }; Text("Connect").frame(maxWidth: .infinity) }
                         }
                         .buttonStyle(.glassProminent).controlSize(.large)
-                        .disabled(model.phase == .connecting || !isValidPairingCode(model.pairingCode))
-                        .accessibilityIdentifier("pair-device")
+                        .disabled(model.phase == .connecting)
+                        .accessibilityIdentifier("connect-device")
                     }
                     .padding(22).glassEffect(.regular, in: .rect(cornerRadius: 28))
                 }
             }
             .padding(.horizontal, 24)
         }
-    }
-
-    private var pairingCode: Binding<String> {
-        Binding(
-            get: { model.pairingCode },
-            set: { value in
-                model.pairingCode = validatedPairingCodeInput(value, current: model.pairingCode)
-            }
-        )
     }
 }

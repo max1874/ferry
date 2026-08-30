@@ -1,4 +1,6 @@
-# LAN 配对与鉴权纵切
+# LAN 配对与鉴权纵切（历史）
+
+> 2026-08-30 起由 `docs/password-access.md` 取代。下文的配对码和 `-pair` 恢复参数不再属于当前产品或 API。
 
 状态：`exact_head_approved`  
 确认依据：Max 在 2026-08-29 阅读 scope card 后回复 `go`。

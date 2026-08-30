@@ -21,15 +21,15 @@ button, textarea, input { font: inherit; }
 .top-actions { display: flex; align-items: center; gap: 8px; }
 .device-button, .secondary { padding: 7px 11px; color: inherit; background: transparent; border: 1px solid #d8d8d8; border-radius: 9px; cursor: pointer; }
 
-.pairing { min-height: 100vh; display: grid; place-items: center; padding: 90px 20px 40px; }
-.pairing-card { width: min(420px, 100%); display: grid; justify-items: stretch; gap: 16px; padding: 28px; border: 1px solid #dedede; border-radius: 22px; box-shadow: 0 18px 55px rgba(0,0,0,.08); }
-.pairing-card .welcome-mark { justify-self: center; margin: 0; }
-.pairing-card h1 { margin: 0; text-align: center; letter-spacing: -.03em; }
-.pairing-card > p { margin: -6px 0 2px; color: #777777; text-align: center; line-height: 1.45; }
-.pairing-card label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
-.pairing-card input { width: 100%; padding: 11px 12px; color: inherit; background: transparent; border: 1px solid #cccccc; border-radius: 10px; outline: none; }
-.pairing-card input:focus { border-color: #777777; }
-.pairing-card small { color: #888888; text-align: center; line-height: 1.4; }
+.access { min-height: 100vh; display: grid; place-items: center; padding: 90px 20px 40px; }
+.access-card { width: min(420px, 100%); display: grid; justify-items: stretch; gap: 16px; padding: 28px; border: 1px solid #dedede; border-radius: 22px; box-shadow: 0 18px 55px rgba(0,0,0,.08); }
+.access-card .welcome-mark { justify-self: center; margin: 0; }
+.access-card h1 { margin: 0; text-align: center; letter-spacing: -.03em; }
+.access-card > p { margin: -6px 0 2px; color: #777777; text-align: center; line-height: 1.45; }
+.access-card label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.access-card input { width: 100%; padding: 11px 12px; color: inherit; background: transparent; border: 1px solid #cccccc; border-radius: 10px; outline: none; }
+.access-card input:focus { border-color: #777777; }
+.access-card small { color: #888888; text-align: center; line-height: 1.4; }
 .primary { padding: 11px 14px; color: white; background: #111111; border: 0; border-radius: 10px; cursor: pointer; font-weight: 650; }
 .form-error { min-height: 18px; margin: -6px 0 !important; color: #b42318 !important; font-size: 13px; }
 
@@ -158,8 +158,12 @@ textarea:disabled { color: #aaaaaa; }
 .device-name { font-weight: 600; }
 .device-meta { margin-top: 2px; color: #888888; font-size: 12px; }
 .revoke { padding: 6px 9px; color: #b42318; background: transparent; border: 1px solid #e5b8b3; border-radius: 8px; cursor: pointer; }
-.pair-another { display: grid; gap: 12px; padding: 16px 20px 20px; border-top: 1px solid #eeeeee; }
-#generated-code { min-height: 22px; text-align: center; font: 700 20px ui-monospace, monospace; letter-spacing: .08em; }
+.access-settings { display: grid; gap: 10px; padding: 16px 20px 20px; border-top: 1px solid #eeeeee; }
+.access-settings h3, .access-settings p { margin: 0; }
+.access-settings p { color: #777777; font-size: 13px; line-height: 1.4; }
+.access-settings label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.access-settings input { width: 100%; padding: 10px 11px; color: inherit; background: transparent; border: 1px solid #cccccc; border-radius: 9px; outline: none; }
+.access-settings output { min-height: 18px; color: #777777; font-size: 13px; }
 
 @media (prefers-color-scheme: dark) {
   :root { color: #ececec; background: #212121; }
@@ -167,12 +171,14 @@ textarea:disabled { color: #aaaaaa; }
   .topbar { background: rgba(33, 33, 33, 0.9); border-color: #373737; }
   .connection, .attach, .file-chip { color: #d6d6d6; background: #333333; }
   .device-button, .secondary { border-color: #505050; }
-  .pairing-card, .devices-dialog { background: #2b2b2b; border-color: #484848; }
-  .pairing-card > p, .pairing-card small, .dialog-head p, .device-meta { color: #aaaaaa; }
-  .pairing-card input { border-color: #555555; }
+  .access-card, .devices-dialog { background: #2b2b2b; border-color: #484848; }
+  .access-card > p, .access-card small, .dialog-head p, .device-meta { color: #aaaaaa; }
+  .access-card input { border-color: #555555; }
   .primary { color: #111111; background: #ffffff; }
   .device-row:hover { background: #343434; }
-  .pair-another { border-color: #444444; }
+  .access-settings { border-color: #444444; }
+  .access-settings p, .access-settings output { color: #aaaaaa; }
+  .access-settings input { border-color: #555555; }
   .welcome h1 { color: #f0f0f0; }
   .welcome p, .footnote { color: #9b9b9b; }
   .file-card { border-color: #484848; }

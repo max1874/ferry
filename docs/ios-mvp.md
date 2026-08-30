@@ -1,4 +1,6 @@
-# iOS 原生纵切
+# iOS 原生纵切（历史实现记录）
+
+> 本文中的准入流程已在 2026-08-30 被 `docs/password-access.md` 取代；当前 App 使用直接连接与可选共享密码。
 
 状态：`implemented — verified`
 确认依据：Max 在 2026-08-30 对 iOS 范围卡回复 `go`，随后明确要求最低 iOS 26，并默认使用 Liquid Glass。

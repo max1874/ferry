@@ -38,6 +38,12 @@ CREATE TABLE IF NOT EXISTS devices (
     token_hash BLOB NOT NULL UNIQUE CHECK(length(token_hash) = 32),
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS access_settings (
+    singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+    salt BLOB NOT NULL CHECK(length(salt) = 16),
+    verifier BLOB NOT NULL CHECK(length(verifier) = 32),
+    iterations INTEGER NOT NULL CHECK(iterations > 0)
+);
 `
 
 type Store struct {
@@ -88,6 +94,76 @@ func (s *Store) initialize(ctx context.Context) error {
 
 func (s *Store) Close() error {
 	return s.db.Close()
+}
+
+func (s *Store) AccessPassword(ctx context.Context) (*AccessPasswordVerifier, error) {
+	var salt, hash []byte
+	var iterations int
+	err := s.db.QueryRowContext(ctx, `
+        SELECT salt, verifier, iterations FROM access_settings WHERE singleton = 1
+    `).Scan(&salt, &hash, &iterations)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read access password: %w", err)
+	}
+	if len(salt) != accessPasswordSaltBytes || len(hash) != accessPasswordHashBytes || iterations <= 0 {
+		return nil, fmt.Errorf("stored access password is invalid")
+	}
+	return &AccessPasswordVerifier{Salt: salt, Hash: hash, Iterations: iterations}, nil
+}
+
+func (s *Store) SetAccessPassword(ctx context.Context, verifier *AccessPasswordVerifier) error {
+	return s.setAccessPassword(ctx, "", verifier)
+}
+
+func (s *Store) SetAccessPasswordForDevice(ctx context.Context, requesterID string, verifier *AccessPasswordVerifier) error {
+	if !validID(requesterID) {
+		return ErrUnauthorized
+	}
+	return s.setAccessPassword(ctx, requesterID, verifier)
+}
+
+func (s *Store) setAccessPassword(ctx context.Context, requesterID string, verifier *AccessPasswordVerifier) error {
+	transaction, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin access password update: %w", err)
+	}
+	defer transaction.Rollback()
+	if requesterID != "" {
+		var exists int
+		if err := transaction.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM devices WHERE id = ?)", requesterID).Scan(&exists); err != nil {
+			return fmt.Errorf("check access password requester: %w", err)
+		}
+		if exists == 0 {
+			return ErrUnauthorized
+		}
+	}
+	if verifier == nil {
+		if _, err := transaction.ExecContext(ctx, "DELETE FROM access_settings WHERE singleton = 1"); err != nil {
+			return fmt.Errorf("disable access password: %w", err)
+		}
+		return transaction.Commit()
+	}
+	if len(verifier.Salt) != accessPasswordSaltBytes || len(verifier.Hash) != accessPasswordHashBytes || verifier.Iterations <= 0 {
+		return fmt.Errorf("access password verifier is invalid")
+	}
+	_, err = transaction.ExecContext(ctx, `
+        INSERT INTO access_settings (singleton, salt, verifier, iterations)
+        VALUES (1, ?, ?, ?)
+        ON CONFLICT(singleton) DO UPDATE SET
+            salt = excluded.salt,
+            verifier = excluded.verifier,
+            iterations = excluded.iterations
+    `, verifier.Salt, verifier.Hash, verifier.Iterations)
+	if err != nil {
+		return fmt.Errorf("save access password: %w", err)
+	}
+	if err := transaction.Commit(); err != nil {
+		return fmt.Errorf("commit access password: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) DeviceCount(ctx context.Context) (int, error) {

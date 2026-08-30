@@ -248,7 +248,7 @@ func newTestHandler(t *testing.T) http.Handler {
 	if _, err := store.CreateDevice(t.Context(), "Web", hash); err != nil {
 		t.Fatal(err)
 	}
-	handler := NewHandler(store, HandlerOptions{Pairing: NewPairingManager(), Logger: log.New(io.Discard, "", 0)})
+	handler := NewHandler(store, HandlerOptions{Logger: log.New(io.Discard, "", 0)})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if len(r.Header.Values("Authorization")) == 0 {
 			r.Header.Set("Authorization", "Bearer "+token)

@@ -5,14 +5,14 @@ final class FerryUITests: XCTestCase {
     func testMacminiDeploymentJourney() throws {
         let bundle = Bundle(for: Self.self)
         let server = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "FERRY_UI_SERVER") as? String)
-        let code = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "FERRY_UI_CODE") as? String)
+        let password = bundle.object(forInfoDictionaryKey: "FERRY_UI_PASSWORD") as? String ?? ""
         let app = XCUIApplication()
         app.launch()
 
         replace(app.textFields["server-address"], with: server)
         replace(app.textFields["device-name"], with: "iPhone 17 Pro")
-        replace(app.textFields["pairing-code"], with: code)
-        app.buttons["pair-device"].tap()
+        replace(app.secureTextFields["access-password"], with: password)
+        app.buttons["connect-device"].tap()
 
         let currentDevice = app.staticTexts["current-device"]
         XCTAssertTrue(currentDevice.waitForExistence(timeout: 10))
@@ -30,14 +30,14 @@ final class FerryUITests: XCTestCase {
     func testRealServerJourney() throws {
         let bundle = Bundle(for: Self.self)
         let server = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "FERRY_UI_SERVER") as? String)
-        let code = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "FERRY_UI_CODE") as? String)
+        let password = bundle.object(forInfoDictionaryKey: "FERRY_UI_PASSWORD") as? String ?? ""
         let app = XCUIApplication()
         app.launch()
 
         replace(app.textFields["server-address"], with: server)
         replace(app.textFields["device-name"], with: "iPhone UI Test")
-        replace(app.textFields["pairing-code"], with: code)
-        app.buttons["pair-device"].tap()
+        replace(app.secureTextFields["access-password"], with: password)
+        app.buttons["connect-device"].tap()
 
         let currentDevice = app.staticTexts["current-device"]
         XCTAssertTrue(currentDevice.waitForExistence(timeout: 10))
@@ -55,8 +55,8 @@ final class FerryUITests: XCTestCase {
         app.buttons["send-message"].tap()
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "identifier == 'message-file-name' AND label == 'ios-fixture.txt'")).firstMatch.waitForExistence(timeout: 10))
 
-        XCTAssertTrue(app.textFields["pairing-code"].waitForExistence(timeout: 30))
-        XCTAssertEqual(app.descendants(matching: .any)["pairing-error"].label, "This device is no longer paired.")
+        XCTAssertTrue(app.secureTextFields["access-password"].waitForExistence(timeout: 30))
+        XCTAssertEqual(app.descendants(matching: .any)["access-error"].label, "This device is no longer connected.")
     }
 
     private func replace(_ field: XCUIElement, with value: String) {

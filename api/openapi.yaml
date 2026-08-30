@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ferry API
-  version: 0.2.0
+  version: 0.3.0
 servers:
   - url: http://127.0.0.1:8080
 security:
@@ -21,7 +21,16 @@ paths:
                 properties:
                   status: { const: ok }
                 additionalProperties: false
-  /api/v1/pairing/claim:
+  /api/v1/access:
+    get:
+      security: []
+      responses:
+        "200":
+          description: Whether new devices must provide the shared password.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessStatus" }
+  /api/v1/access/join:
     post:
       security: []
       requestBody:
@@ -30,17 +39,17 @@ paths:
           application/json:
             schema:
               type: object
-              required: [code, device_name]
+              required: [device_name, password]
               properties:
-                code: { type: string, pattern: '^[0-9]{4}$', description: Exactly four ASCII digits; whitespace is not accepted. }
                 device_name: { type: string, minLength: 1, description: At most 64 UTF-8 bytes after trimming; control characters are rejected. }
+                password: { type: string, description: Empty when password access is disabled; otherwise the exact shared password, at most 256 UTF-8 bytes. }
               additionalProperties: false
       responses:
         "201":
-          description: Device paired; token is returned once for origin-scoped client storage.
+          description: Device connected; token is returned once for origin-scoped client storage.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/PairingClaim" }
+              schema: { $ref: "#/components/schemas/AccessClaim" }
         "400": { $ref: "#/components/responses/Error" }
         "401": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/Error" }
@@ -60,21 +69,41 @@ paths:
                   device: { $ref: "#/components/schemas/Device" }
                 additionalProperties: false
         "401": { $ref: "#/components/responses/Error" }
-  /api/v1/pairing/codes:
-    post:
+  /api/v1/settings/access:
+    get:
       responses:
-        "201":
-          description: A single-use code valid for ten minutes in this Server process.
+        "200":
+          description: Current access setting; the password is never returned.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/PairingCode" }
+              schema: { $ref: "#/components/schemas/AccessStatus" }
         "401": { $ref: "#/components/responses/Error" }
-        "403": { $ref: "#/components/responses/Error" }
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string, description: Empty disables the password; non-empty values must be at most 256 UTF-8 bytes. }
+              additionalProperties: false
+      responses:
+        "200":
+          description: Updated access setting; existing device tokens remain valid.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessStatus" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "413": { $ref: "#/components/responses/Error" }
+        "415": { $ref: "#/components/responses/Error" }
   /api/v1/devices:
     get:
       responses:
         "200":
-          description: Paired devices.
+          description: Connected devices.
           content:
             application/json:
               schema:
@@ -202,19 +231,18 @@ components:
         name: { type: string }
         created_at: { type: string, format: date-time }
       additionalProperties: false
-    PairingClaim:
+    AccessClaim:
       type: object
       required: [device, token]
       properties:
         device: { $ref: "#/components/schemas/Device" }
-        token: { type: string, description: Canonical base64url encoding of 32 random bytes; returned only at claim time. }
+        token: { type: string, description: Canonical base64url encoding of 32 random bytes; returned only at join time. }
       additionalProperties: false
-    PairingCode:
+    AccessStatus:
       type: object
-      required: [code, expires_at]
+      required: [password_required]
       properties:
-        code: { type: string, pattern: "^[0-9]{4}$" }
-        expires_at: { type: string, format: date-time }
+        password_required: { type: boolean }
       additionalProperties: false
     TextMessage:
       type: object

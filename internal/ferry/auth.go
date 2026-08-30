@@ -1,165 +1,60 @@
 package ferry
 
 import (
+	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
-	"encoding/binary"
 	"fmt"
 	"io"
-	"sync"
-	"time"
+	"unicode/utf8"
 )
 
 const (
-	PairingCodeLifetime = 10 * time.Minute
-	deviceTokenBytes    = 32
-	pairingCodeBytes    = 2
-	pairingCodeLimit    = 60_000
-	pairingCodeSpace    = 10_000
+	deviceTokenBytes         = 32
+	accessPasswordSaltBytes  = 16
+	accessPasswordHashBytes  = 32
+	accessPasswordIterations = 210_000
+	maxAccessPasswordBytes   = 256
 )
 
-type PairingCode struct {
-	Code      string `json:"code"`
-	ExpiresAt string `json:"expires_at"`
+type AccessPasswordVerifier struct {
+	Salt       []byte
+	Hash       []byte
+	Iterations int
 }
 
-type PairingManager struct {
-	mu     sync.Mutex
-	codes  map[[sha256.Size]byte]pairingCodeRecord
-	now    func() time.Time
-	random io.Reader
+func newAccessPasswordVerifier(password string) (AccessPasswordVerifier, error) {
+	return newAccessPasswordVerifierWithRandom(password, rand.Reader)
 }
 
-type pairingCodeRecord struct {
-	expiresAt time.Time
-	issuerID  string
-	reserved  bool
-}
-
-type PairingReservation struct {
-	manager *PairingManager
-	hash    [sha256.Size]byte
-	record  pairingCodeRecord
-}
-
-func NewPairingManager() *PairingManager {
-	return newPairingManager(time.Now, rand.Reader)
-}
-
-func newPairingManager(now func() time.Time, random io.Reader) *PairingManager {
-	return &PairingManager{codes: make(map[[sha256.Size]byte]pairingCodeRecord), now: now, random: random}
-}
-
-func (p *PairingManager) NewCode(issuerID string) (PairingCode, error) {
-	if issuerID != "" && !validID(issuerID) {
-		return PairingCode{}, fmt.Errorf("pairing code issuer is invalid")
+func newAccessPasswordVerifierWithRandom(password string, random io.Reader) (AccessPasswordVerifier, error) {
+	if !validAccessPassword(password) {
+		return AccessPasswordVerifier{}, fmt.Errorf("password must be valid UTF-8 and at most %d bytes", maxAccessPasswordBytes)
 	}
-	for range 16 {
-		raw := make([]byte, pairingCodeBytes)
-		if _, err := io.ReadFull(p.random, raw); err != nil {
-			return PairingCode{}, fmt.Errorf("generate pairing code: %w", err)
-		}
-		sample := int(binary.BigEndian.Uint16(raw))
-		if sample >= pairingCodeLimit {
-			continue
-		}
-		code := fmt.Sprintf("%04d", sample%pairingCodeSpace)
-		expiresAt := p.now().UTC().Add(PairingCodeLifetime).Truncate(time.Second)
-		hash := sha256.Sum256([]byte(code))
-		p.mu.Lock()
-		p.removeExpiredLocked()
-		_, exists := p.codes[hash]
-		if !exists {
-			p.codes[hash] = pairingCodeRecord{expiresAt: expiresAt, issuerID: issuerID}
-		}
-		p.mu.Unlock()
-		if !exists {
-			return PairingCode{Code: code, ExpiresAt: expiresAt.Format(time.RFC3339)}, nil
-		}
+	salt := make([]byte, accessPasswordSaltBytes)
+	if _, err := io.ReadFull(random, salt); err != nil {
+		return AccessPasswordVerifier{}, fmt.Errorf("generate password salt: %w", err)
 	}
-	return PairingCode{}, fmt.Errorf("generate unique pairing code")
+	hash, err := pbkdf2.Key(sha256.New, password, salt, accessPasswordIterations, accessPasswordHashBytes)
+	if err != nil {
+		return AccessPasswordVerifier{}, fmt.Errorf("derive password verifier: %w", err)
+	}
+	return AccessPasswordVerifier{Salt: salt, Hash: hash, Iterations: accessPasswordIterations}, nil
 }
 
-func (p *PairingManager) Consume(code string) bool {
-	reservation, ok := p.Reserve(code)
-	if ok {
-		reservation.Commit()
+func verifyAccessPassword(password string, verifier AccessPasswordVerifier) bool {
+	if !validAccessPassword(password) || len(verifier.Salt) != accessPasswordSaltBytes ||
+		len(verifier.Hash) != accessPasswordHashBytes || verifier.Iterations <= 0 {
+		return false
 	}
-	return ok
+	hash, err := pbkdf2.Key(sha256.New, password, verifier.Salt, verifier.Iterations, len(verifier.Hash))
+	return err == nil && subtle.ConstantTimeCompare(hash, verifier.Hash) == 1
 }
 
-func (p *PairingManager) Reserve(code string) (*PairingReservation, bool) {
-	code, ok := normalizePairingCode(code)
-	if !ok {
-		return nil, false
-	}
-	hash := sha256.Sum256([]byte(code))
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	record, exists := p.codes[hash]
-	if !exists || record.reserved {
-		return nil, false
-	}
-	if !p.now().Before(record.expiresAt) {
-		delete(p.codes, hash)
-		return nil, false
-	}
-	record.reserved = true
-	p.codes[hash] = record
-	return &PairingReservation{manager: p, hash: hash, record: record}, true
-}
-
-func (r *PairingReservation) IssuerID() string {
-	return r.record.issuerID
-}
-
-func (r *PairingReservation) Commit() {
-	r.manager.mu.Lock()
-	defer r.manager.mu.Unlock()
-	if record, exists := r.manager.codes[r.hash]; exists && record == r.record {
-		delete(r.manager.codes, r.hash)
-	}
-}
-
-func (r *PairingReservation) Rollback() {
-	r.manager.mu.Lock()
-	defer r.manager.mu.Unlock()
-	if record, exists := r.manager.codes[r.hash]; exists && record == r.record && r.manager.now().Before(record.expiresAt) {
-		record.reserved = false
-		r.manager.codes[r.hash] = record
-	}
-}
-
-func (p *PairingManager) RevokeIssuer(issuerID string) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for hash, record := range p.codes {
-		if record.issuerID == issuerID {
-			delete(p.codes, hash)
-		}
-	}
-}
-
-func (p *PairingManager) removeExpiredLocked() {
-	now := p.now()
-	for hash, record := range p.codes {
-		if !now.Before(record.expiresAt) {
-			delete(p.codes, hash)
-		}
-	}
-}
-
-func normalizePairingCode(value string) (string, bool) {
-	if len(value) != 4 {
-		return "", false
-	}
-	for _, char := range value {
-		if char < '0' || char > '9' {
-			return "", false
-		}
-	}
-	return value, true
+func validAccessPassword(password string) bool {
+	return password != "" && len(password) <= maxAccessPasswordBytes && utf8.ValidString(password)
 }
 
 func newDeviceToken() (string, [sha256.Size]byte, error) {
