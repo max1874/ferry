@@ -33,3 +33,9 @@ Verdict after two passes: **ship candidate; no unresolved author-known P0/P1/P2*
 11. **Predicate producers** — `hidden` is still produced by the existing access/welcome flow; both visible outcomes were forced and observed in the browser.
 12. **Reversed findings** — the incomplete asset test re-asked path presence, content identity, dimensions, and placement: both paths now check status/MIME/signature/exact size, while HTML checks exact one-plus-two image counts.
 13. **Pass limit** — author evidence is not final green; an independent focused review is required before push.
+
+## Closure
+
+- Independent focused review: **SHIP**, P0/P1/P2 all zero after the dimension-test fix and repeated kill probe.
+- Source commit `c80c994` pushed to `origin/main`; macmini rebuilt image `sha256:2adbe7…` and restarted Ferry at `http://10.0.0.2:42817`.
+- Deployed browser observed `Local`, favicon/touch paths, a visible 64→28 px top-bar mark, and both embedded 256 px welcome assets with no letter text. Existing messages correctly kept the two welcome variants hidden; their visible states were proven in the final local production-handler journey.
