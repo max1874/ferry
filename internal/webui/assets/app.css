@@ -50,6 +50,7 @@ button, textarea, input { font: inherit; }
 .message { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; }
 
 .avatar { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 10px; color: #ffffff; background: #111111; font-size: 12px; font-weight: 700; }
+.device-icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 .message-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
 
@@ -178,6 +179,8 @@ textarea:disabled { color: #aaaaaa; }
 .device-list { display: grid; gap: 1px; padding: 4px 12px 12px; }
 .device-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 8px; border-radius: 10px; }
 .device-row:hover { background: #f6f6f6; }
+.device-identity { min-width: 0; display: flex; align-items: center; gap: 10px; }
+.device-list-icon { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 10px; color: #555555; background: #eeeeee; }
 .device-name { font-weight: 600; }
 .device-meta { margin-top: 2px; color: #888888; font-size: 12px; }
 .revoke { padding: 6px 9px; color: #b42318; background: transparent; border: 1px solid #e5b8b3; border-radius: 8px; cursor: pointer; }
@@ -203,6 +206,7 @@ textarea:disabled { color: #aaaaaa; }
   .access-card input { border-color: #555555; }
   .primary { color: #111111; background: #ffffff; }
   .device-row:hover { background: #343434; }
+  .device-list-icon { color: #dddddd; background: #3b3b3b; }
   .access-settings { border-color: #444444; }
   .access-settings p, .access-settings output { color: #aaaaaa; }
   .access-settings input { border-color: #555555; }

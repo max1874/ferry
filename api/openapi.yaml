@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ferry API
-  version: 0.3.0
+  version: 0.4.0
 servers:
   - url: http://127.0.0.1:8080
 security:
@@ -33,6 +33,12 @@ paths:
   /api/v1/access/join:
     post:
       security: []
+      parameters:
+        - name: X-Ferry-Device-Kind
+          in: header
+          required: false
+          description: Broad UI device category. Older Servers safely ignore this optional header; when omitted, Ferry infers from device_name.
+          schema: { $ref: "#/components/schemas/DeviceKind" }
       requestBody:
         required: true
         content:
@@ -225,12 +231,16 @@ components:
   schemas:
     Device:
       type: object
-      required: [id, name, created_at]
+      required: [id, name, kind, created_at]
       properties:
         id: { type: string, pattern: "^[0-9a-f]{32}$" }
         name: { type: string }
+        kind: { $ref: "#/components/schemas/DeviceKind" }
         created_at: { type: string, format: date-time }
       additionalProperties: false
+    DeviceKind:
+      type: string
+      enum: [iphone, ipad, mac, android, windows, browser]
     AccessClaim:
       type: object
       required: [device, token]
@@ -246,12 +256,13 @@ components:
       additionalProperties: false
     TextMessage:
       type: object
-      required: [id, sequence, kind, sender_name, created_at, text]
+      required: [id, sequence, kind, sender_name, sender_kind, created_at, text]
       properties:
         id: { type: string, pattern: "^[0-9a-f]{32}$" }
         sequence: { type: integer, minimum: 1 }
         kind: { const: text }
         sender_name: { type: string }
+        sender_kind: { $ref: "#/components/schemas/DeviceKind" }
         created_at: { type: string, format: date-time }
         text: { type: string }
       additionalProperties: false
@@ -266,12 +277,13 @@ components:
       additionalProperties: false
     FileMessage:
       type: object
-      required: [id, sequence, kind, sender_name, created_at, file]
+      required: [id, sequence, kind, sender_name, sender_kind, created_at, file]
       properties:
         id: { type: string, pattern: "^[0-9a-f]{32}$" }
         sequence: { type: integer, minimum: 1 }
         kind: { const: file }
         sender_name: { type: string }
+        sender_kind: { $ref: "#/components/schemas/DeviceKind" }
         created_at: { type: string, format: date-time }
         file: { $ref: "#/components/schemas/FileInfo" }
       additionalProperties: false

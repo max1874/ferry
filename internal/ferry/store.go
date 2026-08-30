@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS messages (
     id TEXT NOT NULL UNIQUE CHECK(length(id) = 32),
     kind TEXT NOT NULL CHECK(kind IN ('text', 'file')),
     sender_name TEXT NOT NULL,
+    sender_kind TEXT CHECK(sender_kind IN ('iphone', 'ipad', 'mac', 'android', 'windows', 'browser')),
     text_body TEXT,
     file_name TEXT,
     media_type TEXT,
@@ -35,6 +36,7 @@ CREATE INDEX IF NOT EXISTS messages_created_at ON messages(created_at);
 CREATE TABLE IF NOT EXISTS devices (
     id TEXT PRIMARY KEY CHECK(length(id) = 32),
     name TEXT NOT NULL,
+    kind TEXT CHECK(kind IN ('iphone', 'ipad', 'mac', 'android', 'windows', 'browser')),
     token_hash BLOB NOT NULL UNIQUE CHECK(length(token_hash) = 32),
     created_at TEXT NOT NULL
 );
@@ -89,7 +91,62 @@ func (s *Store) initialize(ctx context.Context) error {
 			return fmt.Errorf("initialize database: %w", err)
 		}
 	}
+	if err := s.migrateDeviceKinds(ctx); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (s *Store) migrateDeviceKinds(ctx context.Context) error {
+	transaction, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin device kind migration: %w", err)
+	}
+	defer transaction.Rollback()
+	columns := []struct {
+		table, name, statement string
+	}{
+		{"devices", "kind", "ALTER TABLE devices ADD COLUMN kind TEXT CHECK(kind IN ('iphone', 'ipad', 'mac', 'android', 'windows', 'browser'))"},
+		{"messages", "sender_kind", "ALTER TABLE messages ADD COLUMN sender_kind TEXT CHECK(sender_kind IN ('iphone', 'ipad', 'mac', 'android', 'windows', 'browser'))"},
+	}
+	for _, column := range columns {
+		exists, err := columnExists(ctx, transaction, column.table, column.name)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			if _, err := transaction.ExecContext(ctx, column.statement); err != nil {
+				return fmt.Errorf("add %s.%s: %w", column.table, column.name, err)
+			}
+		}
+	}
+	if err := transaction.Commit(); err != nil {
+		return fmt.Errorf("commit device kind migration: %w", err)
+	}
+	return nil
+}
+
+func columnExists(ctx context.Context, transaction *sql.Tx, table, column string) (bool, error) {
+	rows, err := transaction.QueryContext(ctx, "PRAGMA table_info("+table+")")
+	if err != nil {
+		return false, fmt.Errorf("inspect %s columns: %w", table, err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, notNull, primaryKey int
+		var name, dataType string
+		var defaultValue any
+		if err := rows.Scan(&id, &name, &dataType, &notNull, &defaultValue, &primaryKey); err != nil {
+			return false, fmt.Errorf("scan %s columns: %w", table, err)
+		}
+		if name == column {
+			return true, nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return false, fmt.Errorf("iterate %s columns: %w", table, err)
+	}
+	return false, nil
 }
 
 func (s *Store) Close() error {
@@ -175,18 +232,26 @@ func (s *Store) DeviceCount(ctx context.Context) (int, error) {
 }
 
 func (s *Store) CreateDevice(ctx context.Context, name string, tokenHash [32]byte) (Device, error) {
-	return s.createDevice(ctx, name, tokenHash, "")
+	return s.createDevice(ctx, name, "", tokenHash, "")
+}
+
+func (s *Store) CreateDeviceWithKind(ctx context.Context, name string, kind DeviceKind, tokenHash [32]byte) (Device, error) {
+	return s.createDevice(ctx, name, kind, tokenHash, "")
 }
 
 func (s *Store) CreateDeviceForIssuer(ctx context.Context, name string, tokenHash [32]byte, issuerID string) (Device, error) {
 	if !validID(issuerID) {
 		return Device{}, ErrNotFound
 	}
-	return s.createDevice(ctx, name, tokenHash, issuerID)
+	return s.createDevice(ctx, name, "", tokenHash, issuerID)
 }
 
-func (s *Store) createDevice(ctx context.Context, name string, tokenHash [32]byte, issuerID string) (Device, error) {
+func (s *Store) createDevice(ctx context.Context, name string, kind DeviceKind, tokenHash [32]byte, issuerID string) (Device, error) {
 	name, err := normalizeSenderName(name)
+	if err != nil {
+		return Device{}, err
+	}
+	kind, err = normalizeDeviceKind(string(kind), name)
 	if err != nil {
 		return Device{}, err
 	}
@@ -195,12 +260,12 @@ func (s *Store) createDevice(ctx context.Context, name string, tokenHash [32]byt
 		return Device{}, err
 	}
 	createdAt := time.Now().UTC().Format(time.RFC3339Nano)
-	query := `INSERT INTO devices (id, name, token_hash, created_at) VALUES (?, ?, ?, ?)`
-	arguments := []any{id, name, tokenHash[:], createdAt}
+	query := `INSERT INTO devices (id, name, kind, token_hash, created_at) VALUES (?, ?, ?, ?, ?)`
+	arguments := []any{id, name, kind, tokenHash[:], createdAt}
 	if issuerID != "" {
 		query = `
-            INSERT INTO devices (id, name, token_hash, created_at)
-            SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM devices WHERE id = ?)
+            INSERT INTO devices (id, name, kind, token_hash, created_at)
+            SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM devices WHERE id = ?)
         `
 		arguments = append(arguments, issuerID)
 	}
@@ -215,7 +280,7 @@ func (s *Store) createDevice(ctx context.Context, name string, tokenHash [32]byt
 	if inserted != 1 {
 		return Device{}, ErrNotFound
 	}
-	return Device{ID: id, Name: name, CreatedAt: createdAt}, nil
+	return Device{ID: id, Name: name, Kind: kind, CreatedAt: createdAt}, nil
 }
 
 func (s *Store) DeviceExists(ctx context.Context, id string) (bool, error) {
@@ -231,7 +296,7 @@ func (s *Store) DeviceExists(ctx context.Context, id string) (bool, error) {
 
 func (s *Store) AuthenticateDevice(ctx context.Context, tokenHash [32]byte) (Device, error) {
 	row := s.db.QueryRowContext(ctx, `
-        SELECT id, name, created_at FROM devices WHERE token_hash = ?
+        SELECT id, name, kind, created_at FROM devices WHERE token_hash = ?
     `, tokenHash[:])
 	device, err := scanDevice(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -242,7 +307,7 @@ func (s *Store) AuthenticateDevice(ctx context.Context, tokenHash [32]byte) (Dev
 
 func (s *Store) ListDevices(ctx context.Context) ([]Device, error) {
 	rows, err := s.db.QueryContext(ctx, `
-        SELECT id, name, created_at FROM devices ORDER BY created_at, id
+        SELECT id, name, kind, created_at FROM devices ORDER BY created_at, id
     `)
 	if err != nil {
 		return nil, fmt.Errorf("query devices: %w", err)
@@ -299,7 +364,8 @@ func (s *Store) DeleteDevice(ctx context.Context, requesterID, id string) error 
 
 func scanDevice(row rowScanner) (Device, error) {
 	var device Device
-	if err := row.Scan(&device.ID, &device.Name, &device.CreatedAt); err != nil {
+	var storedKind sql.NullString
+	if err := row.Scan(&device.ID, &device.Name, &storedKind, &device.CreatedAt); err != nil {
 		return Device{}, err
 	}
 	if !validID(device.ID) {
@@ -309,6 +375,10 @@ func scanDevice(row rowScanner) (Device, error) {
 	if err != nil || name != device.Name {
 		return Device{}, fmt.Errorf("stored device name is invalid")
 	}
+	device.Kind, err = normalizeDeviceKind(storedKind.String, device.Name)
+	if err != nil || storedKind.Valid && string(device.Kind) != storedKind.String {
+		return Device{}, fmt.Errorf("stored device kind is invalid")
+	}
 	createdAt, err := time.Parse(time.RFC3339Nano, device.CreatedAt)
 	if err != nil || createdAt.UTC().Format(time.RFC3339Nano) != device.CreatedAt {
 		return Device{}, fmt.Errorf("stored device timestamp is not canonical UTC RFC 3339")
@@ -317,23 +387,26 @@ func scanDevice(row rowScanner) (Device, error) {
 }
 
 func (s *Store) CreateText(ctx context.Context, senderName, text string) (Message, error) {
-	return s.createText(ctx, "", senderName, text)
+	return s.createText(ctx, "", senderName, inferDeviceKind(senderName), text)
 }
 
 func (s *Store) CreateTextForDevice(ctx context.Context, device Device, text string) (Message, error) {
-	if !validID(device.ID) {
+	if !validID(device.ID) || !validDeviceKind(device.Kind) {
 		return Message{}, ErrUnauthorized
 	}
-	return s.createText(ctx, device.ID, device.Name, text)
+	return s.createText(ctx, device.ID, device.Name, device.Kind, text)
 }
 
-func (s *Store) createText(ctx context.Context, requesterID, senderName, text string) (Message, error) {
+func (s *Store) createText(ctx context.Context, requesterID, senderName string, senderKind DeviceKind, text string) (Message, error) {
 	senderName, err := normalizeSenderName(senderName)
 	if err != nil {
 		return Message{}, err
 	}
 	if err := validateText(text); err != nil {
 		return Message{}, err
+	}
+	if !validDeviceKind(senderKind) {
+		return Message{}, fmt.Errorf("%w: invalid sender kind", ErrInvalid)
 	}
 	id, err := newID()
 	if err != nil {
@@ -342,19 +415,23 @@ func (s *Store) createText(ctx context.Context, requesterID, senderName, text st
 	createdAt := time.Now().UTC().Format(time.RFC3339Nano)
 	var sequence int64
 	query := `
-        INSERT INTO messages (id, kind, sender_name, text_body, created_at)
-        VALUES (?, 'text', ?, ?, ?)
-        RETURNING sequence
-    `
-	arguments := []any{id, senderName, text, createdAt}
+		INSERT INTO messages (id, kind, sender_name, sender_kind, text_body, created_at)
+		VALUES (?, 'text', ?, ?, ?, ?)
+		RETURNING sequence
+	`
+	arguments := []any{id, senderName, senderKind, text, createdAt}
 	if requesterID != "" {
 		query = `
-            INSERT INTO messages (id, kind, sender_name, text_body, created_at)
-            SELECT ?, 'text', ?, ?, ?
-            WHERE EXISTS (SELECT 1 FROM devices WHERE id = ? AND name = ?)
+			INSERT INTO messages (id, kind, sender_name, sender_kind, text_body, created_at)
+			SELECT ?, 'text', ?, ?, ?, ?
+            WHERE EXISTS (
+                SELECT 1 FROM devices
+                WHERE id = ? AND name = ?
+                  AND (kind = ? OR (kind IS NULL AND ? = ?))
+            )
             RETURNING sequence
         `
-		arguments = append(arguments, requesterID, senderName)
+		arguments = append(arguments, requesterID, senderName, senderKind, senderKind, inferDeviceKind(senderName))
 	}
 	err = s.db.QueryRowContext(ctx, query, arguments...).Scan(&sequence)
 	if errors.Is(err, sql.ErrNoRows) && requesterID != "" {
@@ -368,23 +445,24 @@ func (s *Store) createText(ctx context.Context, requesterID, senderName, text st
 		Sequence:   sequence,
 		Kind:       KindText,
 		SenderName: senderName,
+		SenderKind: senderKind,
 		CreatedAt:  createdAt,
 		Text:       &text,
 	}, nil
 }
 
 func (s *Store) CreateFile(ctx context.Context, senderName, fileName, mediaType string, source io.Reader) (Message, error) {
-	return s.createFile(ctx, "", senderName, fileName, mediaType, source)
+	return s.createFile(ctx, "", senderName, inferDeviceKind(senderName), fileName, mediaType, source)
 }
 
 func (s *Store) CreateFileForDevice(ctx context.Context, device Device, fileName, mediaType string, source io.Reader) (Message, error) {
-	if !validID(device.ID) {
+	if !validID(device.ID) || !validDeviceKind(device.Kind) {
 		return Message{}, ErrUnauthorized
 	}
-	return s.createFile(ctx, device.ID, device.Name, fileName, mediaType, source)
+	return s.createFile(ctx, device.ID, device.Name, device.Kind, fileName, mediaType, source)
 }
 
-func (s *Store) createFile(ctx context.Context, requesterID, senderName, fileName, mediaType string, source io.Reader) (Message, error) {
+func (s *Store) createFile(ctx context.Context, requesterID, senderName string, senderKind DeviceKind, fileName, mediaType string, source io.Reader) (Message, error) {
 	senderName, err := normalizeSenderName(senderName)
 	if err != nil {
 		return Message{}, err
@@ -394,6 +472,9 @@ func (s *Store) createFile(ctx context.Context, requesterID, senderName, fileNam
 		return Message{}, err
 	}
 	mediaType = normalizeMediaType(mediaType)
+	if !validDeviceKind(senderKind) {
+		return Message{}, fmt.Errorf("%w: invalid sender kind", ErrInvalid)
+	}
 
 	id, err := newID()
 	if err != nil {
@@ -432,19 +513,23 @@ func (s *Store) createFile(ctx context.Context, requesterID, senderName, fileNam
 	createdAt := time.Now().UTC().Format(time.RFC3339Nano)
 	var sequence int64
 	query := `
-        INSERT INTO messages (id, kind, sender_name, file_name, media_type, file_size, blob_name, created_at)
-        VALUES (?, 'file', ?, ?, ?, ?, ?, ?)
-        RETURNING sequence
-    `
-	arguments := []any{id, senderName, fileName, mediaType, written, blobName, createdAt}
+		INSERT INTO messages (id, kind, sender_name, sender_kind, file_name, media_type, file_size, blob_name, created_at)
+		VALUES (?, 'file', ?, ?, ?, ?, ?, ?, ?)
+		RETURNING sequence
+	`
+	arguments := []any{id, senderName, senderKind, fileName, mediaType, written, blobName, createdAt}
 	if requesterID != "" {
 		query = `
-            INSERT INTO messages (id, kind, sender_name, file_name, media_type, file_size, blob_name, created_at)
-            SELECT ?, 'file', ?, ?, ?, ?, ?, ?
-            WHERE EXISTS (SELECT 1 FROM devices WHERE id = ? AND name = ?)
+			INSERT INTO messages (id, kind, sender_name, sender_kind, file_name, media_type, file_size, blob_name, created_at)
+			SELECT ?, 'file', ?, ?, ?, ?, ?, ?, ?
+            WHERE EXISTS (
+                SELECT 1 FROM devices
+                WHERE id = ? AND name = ?
+                  AND (kind = ? OR (kind IS NULL AND ? = ?))
+            )
             RETURNING sequence
         `
-		arguments = append(arguments, requesterID, senderName)
+		arguments = append(arguments, requesterID, senderName, senderKind, senderKind, inferDeviceKind(senderName))
 	}
 	err = s.db.QueryRowContext(ctx, query, arguments...).Scan(&sequence)
 	if errors.Is(err, sql.ErrNoRows) && requesterID != "" {
@@ -459,6 +544,7 @@ func (s *Store) createFile(ctx context.Context, requesterID, senderName, fileNam
 		Sequence:   sequence,
 		Kind:       KindFile,
 		SenderName: senderName,
+		SenderKind: senderKind,
 		CreatedAt:  createdAt,
 		File: &FileInfo{
 			Name:        fileName,
@@ -471,7 +557,7 @@ func (s *Store) createFile(ctx context.Context, requesterID, senderName, fileNam
 
 func (s *Store) ListMessages(ctx context.Context, after int64, limit int) ([]Message, int64, error) {
 	rows, err := s.db.QueryContext(ctx, `
-        SELECT sequence, id, kind, sender_name, text_body, file_name, media_type, file_size, blob_name, created_at
+        SELECT sequence, id, kind, sender_name, sender_kind, text_body, file_name, media_type, file_size, blob_name, created_at
         FROM messages
         WHERE sequence > ?
         ORDER BY sequence ASC
@@ -503,7 +589,7 @@ func (s *Store) OpenFile(ctx context.Context, id string) (Message, *os.File, err
 		return Message{}, nil, ErrNotFound
 	}
 	row := s.db.QueryRowContext(ctx, `
-        SELECT sequence, id, kind, sender_name, text_body, file_name, media_type, file_size, blob_name, created_at
+        SELECT sequence, id, kind, sender_name, sender_kind, text_body, file_name, media_type, file_size, blob_name, created_at
         FROM messages
         WHERE id = ?
     `, id)
@@ -545,19 +631,21 @@ type rowScanner interface {
 
 func scanMessage(row rowScanner) (Message, string, error) {
 	var (
-		message   Message
-		kind      string
-		text      sql.NullString
-		fileName  sql.NullString
-		mediaType sql.NullString
-		fileSize  sql.NullInt64
-		blobName  sql.NullString
+		message    Message
+		kind       string
+		senderKind sql.NullString
+		text       sql.NullString
+		fileName   sql.NullString
+		mediaType  sql.NullString
+		fileSize   sql.NullInt64
+		blobName   sql.NullString
 	)
 	if err := row.Scan(
 		&message.Sequence,
 		&message.ID,
 		&kind,
 		&message.SenderName,
+		&senderKind,
 		&text,
 		&fileName,
 		&mediaType,
@@ -566,6 +654,11 @@ func scanMessage(row rowScanner) (Message, string, error) {
 		&message.CreatedAt,
 	); err != nil {
 		return Message{}, "", err
+	}
+	var err error
+	message.SenderKind, err = normalizeDeviceKind(senderKind.String, message.SenderName)
+	if err != nil || senderKind.Valid && string(message.SenderKind) != senderKind.String {
+		return Message{}, "", fmt.Errorf("stored sender kind is invalid")
 	}
 
 	switch Kind(kind) {
@@ -606,6 +699,9 @@ func validateStoredMessage(message Message, blobName string) error {
 	senderName, err := normalizeSenderName(message.SenderName)
 	if err != nil || senderName != message.SenderName {
 		return fmt.Errorf("stored sender name is invalid")
+	}
+	if !validDeviceKind(message.SenderKind) {
+		return fmt.Errorf("stored sender kind is invalid")
 	}
 	switch message.Kind {
 	case KindText:

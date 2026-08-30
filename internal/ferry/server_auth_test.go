@@ -135,6 +135,54 @@ func TestAccessJSONIsStrictAndSettingsAreProtected(t *testing.T) {
 	}
 }
 
+func TestJoinDeviceKindHeaderIsOptionalStrictAndCopiedToMessages(t *testing.T) {
+	handler, store := newRawTestApp(t, false)
+	join := func(name string, values ...string) *httptest.ResponseRecorder {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/api/v1/access/join", strings.NewReader(`{"device_name":"`+name+`","password":""}`))
+		request.Header.Set("Content-Type", "application/json")
+		for _, value := range values {
+			request.Header.Add("X-Ferry-Device-Kind", value)
+		}
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		return response
+	}
+
+	inferredResponse := join("iPhone 17 Pro")
+	inferred := decodeClaim(t, inferredResponse)
+	if inferredResponse.Code != http.StatusCreated || inferred.Device.Kind != DeviceKindIPhone {
+		t.Fatalf("inferred join status = %d, device = %#v", inferredResponse.Code, inferred.Device)
+	}
+
+	explicitResponse := join("Kitchen Display", "mac")
+	explicit := decodeClaim(t, explicitResponse)
+	if explicitResponse.Code != http.StatusCreated || explicit.Device.Kind != DeviceKindMac {
+		t.Fatalf("explicit join status = %d, device = %#v", explicitResponse.Code, explicit.Device)
+	}
+	created := authenticatedRequest(t, handler, http.MethodPost, "/api/v1/messages/text", `{"text":"from explicit mac"}`, explicit.Token)
+	var message Message
+	decodeResponse(t, created, &message)
+	if created.Code != http.StatusCreated || message.SenderKind != DeviceKindMac {
+		t.Fatalf("created status = %d, message = %#v", created.Code, message)
+	}
+
+	before, err := store.DeviceCount(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, values := range [][]string{{""}, {" mac"}, {"car"}, {"MAC"}, {"mac,browser"}, {"mac", "browser"}} {
+		response := join("Rejected", values...)
+		if response.Code != http.StatusBadRequest || errorCode(t, response) != "invalid_request" {
+			t.Fatalf("header values %q status = %d, body = %s", values, response.Code, response.Body.String())
+		}
+	}
+	after, err := store.DeviceCount(t.Context())
+	if err != nil || after != before {
+		t.Fatalf("invalid device kinds changed count: %d -> %d, err %v", before, after, err)
+	}
+}
+
 func TestCrossOriginJoinIsRejected(t *testing.T) {
 	handler, _ := newRawTestApp(t, false)
 	body := `{"device_name":"Mac","password":""}`

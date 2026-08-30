@@ -82,3 +82,32 @@ func TestPageOffersSeparatePhotoAndFilePickers(t *testing.T) {
 		t.Error("general file picker must remain unrestricted")
 	}
 }
+
+func TestWebUsesLicensedDeviceIconsInsteadOfInitials(t *testing.T) {
+	handler := Handler()
+	app := httptest.NewRecorder()
+	handler.ServeHTTP(app, httptest.NewRequest(http.MethodGet, "/app.js", nil))
+	if app.Code != http.StatusOK {
+		t.Fatalf("app status = %d", app.Code)
+	}
+	javascript := app.Body.String()
+	for _, contract := range []string{
+		`X-Ferry-Device-Kind`,
+		`message.sender_kind`,
+		`createDeviceIcon(device.kind)`,
+		`iphone:`, `ipad:`, `mac:`, `android:`, `windows:`, `browser:`,
+	} {
+		if !strings.Contains(javascript, contract) {
+			t.Errorf("app.js does not contain device icon contract %q", contract)
+		}
+	}
+	if strings.Contains(javascript, `sender_name.slice(0, 1)`) {
+		t.Error("message avatar still renders the sender initial")
+	}
+
+	license := httptest.NewRecorder()
+	handler.ServeHTTP(license, httptest.NewRequest(http.MethodGet, "/tabler-icons-LICENSE.txt", nil))
+	if license.Code != http.StatusOK || !strings.Contains(license.Body.String(), "Copyright (c) 2020-2026 Paweł Kuna") || !strings.Contains(license.Body.String(), "MIT License") {
+		t.Fatalf("Tabler license status = %d, body = %q", license.Code, license.Body.String())
+	}
+}

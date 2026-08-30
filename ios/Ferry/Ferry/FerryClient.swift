@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 @MainActor
 protocol FerryServicing {
@@ -29,7 +30,8 @@ struct FerryClient: FerryServicing {
 
     func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim {
         try await json(endpoint: endpoint, path: "/api/v1/access/join", method: "POST", token: nil,
-                       body: try JSONSerialization.data(withJSONObject: ["password": password, "device_name": name]))
+                       body: try JSONSerialization.data(withJSONObject: ["password": password, "device_name": name]),
+                       deviceKind: nativeDeviceKind)
     }
 
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device {
@@ -80,13 +82,15 @@ struct FerryClient: FerryServicing {
 
     private func json<T: Decodable>(endpoint: ServerEndpoint, path: String, method: String = "GET", token: String?,
                                     query: [URLQueryItem] = [], body: Data? = nil,
-                                    contentType: String = "application/json") async throws -> T {
+                                    contentType: String = "application/json",
+                                    deviceKind: String? = nil) async throws -> T {
         var request = URLRequest(url: endpoint.url(path: path, queryItems: query))
         request.httpMethod = method
         request.httpBody = body
         request.cachePolicy = .reloadIgnoringLocalCacheData
         if body != nil { request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
         if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        if let deviceKind { request.setValue(deviceKind, forHTTPHeaderField: "X-Ferry-Device-Kind") }
         let (data, response) = try await session.data(for: request)
         guard let response = response as? HTTPURLResponse else { throw ClientError.invalidResponse }
         guard (200..<300).contains(response.statusCode) else {
@@ -101,5 +105,9 @@ struct FerryClient: FerryServicing {
     private func safeFilename(_ value: String) -> String {
         value.replacingOccurrences(of: "\\", with: "_").replacingOccurrences(of: "\"", with: "_")
             .replacingOccurrences(of: "\r", with: "_").replacingOccurrences(of: "\n", with: "_")
+    }
+
+    private var nativeDeviceKind: String {
+        UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "iphone"
     }
 }

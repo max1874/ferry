@@ -45,16 +45,46 @@ let sendError = "";
 let storageError = "";
 const rendered = new Set();
 
-deviceNameInput.value = defaultDeviceName();
+const DEVICE_ICON_PATHS = Object.freeze({
+  iphone: ["M6 5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5", "M11 4h2", "M12 17v.01"],
+  ipad: ["M5 4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4", "M11 17a1 1 0 1 0 2 0 1 1 0 0 0-2 0"],
+  mac: ["M3 5a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5", "M7 20h10", "M9 16v4", "M15 16v4"],
+  android: ["M4 10v6", "M20 10v6", "M7 9h10v8a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V9a5 5 0 0 1 10 0", "M8 3l1 2", "M16 3l-1 2", "M9 18v3", "M15 18v3"],
+  windows: ["M17.8 20l-12-1.5A2 2 0 0 1 4 16.6V7.4a2 2 0 0 1 1.8-1.9l12-1.5A2 2 0 0 1 20 5.9V18a2 2 0 0 1-2.2 1.9V20", "M12 5v14", "M4 12h16"],
+  browser: ["M4 8h16", "M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6", "M8 4v4"],
+});
 
-function defaultDeviceName() {
+const localDeviceKind = defaultDeviceKind();
+deviceNameInput.value = defaultDeviceName(localDeviceKind);
+
+function defaultDeviceKind() {
   const platform = navigator.userAgentData?.platform || navigator.platform || "";
-  if (/iphone/i.test(platform)) return "iPhone Web";
-  if (/ipad/i.test(platform)) return "iPad Web";
-  if (/mac/i.test(platform)) return "Mac Web";
-  if (/win/i.test(platform)) return "Windows Web";
-  if (/android/i.test(navigator.userAgent)) return "Android Web";
-  return "Web Browser";
+  const userAgent = navigator.userAgent || "";
+  if (/ipad/i.test(platform) || /ipad/i.test(userAgent) || /mac/i.test(platform) && navigator.maxTouchPoints > 1) return "ipad";
+  if (/iphone|ipod/i.test(platform) || /iphone|ipod/i.test(userAgent)) return "iphone";
+  if (/android/i.test(platform) || /android/i.test(userAgent)) return "android";
+  if (/mac/i.test(platform)) return "mac";
+  if (/win/i.test(platform)) return "windows";
+  return "browser";
+}
+
+function defaultDeviceName(kind) {
+  return { iphone: "iPhone Web", ipad: "iPad Web", mac: "Mac Web", android: "Android Web", windows: "Windows Web", browser: "Web Browser" }[kind];
+}
+
+function createDeviceIcon(kind) {
+  const namespace = "http://www.w3.org/2000/svg";
+  const icon = document.createElementNS(namespace, "svg");
+  icon.setAttribute("class", "device-icon");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("aria-hidden", "true");
+  icon.setAttribute("focusable", "false");
+  for (const pathData of DEVICE_ICON_PATHS[kind] || DEVICE_ICON_PATHS.browser) {
+    const path = document.createElementNS(namespace, "path");
+    path.setAttribute("d", pathData);
+    icon.append(path);
+  }
+  return icon;
 }
 
 function readStoredToken() {
@@ -199,7 +229,7 @@ function renderMessage(message) {
 
   const avatar = document.createElement("div");
   avatar.className = "avatar";
-  avatar.textContent = message.sender_name.slice(0, 1).toUpperCase();
+  avatar.append(createDeviceIcon(message.sender_kind));
   avatar.setAttribute("aria-hidden", "true");
 
   const body = document.createElement("div");
@@ -416,7 +446,7 @@ async function joinAccess(password) {
   if (!storageWritable()) throw new Error("Browser storage is unavailable. Enable site storage before connecting this device.");
   const response = await fetch("/api/v1/access/join", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-Ferry-Device-Kind": localDeviceKind },
     body: JSON.stringify({ device_name: deviceNameInput.value, password }),
   });
   if (!response.ok) throw await responseError(response);
@@ -473,7 +503,13 @@ async function loadDevices() {
     meta.className = "device-meta";
     meta.textContent = device.id === currentDevice.id ? "This device" : `Connected ${new Date(device.created_at).toLocaleDateString()}`;
     copy.append(name, meta);
-    row.append(copy);
+    const identity = document.createElement("div");
+    identity.className = "device-identity";
+    const icon = document.createElement("div");
+    icon.className = "device-list-icon";
+    icon.append(createDeviceIcon(device.kind));
+    identity.append(icon, copy);
+    row.append(identity);
     if (device.id !== currentDevice.id) {
       const revoke = document.createElement("button");
       revoke.className = "revoke";

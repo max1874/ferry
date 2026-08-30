@@ -209,6 +209,11 @@ func (s *server) join(w http.ResponseWriter, r *http.Request) {
 		s.domainError(w, err)
 		return
 	}
+	deviceKind, err := requestDeviceKind(r, name)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "X-Ferry-Device-Kind must be iphone, ipad, mac, android, windows, or browser")
+		return
+	}
 	password := string(request.Password)
 	if password != "" && !validAccessPassword(password) {
 		writeError(w, http.StatusBadRequest, "invalid_request", fmt.Sprintf("password must be valid UTF-8 and at most %d bytes", maxAccessPasswordBytes))
@@ -230,13 +235,24 @@ func (s *server) join(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, err)
 		return
 	}
-	device, err := s.store.CreateDevice(r.Context(), name, tokenHash)
+	device, err := s.store.CreateDeviceWithKind(r.Context(), name, deviceKind, tokenHash)
 	if err != nil {
 		s.domainError(w, err)
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, http.StatusCreated, map[string]any{"device": device, "token": token})
+}
+
+func requestDeviceKind(r *http.Request, deviceName string) (DeviceKind, error) {
+	values := r.Header.Values("X-Ferry-Device-Kind")
+	if len(values) == 0 {
+		return inferDeviceKind(deviceName), nil
+	}
+	if len(values) != 1 || values[0] == "" || strings.TrimSpace(values[0]) != values[0] || strings.Contains(values[0], ",") {
+		return "", ErrInvalid
+	}
+	return normalizeDeviceKind(values[0], deviceName)
 }
 
 func (s *server) accessSettings(w http.ResponseWriter, r *http.Request) {

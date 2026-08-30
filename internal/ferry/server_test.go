@@ -23,7 +23,7 @@ func TestHTTPTextContractAndCursor(t *testing.T) {
 	}
 	var message Message
 	decodeResponse(t, created, &message)
-	assertJSONKeys(t, created.Body.Bytes(), "created text", []string{"created_at", "id", "kind", "sender_name", "sequence", "text"})
+	assertJSONKeys(t, created.Body.Bytes(), "created text", []string{"created_at", "id", "kind", "sender_kind", "sender_name", "sequence", "text"})
 	if message.Kind != KindText || message.Text == nil || *message.Text != "hello ferry" || message.File != nil {
 		t.Fatalf("created message = %#v", message)
 	}
@@ -159,7 +159,7 @@ func TestHTTPFileContractDownloadAndTraversalName(t *testing.T) {
 	}
 	var message Message
 	decodeResponse(t, response, &message)
-	assertJSONKeys(t, response.Body.Bytes(), "created file", []string{"created_at", "file", "id", "kind", "sender_name", "sequence"})
+	assertJSONKeys(t, response.Body.Bytes(), "created file", []string{"created_at", "file", "id", "kind", "sender_kind", "sender_name", "sequence"})
 	var rawFileMessage map[string]any
 	decodeResponse(t, response, &rawFileMessage)
 	fileObject, ok := rawFileMessage["file"].(map[string]any)

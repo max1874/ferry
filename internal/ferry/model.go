@@ -33,6 +33,17 @@ const (
 	KindFile Kind = "file"
 )
 
+type DeviceKind string
+
+const (
+	DeviceKindIPhone  DeviceKind = "iphone"
+	DeviceKindIPad    DeviceKind = "ipad"
+	DeviceKindMac     DeviceKind = "mac"
+	DeviceKindAndroid DeviceKind = "android"
+	DeviceKindWindows DeviceKind = "windows"
+	DeviceKindBrowser DeviceKind = "browser"
+)
+
 type FileInfo struct {
 	Name        string `json:"name"`
 	MediaType   string `json:"media_type"`
@@ -41,19 +52,59 @@ type FileInfo struct {
 }
 
 type Message struct {
-	ID         string    `json:"id"`
-	Sequence   int64     `json:"sequence"`
-	Kind       Kind      `json:"kind"`
-	SenderName string    `json:"sender_name"`
-	CreatedAt  string    `json:"created_at"`
-	Text       *string   `json:"text,omitempty"`
-	File       *FileInfo `json:"file,omitempty"`
+	ID         string     `json:"id"`
+	Sequence   int64      `json:"sequence"`
+	Kind       Kind       `json:"kind"`
+	SenderName string     `json:"sender_name"`
+	SenderKind DeviceKind `json:"sender_kind"`
+	CreatedAt  string     `json:"created_at"`
+	Text       *string    `json:"text,omitempty"`
+	File       *FileInfo  `json:"file,omitempty"`
 }
 
 type Device struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	CreatedAt string `json:"created_at"`
+	ID        string     `json:"id"`
+	Name      string     `json:"name"`
+	Kind      DeviceKind `json:"kind"`
+	CreatedAt string     `json:"created_at"`
+}
+
+func normalizeDeviceKind(value string, deviceName string) (DeviceKind, error) {
+	if value == "" {
+		return inferDeviceKind(deviceName), nil
+	}
+	kind := DeviceKind(value)
+	if !validDeviceKind(kind) {
+		return "", fmt.Errorf("%w: unknown device kind %q", ErrInvalid, value)
+	}
+	return kind, nil
+}
+
+func validDeviceKind(kind DeviceKind) bool {
+	switch kind {
+	case DeviceKindIPhone, DeviceKindIPad, DeviceKindMac, DeviceKindAndroid, DeviceKindWindows, DeviceKindBrowser:
+		return true
+	default:
+		return false
+	}
+}
+
+func inferDeviceKind(deviceName string) DeviceKind {
+	name := strings.ToLower(deviceName)
+	switch {
+	case strings.Contains(name, "ipad"):
+		return DeviceKindIPad
+	case strings.Contains(name, "iphone"), strings.Contains(name, "ipod"):
+		return DeviceKindIPhone
+	case strings.Contains(name, "android"):
+		return DeviceKindAndroid
+	case strings.Contains(name, "mac"):
+		return DeviceKindMac
+	case strings.Contains(name, "windows"):
+		return DeviceKindWindows
+	default:
+		return DeviceKindBrowser
+	}
 }
 
 func newID() (string, error) {

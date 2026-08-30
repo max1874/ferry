@@ -69,6 +69,7 @@ final class FerryTests: XCTestCase {
         URLStub.handler = { request in
             XCTAssertEqual(request.url?.path, "/api/v1/access/join")
             XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+            XCTAssertEqual(request.value(forHTTPHeaderField: "X-Ferry-Device-Kind"), "iphone")
             let stream = try XCTUnwrap(request.httpBodyStream)
             stream.open()
             defer { stream.close() }

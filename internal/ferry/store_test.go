@@ -3,6 +3,7 @@ package ferry
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"io"
 	"os"
@@ -11,6 +12,104 @@ import (
 	"sync"
 	"testing"
 )
+
+func TestLegacyDatabaseMigratesDeviceKindsAndInfersHistory(t *testing.T) {
+	dataDir := t.TempDir()
+	database, err := sql.Open("sqlite", filepath.Join(dataDir, "ferry.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = database.Exec(`
+        CREATE TABLE devices (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            token_hash BLOB NOT NULL UNIQUE,
+            created_at TEXT NOT NULL
+        );
+        CREATE TABLE messages (
+            sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+            id TEXT NOT NULL UNIQUE,
+            kind TEXT NOT NULL,
+            sender_name TEXT NOT NULL,
+            text_body TEXT,
+            file_name TEXT,
+            media_type TEXT,
+            file_size INTEGER,
+            blob_name TEXT,
+            created_at TEXT NOT NULL
+        );
+        INSERT INTO devices (id, name, token_hash, created_at)
+        VALUES ('0123456789abcdef0123456789abcdef', 'Mac Web', zeroblob(32), '2026-08-29T00:00:00Z');
+        INSERT INTO messages (id, kind, sender_name, text_body, created_at)
+        VALUES ('fedcba9876543210fedcba9876543210', 'text', 'iPhone 17 Pro', 'legacy', '2026-08-29T00:00:01Z');
+    `)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	store, err := OpenStore(t.Context(), dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var tokenHash [32]byte
+	device, err := store.AuthenticateDevice(t.Context(), tokenHash)
+	if err != nil || device.Kind != DeviceKindMac {
+		t.Fatalf("legacy device = %#v, error = %v", device, err)
+	}
+	messages, _, err := store.ListMessages(t.Context(), 0, 10)
+	if err != nil || len(messages) != 1 || messages[0].SenderKind != DeviceKindIPhone {
+		t.Fatalf("legacy messages = %#v, error = %v", messages, err)
+	}
+	var nullDeviceKind, nullMessageKind bool
+	if err := store.db.QueryRow("SELECT kind IS NULL FROM devices LIMIT 1").Scan(&nullDeviceKind); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.db.QueryRow("SELECT sender_kind IS NULL FROM messages LIMIT 1").Scan(&nullMessageKind); err != nil {
+		t.Fatal(err)
+	}
+	if !nullDeviceKind || !nullMessageKind {
+		t.Fatal("migration rewrote legacy rows instead of preserving nullable history")
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := OpenStore(t.Context(), dataDir)
+	if err != nil {
+		t.Fatalf("idempotent reopen: %v", err)
+	}
+	t.Cleanup(func() { reopened.Close() })
+	if _, err := reopened.db.Exec("PRAGMA ignore_check_constraints = ON"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reopened.db.Exec("UPDATE devices SET kind = 'car'"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reopened.AuthenticateDevice(t.Context(), tokenHash); err == nil || !strings.Contains(err.Error(), "stored device kind is invalid") {
+		t.Fatalf("corrupt stored device kind error = %v", err)
+	}
+}
+
+func TestDeviceKindInferenceUsesFiniteFallback(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		want DeviceKind
+	}{
+		{"iPhone 17 Pro", DeviceKindIPhone},
+		{"iPad Web", DeviceKindIPad},
+		{"macmini", DeviceKindMac},
+		{"Android Web", DeviceKindAndroid},
+		{"Windows Web", DeviceKindWindows},
+		{"Kitchen Display", DeviceKindBrowser},
+	} {
+		if got := inferDeviceKind(test.name); got != test.want {
+			t.Errorf("inferDeviceKind(%q) = %q, want %q", test.name, got, test.want)
+		}
+	}
+}
 
 func TestTextBoundariesAndPreservation(t *testing.T) {
 	store := openTestStore(t)
@@ -381,6 +480,65 @@ func TestRevokedRequesterCannotDeleteAnotherDevice(t *testing.T) {
 	}
 	if len(devices) != 2 || devices[0].ID != second.ID || devices[1].ID != third.ID {
 		t.Fatalf("devices after stale delete = %#v", devices)
+	}
+}
+
+func TestMessageKindMustMatchPersistedDeviceKind(t *testing.T) {
+	store := openTestStore(t)
+	ctx := context.Background()
+	_, explicitHash, err := newDeviceToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	explicit, err := store.CreateDeviceWithKind(ctx, "Kitchen Display", DeviceKindMac, explicitHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	forged := explicit
+	forged.Kind = DeviceKindIPhone
+	if _, err := store.CreateTextForDevice(ctx, forged, "must not land"); !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("forged text kind error = %v, want ErrUnauthorized", err)
+	}
+	if _, err := store.CreateFileForDevice(ctx, forged, "forged.txt", "text/plain", strings.NewReader("must not land")); !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("forged file kind error = %v, want ErrUnauthorized", err)
+	}
+
+	_, legacyHash, err := newDeviceToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy, err := store.CreateDevice(ctx, "Legacy iPhone", legacyHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.db.ExecContext(ctx, "UPDATE devices SET kind = NULL WHERE id = ?", legacy.ID); err != nil {
+		t.Fatal(err)
+	}
+	legacy, err = store.AuthenticateDevice(ctx, legacyHash)
+	if err != nil || legacy.Kind != DeviceKindIPhone {
+		t.Fatalf("legacy device = %#v, error = %v", legacy, err)
+	}
+	if _, err := store.CreateTextForDevice(ctx, legacy, "legacy lands"); err != nil {
+		t.Fatalf("legacy inferred kind rejected: %v", err)
+	}
+	legacy.Kind = DeviceKindMac
+	if _, err := store.CreateTextForDevice(ctx, legacy, "forged legacy kind"); !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("forged legacy kind error = %v, want ErrUnauthorized", err)
+	}
+
+	messages, _, err := store.ListMessages(ctx, 0, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(messages) != 1 || messages[0].SenderKind != DeviceKindIPhone || messages[0].Text == nil || *messages[0].Text != "legacy lands" {
+		t.Fatalf("messages after kind checks = %#v", messages)
+	}
+	entries, err := os.ReadDir(store.blobsDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("forged file kind left blobs: %v", entries)
 	}
 }
 
