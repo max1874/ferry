@@ -55,7 +55,9 @@ Plain brief: Ferry no longer asks users to understand pairing codes. The deploye
 - A current-HEAD browser race probe enabled the setting while a credential-less form was open; the join returned `invalid_password`, displayed `password is incorrect`, and revealed the password field. Its kill probe injected network loss and observed `Offline` with the password field still hidden, proving the UI distinguishes protocol state from transport failure.
 - SQLite close/reopen test proves the verifier survives restart, disables cleanly, and the raw test password is absent from the database, WAL, and shared-memory files.
 - Final local gates pass: Go race/vet, JavaScript syntax, shell syntax, Compose config, Docker image build (`sha256:ceb764…`), `git diff --check`, four author passes, and fresh verifier SHIP with P0/P1/P2 all zero.
-- Pending deployment gates: macmini Docker rebuild/restart, physical iPhone install, commit and push.
+- macmini deployment passes at `http://10.0.0.2:42817`: image rebuilt as `sha256:773904…`; health, passwordless join, `invalid_password`, exact-password join, old-token survival, restart persistence, and final password disable were asserted against the running container. Extra password-path devices were revoked after the probe.
+- Deployed Chromium reached the timeline with `Local`, opened Devices, and observed Access password as visible and disabled. The signed physical build installed on iPhone `9B234E1E…` as `com.max1874.ferry`; automatic launch was denied only because the phone was locked.
+- Source commit `54570ef` was pushed to `origin/main`; the deployment record is committed separately after live verification.
 
 ## Adversarial author review
 
