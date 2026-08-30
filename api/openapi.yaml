@@ -32,7 +32,7 @@ paths:
               type: object
               required: [code, device_name]
               properties:
-                code: { type: string, pattern: '^\s*[0-9]{4}\s*$', description: Exactly four ASCII digits after surrounding Unicode whitespace is removed. }
+                code: { type: string, pattern: '^[0-9]{4}$', description: Exactly four ASCII digits; whitespace is not accepted. }
                 device_name: { type: string, minLength: 1, description: At most 64 UTF-8 bytes after trimming; control characters are rejected. }
               additionalProperties: false
       responses:

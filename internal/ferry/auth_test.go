@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestPairingCodeIsFourDigitsSingleUseAndWhitespaceTolerant(t *testing.T) {
+func TestPairingCodeIsFourDigitsAndSingleUse(t *testing.T) {
 	now := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
 	manager := newPairingManager(func() time.Time { return now }, bytes.NewReader(make([]byte, pairingCodeBytes)))
 	code, err := manager.NewCode("")
@@ -18,7 +18,7 @@ func TestPairingCodeIsFourDigitsSingleUseAndWhitespaceTolerant(t *testing.T) {
 	if code.Code != "0000" || code.ExpiresAt != "2026-08-29T12:10:00Z" {
 		t.Fatalf("code = %#v", code)
 	}
-	if !manager.Consume("\u2003 0000 \u2003") {
+	if !manager.Consume("0000") {
 		t.Fatal("first consume failed")
 	}
 	if manager.Consume(code.Code) {
@@ -33,7 +33,7 @@ func TestPairingCodeExpiresAndRejectsEquivalentLookingInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, invalid := range []string{"000", "00000", "000A", "００００"} {
+	for _, invalid := range []string{"000", "00000", "000A", "００００", " 0000", "0000\n", "\u20030000\u2003"} {
 		if manager.Consume(invalid) {
 			t.Fatalf("pairing code accepted %q", invalid)
 		}

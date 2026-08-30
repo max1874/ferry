@@ -22,7 +22,7 @@ Plain brief: Ferry will show a short PIN that is easy to type on a phone. Only t
 ## Frozen checklist
 
 1. Generated codes match `^[0-9]{4}$`, preserve `0000`, and rejection sampling never introduces modulo bias.
-2. Normalization accepts ASCII digits with surrounding Unicode whitespace and rejects wrong length, letters, and non-ASCII digits.
+2. Normalization accepts exactly four ASCII digits and rejects whitespace, wrong length, letters, and non-ASCII digits.
 3. Existing expiry, collision retry, reservation rollback, concurrent single winner, and issuer revocation tests remain green.
 4. OpenAPI, Web constraints, Server, and iOS numeric keyboard agree on four ASCII digits.
 5. Full Go tests, race tests, vet, signed iOS tests/build, Docker build, and `git diff --check` pass.
@@ -49,7 +49,7 @@ Plain brief: Ferry will show a short PIN that is easy to type on a phone. Only t
 
 1. **Dual judges** — Server is final judge; machine-readable OpenAPI request/response patterns, Web `[0-9]{4}`, and iOS reject-without-rewrite input validation agree. Evidence: `rg` found no live base32/16-character consumer outside the explicitly historical design record.
 2. **Extremes** — `0000` and `9999`, expiry boundary, wrong lengths, and exhausted randomness are covered by named auth tests.
-3. **Equivalent spellings** — Server accepts surrounding Unicode whitespace and rejects letters/full-width digits; the HTTP journey exercises `\u2003` around a real code.
+3. **Equivalent spellings** — there are none: Server rejects surrounding whitespace, letters, and full-width digits; only the exact four ASCII bytes are accepted.
 4. **Defaults as backdoors** — ten-minute and single-use defaults are unchanged; no rate limit is an explicit user decision, not an accidental unset default.
 5. **Side doors** — every claim route reaches `PairingManager.Reserve`; HTML/iOS filtering is convenience only and cannot bypass Server normalization.
 6. **Policy needs a gate** — race tests, OpenAPI pattern, HTML pattern, and signed Swift compile are the executable gates.
@@ -77,6 +77,6 @@ The first zero-context review of candidate `200f890` returned FAIL with two P1 a
 
 - Public `FERRY_HOST_IP` could bypass the process listener check through Docker port publication. The container now passes the published host into Ferry's Go config validator; a `203.0.113.10` container probe exits closed with `published-host must be a loopback or private/link-local IP address`.
 - iOS previously deleted invalid characters and truncated long pasted values, which could turn `12a34` into another credential, `1234`. It now rejects the whole proposed edit and retains the prior field value; a signed Swift test covers letters, superscript digits, full-width digits, and five digits.
-- The OpenAPI claim request described four digits only in prose. It now has a machine-readable whitespace-aware four-ASCII-digit pattern, while the response remains strict `^[0-9]{4}$`.
+- The OpenAPI claim request described four digits only in prose. Request and response now both use strict machine-readable `^[0-9]{4}$`; Server rejects whitespace too, avoiding incompatible Unicode whitespace tables across validators.
 
 A second fresh zero-context verdict on the corrected commit remains required before push.

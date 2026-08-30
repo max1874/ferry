@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"strings"
 	"sync"
 	"time"
 )
@@ -152,7 +151,6 @@ func (p *PairingManager) removeExpiredLocked() {
 }
 
 func normalizePairingCode(value string) (string, bool) {
-	value = strings.TrimSpace(value)
 	if len(value) != 4 {
 		return "", false
 	}
