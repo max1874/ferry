@@ -1,0 +1,6 @@
+.git
+.DS_Store
+ferry-data
+ios
+artifacts
+**/artifacts

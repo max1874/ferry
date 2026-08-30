@@ -1,0 +1,18 @@
+services:
+  ferry:
+    build:
+      context: .
+    image: ferry:local
+    container_name: ferry
+    environment:
+      FERRY_PORT: ${FERRY_PORT:-42817}
+      TZ: Asia/Shanghai
+    ports:
+      - "${FERRY_HOST_IP:-127.0.0.1}:${FERRY_PORT:-42817}:${FERRY_PORT:-42817}"
+    volumes:
+      - ferry-data:/data
+    restart: unless-stopped
+    stop_grace_period: 15s
+
+volumes:
+  ferry-data:

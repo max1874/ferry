@@ -26,7 +26,7 @@
         <h1>Pair this device</h1>
         <p>Enter a code from the Ferry Server or another paired device.</p>
         <label>Device name<input id="device-name" name="device_name" maxlength="64" autocomplete="nickname" required></label>
-        <label>Pairing code<input id="pairing-code" name="code" maxlength="16" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" required></label>
+        <label>Pairing code<input id="pairing-code" name="code" type="text" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="one-time-code" spellcheck="false" required></label>
         <button class="primary" type="submit">Pair device</button>
         <p class="form-error" id="pairing-error" role="alert"></p>
         <small>Ferry currently uses unencrypted HTTP. Pair only on a trusted network.</small>

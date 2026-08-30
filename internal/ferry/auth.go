@@ -3,8 +3,8 @@ package ferry
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/base32"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"strings"
@@ -15,7 +15,9 @@ import (
 const (
 	PairingCodeLifetime = 10 * time.Minute
 	deviceTokenBytes    = 32
-	pairingCodeBytes    = 10
+	pairingCodeBytes    = 2
+	pairingCodeLimit    = 60_000
+	pairingCodeSpace    = 10_000
 )
 
 type PairingCode struct {
@@ -54,12 +56,16 @@ func (p *PairingManager) NewCode(issuerID string) (PairingCode, error) {
 	if issuerID != "" && !validID(issuerID) {
 		return PairingCode{}, fmt.Errorf("pairing code issuer is invalid")
 	}
-	for range 4 {
+	for range 16 {
 		raw := make([]byte, pairingCodeBytes)
 		if _, err := io.ReadFull(p.random, raw); err != nil {
 			return PairingCode{}, fmt.Errorf("generate pairing code: %w", err)
 		}
-		code := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(raw)
+		sample := int(binary.BigEndian.Uint16(raw))
+		if sample >= pairingCodeLimit {
+			continue
+		}
+		code := fmt.Sprintf("%04d", sample%pairingCodeSpace)
 		expiresAt := p.now().UTC().Add(PairingCodeLifetime).Truncate(time.Second)
 		hash := sha256.Sum256([]byte(code))
 		p.mu.Lock()
@@ -146,12 +152,12 @@ func (p *PairingManager) removeExpiredLocked() {
 }
 
 func normalizePairingCode(value string) (string, bool) {
-	value = strings.ToUpper(strings.TrimSpace(value))
-	if len(value) != 16 {
+	value = strings.TrimSpace(value)
+	if len(value) != 4 {
 		return "", false
 	}
 	for _, char := range value {
-		if !(char >= 'A' && char <= 'Z') && !(char >= '2' && char <= '7') {
+		if char < '0' || char > '9' {
 			return "", false
 		}
 	}

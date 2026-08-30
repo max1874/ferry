@@ -39,8 +39,8 @@ private struct PairingView: View {
                             .accessibilityIdentifier("server-address")
                         TextField("Device name", text: $model.deviceName)
                             .focused($focused, equals: .name).accessibilityIdentifier("device-name")
-                        TextField("Pairing code", text: $model.pairingCode)
-                            .textInputAutocapitalization(.characters).autocorrectionDisabled()
+                        TextField("Pairing code", text: pairingCode)
+                            .textContentType(.oneTimeCode).keyboardType(.numberPad)
                             .focused($focused, equals: .code).accessibilityIdentifier("pairing-code")
                         if let message = model.statusMessage {
                             Text(message).font(.footnote).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading)
@@ -57,5 +57,14 @@ private struct PairingView: View {
             }
             .padding(.horizontal, 24)
         }
+    }
+
+    private var pairingCode: Binding<String> {
+        Binding(
+            get: { model.pairingCode },
+            set: { value in
+                model.pairingCode = String(value.filter { $0 >= "0" && $0 <= "9" }.prefix(4))
+            }
+        )
     }
 }

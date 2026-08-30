@@ -32,11 +32,22 @@ go run ./cmd/ferry -lan -listen 192.168.1.20:8080
 
 Replace the example with a specific private or link-local Server address, then open it from each device. Wildcard listeners, hostnames, and public IPs are rejected. Ferry currently uses unencrypted HTTP, so LAN mode protects device identity but not content from someone who can capture trusted-network traffic. Do not expose this milestone to the public internet; TLS is a separate future layer.
 
+## Run with Docker Compose
+
+The container serves both the Web UI and API and stores SQLite plus uploaded blobs in a named volume. Publish it on one specific trusted-LAN address and a high port:
+
+```bash
+FERRY_HOST_IP=192.168.1.20 FERRY_PORT=42817 docker compose up --build -d
+docker compose logs ferry
+```
+
+Open `http://192.168.1.20:42817` and use the bootstrap code printed in the container log. The Compose defaults publish only to `127.0.0.1`; setting `FERRY_HOST_IP` is the explicit LAN opt-in. Stop the service with `docker compose down`; the `ferry-data` named volume remains until it is explicitly removed.
+
 ## Run the iOS App
 
 Open `ios/Ferry/Ferry.xcodeproj` in Xcode 26.6 or newer and run the `Ferry` scheme on iOS 26. The project intentionally has no Development Team configured; Simulator builds work as-is, while a real device requires your own signing team.
 
-For Simulator development, the default Server address is `http://127.0.0.1:8080`. For a real iPhone, start Ferry with an explicit private LAN address as shown above, enter that origin in the App, and claim a pairing code issued by the Server or an already paired Web client.
+For Simulator development, the default Server address is `http://127.0.0.1:8080`. For a real iPhone, start Ferry with an explicit private LAN address or the Docker Compose deployment above, enter that origin in the App, and claim a pairing code issued by the Server or an already paired Web client.
 
 ## Verify
 

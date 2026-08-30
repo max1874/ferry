@@ -8,17 +8,17 @@ import (
 	"time"
 )
 
-func TestPairingCodeIsSingleUseAndCaseInsensitive(t *testing.T) {
+func TestPairingCodeIsFourDigitsSingleUseAndWhitespaceTolerant(t *testing.T) {
 	now := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
 	manager := newPairingManager(func() time.Time { return now }, bytes.NewReader(make([]byte, pairingCodeBytes)))
 	code, err := manager.NewCode("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if code.Code != "AAAAAAAAAAAAAAAA" || code.ExpiresAt != "2026-08-29T12:10:00Z" {
+	if code.Code != "0000" || code.ExpiresAt != "2026-08-29T12:10:00Z" {
 		t.Fatalf("code = %#v", code)
 	}
-	if !manager.Consume("  aaaaaaaaaaaaaaaa  ") {
+	if !manager.Consume("\u2003 0000 \u2003") {
 		t.Fatal("first consume failed")
 	}
 	if manager.Consume(code.Code) {
@@ -33,8 +33,10 @@ func TestPairingCodeExpiresAndRejectsEquivalentLookingInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if manager.Consume("AAAAAAAAAAAAAAA0") {
-		t.Fatal("pairing code accepted zero outside the base32 alphabet")
+	for _, invalid := range []string{"000", "00000", "000A", "００００"} {
+		if manager.Consume(invalid) {
+			t.Fatalf("pairing code accepted %q", invalid)
+		}
 	}
 	if code.ExpiresAt != "2026-08-29T12:10:00Z" {
 		t.Fatalf("expires_at = %q", code.ExpiresAt)
@@ -81,6 +83,36 @@ func TestPairingCodeCollisionRetriesInsteadOfAliasing(t *testing.T) {
 	}
 	if first.Code == second.Code || !manager.Consume(first.Code) || !manager.Consume(second.Code) {
 		t.Fatalf("first = %q, second = %q", first.Code, second.Code)
+	}
+}
+
+func TestPairingCodeRejectsBiasedRandomTail(t *testing.T) {
+	random := bytes.NewReader([]byte{0xff, 0xff, 0x00, 0x01})
+	manager := newPairingManager(time.Now, random)
+	code, err := manager.NewCode("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code.Code != "0001" {
+		t.Fatalf("code = %q", code.Code)
+	}
+}
+
+func TestPairingCodePreservesUpperFourDigitBoundary(t *testing.T) {
+	manager := newPairingManager(time.Now, bytes.NewReader([]byte{0xea, 0x5f})) // 59,999 maps to 9,999.
+	code, err := manager.NewCode("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code.Code != "9999" {
+		t.Fatalf("code = %q", code.Code)
+	}
+}
+
+func TestPairingCodeFailsWhenRandomSourceNeverProducesUsableSample(t *testing.T) {
+	manager := newPairingManager(time.Now, bytes.NewReader(bytes.Repeat([]byte{0xff}, pairingCodeBytes*16)))
+	if _, err := manager.NewCode(""); err == nil {
+		t.Fatal("pairing code generation unexpectedly succeeded")
 	}
 }
 

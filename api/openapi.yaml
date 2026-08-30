@@ -32,7 +32,7 @@ paths:
               type: object
               required: [code, device_name]
               properties:
-                code: { type: string, description: A case-insensitive 16-character RFC 4648 base32 code; surrounding Unicode whitespace is ignored. }
+                code: { type: string, description: Exactly four ASCII digits after surrounding Unicode whitespace is removed. }
                 device_name: { type: string, minLength: 1, description: At most 64 UTF-8 bytes after trimming; control characters are rejected. }
               additionalProperties: false
       responses:
@@ -213,7 +213,7 @@ components:
       type: object
       required: [code, expires_at]
       properties:
-        code: { type: string, pattern: "^[A-Z2-7]{16}$" }
+        code: { type: string, pattern: "^[0-9]{4}$" }
         expires_at: { type: string, format: date-time }
       additionalProperties: false
     TextMessage:

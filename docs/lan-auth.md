@@ -52,7 +52,7 @@ flowchart LR
 #### A. 独立设备 token + bootstrap/短期配对码
 
 - token 256-bit 随机、base64url；SQLite 只存 SHA-256 hash。
-- 首台设备用 Server console 的 bootstrap code；以后由已配对设备生成 16-char、10 分钟、单次 code。
+- 首台设备用 Server console 的 bootstrap code；以后由已配对设备生成 4 位 ASCII 数字、10 分钟、单次 code。
 - Web 用 origin-scoped browser storage + Bearer，未来 native 复用 Bearer；每次请求实时查 devices 表。
 - **Recommended / Decided（Max，scope `go`）**：满足独立身份、重启持久化和立即撤销，且不引入外部服务。
 
@@ -134,6 +134,8 @@ flowchart LR
 7. **No self-certification**：真实 Server + CDP 创建的独立 BrowserContext 和同-origin双 tab 完成 claim/send/upload/download/revoke/re-pair/restart；旧 tab 用撤销 token 得到真实 401 后，新 tab 的 shared token 未被删除或覆盖，reload 仍恢复新身份。
 
 ### Final-HEAD runtime transcript
+
+> 本节是 16-character code 时代的历史验收记录，其中 code 原文只证明当时运行结果；当前 4 位数字契约与新证据见 `docs/four-digit-pairing.md`。
 
 - Binary：`/private/tmp/ferry-auth-v8.BOHukN/ferry`；SHA-256 `e9995a86d93cb8663104ebc9cdda1deb1b0170fe4d5b245f4ba174341c66f7f5`。录制：`/Users/max/.config/browser-harness/agent-workspace/recordings/ferry-lan-auth-v8`，134 frames。
 - Storage 被新文档脚本强制抛 `SecurityError` 时仍显示 Pair required；提交 bootstrap 只显示 storage error，随后 A 用同码成功配对，证明失败没有消耗 code。

@@ -375,10 +375,6 @@ pairingForm.addEventListener("submit", async (event) => {
   }
 });
 
-pairingCodeInput.addEventListener("input", () => {
-  pairingCodeInput.value = pairingCodeInput.value.toUpperCase();
-});
-
 async function loadDevices() {
   const generation = authGeneration;
   const response = await authenticatedFetch("/api/v1/devices", { cache: "no-store", signal: authController.signal });

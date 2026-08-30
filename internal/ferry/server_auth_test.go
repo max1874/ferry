@@ -22,7 +22,7 @@ func TestHTTPPairAuthenticateGenerateAndRevokeJourney(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	firstClaim := requestJSON(t, handler, http.MethodPost, "/api/v1/pairing/claim", `{"code":"`+strings.ToLower(bootstrap.Code)+`","device_name":" Max Mac "}`)
+	firstClaim := requestJSON(t, handler, http.MethodPost, "/api/v1/pairing/claim", `{"code":"\u2003`+bootstrap.Code+`\u2003","device_name":" Max Mac "}`)
 	first := decodeClaim(t, firstClaim)
 	if firstClaim.Code != http.StatusCreated || first.Device.Name != "Max Mac" || first.Token == "" {
 		t.Fatalf("first claim status = %d, payload = %#v", firstClaim.Code, first)

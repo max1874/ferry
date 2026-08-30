@@ -2,6 +2,31 @@ import XCTest
 
 @MainActor
 final class FerryUITests: XCTestCase {
+    func testMacminiDeploymentJourney() throws {
+        let bundle = Bundle(for: Self.self)
+        let server = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "FERRY_UI_SERVER") as? String)
+        let code = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "FERRY_UI_CODE") as? String)
+        let app = XCUIApplication()
+        app.launch()
+
+        replace(app.textFields["server-address"], with: server)
+        replace(app.textFields["device-name"], with: "iPhone 17 Pro")
+        replace(app.textFields["pairing-code"], with: code)
+        app.buttons["pair-device"].tap()
+
+        let currentDevice = app.staticTexts["current-device"]
+        XCTAssertTrue(currentDevice.waitForExistence(timeout: 10))
+        XCTAssertEqual(currentDevice.label, "iPhone 17 Pro")
+
+        let input = app.textFields["message-input"]
+        XCTAssertTrue(input.waitForExistence(timeout: 3))
+        input.tap()
+        input.typeText("from iphone via macmini 42817")
+        app.buttons["send-message"].tap()
+        XCTAssertTrue(message("from iphone via macmini 42817", in: app).waitForExistence(timeout: 10))
+        XCTAssertTrue(message("from web via macmini 42817", in: app).waitForExistence(timeout: 60))
+    }
+
     func testRealServerJourney() throws {
         let bundle = Bundle(for: Self.self)
         let server = try XCTUnwrap(bundle.object(forInfoDictionaryKey: "FERRY_UI_SERVER") as? String)
@@ -39,6 +64,10 @@ final class FerryUITests: XCTestCase {
         field.tap()
         let existingCount = (field.value as? String)?.count ?? 0
         field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: existingCount) + value)
+    }
+
+    private func message(_ body: String, in app: XCUIApplication) -> XCUIElement {
+        app.staticTexts.matching(NSPredicate(format: "identifier == 'message-text' AND label == %@", body)).firstMatch
     }
 
     private func selectFixture(in app: XCUIApplication) {
