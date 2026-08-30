@@ -12,9 +12,9 @@ button, textarea, input { font: inherit; }
 
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -0.01em; }
 
-.brand-mark, .welcome-mark { display: grid; place-items: center; color: white; background: #111111; font-weight: 700; }
+.brand-mark, .welcome-mark { display: block; object-fit: cover; }
 
-.brand-mark { width: 28px; height: 28px; border-radius: 9px; font-size: 14px; }
+.brand-mark { width: 28px; height: 28px; border-radius: 9px; }
 
 .connection { padding: 5px 9px; border-radius: 999px; color: #5f6368; background: #f3f3f3; font-size: 12px; }
 
@@ -39,7 +39,7 @@ button, textarea, input { font: inherit; }
 
 .welcome[hidden] { display: none; }
 
-.welcome-mark { width: 48px; height: 48px; margin-bottom: 22px; border-radius: 15px; font-size: 21px; }
+.welcome-mark { width: 48px; height: 48px; margin-bottom: 22px; border-radius: 15px; }
 
 .welcome h1 { margin: 0; color: #202123; font-size: clamp(27px, 5vw, 34px); letter-spacing: -0.04em; }
 

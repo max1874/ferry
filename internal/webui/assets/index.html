@@ -5,13 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <title>Ferry</title>
+    <link rel="icon" type="image/png" sizes="64x64" href="/ferry-icon-64.png">
+    <link rel="apple-touch-icon" sizes="256x256" href="/ferry-icon-256.png">
     <link rel="stylesheet" href="/app.css">
     <script src="/app.js" defer></script>
   </head>
   <body>
     <header class="topbar">
       <div class="brand" aria-label="Ferry">
-        <span class="brand-mark" aria-hidden="true">F</span>
+        <img class="brand-mark" src="/ferry-icon-64.png" alt="">
         <span>Ferry</span>
       </div>
       <div class="top-actions">
@@ -22,7 +24,7 @@
 
     <section class="access" id="access" hidden>
       <form class="access-card" id="access-form">
-        <span class="welcome-mark" aria-hidden="true">F</span>
+        <img class="welcome-mark" src="/ferry-icon-256.png" alt="">
         <h1>Connect to Ferry</h1>
         <p>This Ferry is ready on your local network.</p>
         <label>Device name<input id="device-name" name="device_name" maxlength="64" autocomplete="nickname" required></label>
@@ -35,7 +37,7 @@
 
     <main class="conversation" id="conversation" aria-live="polite" hidden>
       <section class="welcome" id="welcome">
-        <span class="welcome-mark" aria-hidden="true">F</span>
+        <img class="welcome-mark" src="/ferry-icon-256.png" alt="">
         <h1>What should we ferry?</h1>
         <p>Send text or a file to your other devices.</p>
       </section>
