@@ -20,9 +20,10 @@ const (
 )
 
 var (
-	ErrInvalid  = errors.New("invalid input")
-	ErrTooLarge = errors.New("input too large")
-	ErrNotFound = errors.New("not found")
+	ErrInvalid      = errors.New("invalid input")
+	ErrTooLarge     = errors.New("input too large")
+	ErrNotFound     = errors.New("not found")
+	ErrUnauthorized = errors.New("unauthorized")
 )
 
 type Kind string
@@ -47,6 +48,12 @@ type Message struct {
 	CreatedAt  string    `json:"created_at"`
 	Text       *string   `json:"text,omitempty"`
 	File       *FileInfo `json:"file,omitempty"`
+}
+
+type Device struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	CreatedAt string `json:"created_at"`
 }
 
 func newID() (string, error) {

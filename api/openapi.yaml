@@ -1,12 +1,15 @@
 openapi: 3.1.0
 info:
   title: Ferry API
-  version: 0.1.0
+  version: 0.2.0
 servers:
   - url: http://127.0.0.1:8080
+security:
+  - deviceBearer: []
 paths:
   /healthz:
     get:
+      security: []
       responses:
         "200":
           description: Healthy
@@ -18,6 +21,84 @@ paths:
                 properties:
                   status: { const: ok }
                 additionalProperties: false
+  /api/v1/pairing/claim:
+    post:
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, device_name]
+              properties:
+                code: { type: string, description: A case-insensitive 16-character RFC 4648 base32 code; surrounding Unicode whitespace is ignored. }
+                device_name: { type: string, minLength: 1, description: At most 64 UTF-8 bytes after trimming; control characters are rejected. }
+              additionalProperties: false
+      responses:
+        "201":
+          description: Device paired; token is returned once for origin-scoped client storage.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PairingClaim" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "413": { $ref: "#/components/responses/Error" }
+        "415": { $ref: "#/components/responses/Error" }
+  /api/v1/session:
+    get:
+      responses:
+        "200":
+          description: Current authenticated device.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [device]
+                properties:
+                  device: { $ref: "#/components/schemas/Device" }
+                additionalProperties: false
+        "401": { $ref: "#/components/responses/Error" }
+  /api/v1/pairing/codes:
+    post:
+      responses:
+        "201":
+          description: A single-use code valid for ten minutes in this Server process.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PairingCode" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+  /api/v1/devices:
+    get:
+      responses:
+        "200":
+          description: Paired devices.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [devices]
+                properties:
+                  devices:
+                    type: array
+                    items: { $ref: "#/components/schemas/Device" }
+                additionalProperties: false
+        "401": { $ref: "#/components/responses/Error" }
+  /api/v1/devices/{device_id}:
+    delete:
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[0-9a-f]{32}$" }
+      responses:
+        "204": { description: Another device was revoked. }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
   /api/v1/messages:
     get:
       parameters:
@@ -41,6 +122,7 @@ paths:
                     items: { $ref: "#/components/schemas/Message" }
                   next_cursor: { type: integer, minimum: 0 }
                 additionalProperties: false
+        "401": { $ref: "#/components/responses/Error" }
   /api/v1/messages/text:
     post:
       requestBody:
@@ -49,12 +131,8 @@ paths:
           application/json:
             schema:
               type: object
-              required: [sender_name, text]
+              required: [text]
               properties:
-                sender_name:
-                  type: string
-                  minLength: 1
-                  description: At most 64 UTF-8 bytes after surrounding whitespace is removed; control characters are rejected.
                 text:
                   type: string
                   minLength: 1
@@ -67,6 +145,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/TextMessage" }
         "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/Error" }
         "413": { $ref: "#/components/responses/Error" }
         "415": { $ref: "#/components/responses/Error" }
@@ -78,12 +157,8 @@ paths:
           multipart/form-data:
             schema:
               type: object
-              required: [sender_name, file]
+              required: [file]
               properties:
-                sender_name:
-                  type: string
-                  minLength: 1
-                  description: At most 64 UTF-8 bytes after surrounding whitespace is removed; control characters are rejected.
                 file:
                   type: string
                   contentMediaType: application/octet-stream
@@ -96,6 +171,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/FileMessage" }
         "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/Error" }
         "413": { $ref: "#/components/responses/Error" }
   /api/v1/files/{message_id}:
@@ -111,8 +187,35 @@ paths:
           content:
             "*/*": {}
         "404": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
 components:
+  securitySchemes:
+    deviceBearer:
+      type: http
+      scheme: bearer
   schemas:
+    Device:
+      type: object
+      required: [id, name, created_at]
+      properties:
+        id: { type: string, pattern: "^[0-9a-f]{32}$" }
+        name: { type: string }
+        created_at: { type: string, format: date-time }
+      additionalProperties: false
+    PairingClaim:
+      type: object
+      required: [device, token]
+      properties:
+        device: { $ref: "#/components/schemas/Device" }
+        token: { type: string, description: Canonical base64url encoding of 32 random bytes; returned only at claim time. }
+      additionalProperties: false
+    PairingCode:
+      type: object
+      required: [code, expires_at]
+      properties:
+        code: { type: string, pattern: "^[A-Z2-7]{16}$" }
+        expires_at: { type: string, format: date-time }
+      additionalProperties: false
     TextMessage:
       type: object
       required: [id, sequence, kind, sender_name, created_at, text]

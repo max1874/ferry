@@ -17,7 +17,7 @@ import (
 func TestHTTPTextContractAndCursor(t *testing.T) {
 	handler := newTestHandler(t)
 
-	created := requestJSON(t, handler, http.MethodPost, "/api/v1/messages/text", `{"sender_name":"Web","text":"hello ferry"}`)
+	created := requestJSON(t, handler, http.MethodPost, "/api/v1/messages/text", `{"text":"hello ferry"}`)
 	if created.Code != http.StatusCreated {
 		t.Fatalf("create status = %d, body = %s", created.Code, created.Body.String())
 	}
@@ -56,15 +56,16 @@ func TestHTTPRejectsTextBoundaryAndUnknownFields(t *testing.T) {
 		status int
 		code   string
 	}{
-		{name: "whitespace", body: `{"sender_name":"Web","text":"  "}`, status: 400, code: "invalid_request"},
-		{name: "over maximum", body: `{"sender_name":"Web","text":"` + strings.Repeat("x", MaxTextBytes+1) + `"}`, status: 413, code: "payload_too_large"},
-		{name: "unknown field", body: `{"sender_name":"Web","text":"hello","admin":true}`, status: 400, code: "invalid_request"},
-		{name: "duplicate field", body: `{"sender_name":"Web","text":"first","text":"second"}`, status: 400, code: "invalid_request"},
-		{name: "equivalent duplicate field", body: `{"sender_name":"Web","text":"first","te\u0078t":"second"}`, status: 400, code: "invalid_request"},
-		{name: "multiple documents", body: `{"sender_name":"Web","text":"hello"}{}`, status: 400, code: "invalid_request"},
-		{name: "lone high surrogate", body: `{"sender_name":"Web","text":"\ud800"}`, status: 400, code: "invalid_request"},
-		{name: "lone low surrogate", body: `{"sender_name":"Web","text":"\udc00"}`, status: 400, code: "invalid_request"},
-		{name: "invalid utf8", body: `{"sender_name":"Web","text":"` + string([]byte{0xff}) + `"}`, status: 400, code: "invalid_request"},
+		{name: "whitespace", body: `{"text":"  "}`, status: 400, code: "invalid_request"},
+		{name: "over maximum", body: `{"text":"` + strings.Repeat("x", MaxTextBytes+1) + `"}`, status: 413, code: "payload_too_large"},
+		{name: "unknown field", body: `{"text":"hello","admin":true}`, status: 400, code: "invalid_request"},
+		{name: "old sender field", body: `{"sender_name":"Admin","text":"hello"}`, status: 400, code: "invalid_request"},
+		{name: "duplicate field", body: `{"text":"first","text":"second"}`, status: 400, code: "invalid_request"},
+		{name: "equivalent duplicate field", body: `{"text":"first","te\u0078t":"second"}`, status: 400, code: "invalid_request"},
+		{name: "multiple documents", body: `{"text":"hello"}{}`, status: 400, code: "invalid_request"},
+		{name: "lone high surrogate", body: `{"text":"\ud800"}`, status: 400, code: "invalid_request"},
+		{name: "lone low surrogate", body: `{"text":"\udc00"}`, status: 400, code: "invalid_request"},
+		{name: "invalid utf8", body: `{"text":"` + string([]byte{0xff}) + `"}`, status: 400, code: "invalid_request"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -81,7 +82,7 @@ func TestHTTPRejectsTextBoundaryAndUnknownFields(t *testing.T) {
 
 func TestHTTPAcceptsPairedSurrogate(t *testing.T) {
 	handler := newTestHandler(t)
-	response := requestJSON(t, handler, http.MethodPost, "/api/v1/messages/text", `{"sender_name":"Web","text":"\ud83d\ude80"}`)
+	response := requestJSON(t, handler, http.MethodPost, "/api/v1/messages/text", `{"text":"\ud83d\ude80"}`)
 	if response.Code != http.StatusCreated {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
@@ -94,7 +95,7 @@ func TestHTTPAcceptsPairedSurrogate(t *testing.T) {
 
 func TestHTTPTextRequiresJSONContentType(t *testing.T) {
 	handler := newTestHandler(t)
-	request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/api/v1/messages/text", strings.NewReader(`{"sender_name":"Web","text":"hello"}`))
+	request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/api/v1/messages/text", strings.NewReader(`{"text":"hello"}`))
 	request.Header.Set("Content-Type", "text/plain")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
@@ -105,7 +106,7 @@ func TestHTTPTextRequiresJSONContentType(t *testing.T) {
 
 func TestRequestBoundaryRejectsCrossOriginWrite(t *testing.T) {
 	handler := newTestHandler(t)
-	request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/api/v1/messages/text", strings.NewReader(`{"sender_name":"Web","text":"hello"}`))
+	request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/api/v1/messages/text", strings.NewReader(`{"text":"hello"}`))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Origin", "https://evil.example")
 	response := httptest.NewRecorder()
@@ -117,9 +118,22 @@ func TestRequestBoundaryRejectsCrossOriginWrite(t *testing.T) {
 
 func TestRequestBoundaryRejectsCrossSchemeWrite(t *testing.T) {
 	handler := newTestHandler(t)
-	request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/api/v1/messages/text", strings.NewReader(`{"sender_name":"Web","text":"hello"}`))
+	request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/api/v1/messages/text", strings.NewReader(`{"text":"hello"}`))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Origin", "https://127.0.0.1")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden || errorCode(t, response) != "cross_origin_denied" {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+}
+
+func TestRequestBoundaryRejectsMultipleOrigins(t *testing.T) {
+	handler := newTestHandler(t)
+	request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/api/v1/messages/text", strings.NewReader(`{"text":"hello"}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Add("Origin", "http://127.0.0.1")
+	request.Header.Add("Origin", "https://evil.example")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusForbidden || errorCode(t, response) != "cross_origin_denied" {
@@ -170,7 +184,7 @@ func TestHTTPFileContractDownloadAndTraversalName(t *testing.T) {
 
 func TestHTTPFileEndpointReturnsNotFoundForTextMessage(t *testing.T) {
 	handler := newTestHandler(t)
-	created := requestJSON(t, handler, http.MethodPost, "/api/v1/messages/text", `{"sender_name":"Web","text":"hello"}`)
+	created := requestJSON(t, handler, http.MethodPost, "/api/v1/messages/text", `{"text":"hello"}`)
 	var message Message
 	decodeResponse(t, created, &message)
 	response := requestJSON(t, handler, http.MethodGet, "/api/v1/files/"+message.ID, "")
@@ -181,9 +195,11 @@ func TestHTTPFileEndpointReturnsNotFoundForTextMessage(t *testing.T) {
 
 func TestHTTPRejectsUnexpectedMultipartField(t *testing.T) {
 	handler := newTestHandler(t)
-	response := multipartRequest(t, handler, "hello.txt", []byte("hello"), map[string]string{"unexpected": "value"})
-	if response.Code != http.StatusBadRequest || errorCode(t, response) != "invalid_request" {
-		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	for _, extra := range []map[string]string{{"unexpected": "value"}, {"sender_name": "Admin"}} {
+		response := multipartRequest(t, handler, "hello.txt", []byte("hello"), extra)
+		if response.Code != http.StatusBadRequest || errorCode(t, response) != "invalid_request" {
+			t.Fatalf("extra = %v, status = %d, body = %s", extra, response.Code, response.Body.String())
+		}
 	}
 }
 
@@ -225,7 +241,20 @@ func TestStaticWebAndSecurityHeadersShareHandler(t *testing.T) {
 func newTestHandler(t *testing.T) http.Handler {
 	t.Helper()
 	store := openTestStore(t)
-	return NewHandler(store, log.New(io.Discard, "", 0))
+	token, hash, err := newDeviceToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateDevice(t.Context(), "Web", hash); err != nil {
+		t.Fatal(err)
+	}
+	handler := NewHandler(store, HandlerOptions{Pairing: NewPairingManager(), Logger: log.New(io.Discard, "", 0)})
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if len(r.Header.Values("Authorization")) == 0 {
+			r.Header.Set("Authorization", "Bearer "+token)
+		}
+		handler.ServeHTTP(w, r)
+	})
 }
 
 func requestJSON(t *testing.T, handler http.Handler, method, path, body string) *httptest.ResponseRecorder {
@@ -243,9 +272,6 @@ func multipartRequest(t *testing.T, handler http.Handler, name string, contents 
 	t.Helper()
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
-	if err := writer.WriteField("sender_name", "Web"); err != nil {
-		t.Fatal(err)
-	}
 	for key, value := range extra {
 		if err := writer.WriteField(key, value); err != nil {
 			t.Fatal(err)
@@ -274,10 +300,6 @@ func streamingMultipart(t *testing.T, name string, size int64) (io.Reader, strin
 	multipartWriter := multipart.NewWriter(writer)
 	go func() {
 		defer writer.Close()
-		if err := multipartWriter.WriteField("sender_name", "Web"); err != nil {
-			writer.CloseWithError(err)
-			return
-		}
 		part, err := multipartWriter.CreateFormFile("file", name)
 		if err != nil {
 			writer.CloseWithError(err)

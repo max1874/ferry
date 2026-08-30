@@ -21,6 +21,8 @@ import (
 type config struct {
 	listen  string
 	dataDir string
+	lan     bool
+	pair    bool
 }
 
 func parseConfig(arguments []string) (config, error) {
@@ -29,13 +31,15 @@ func parseConfig(arguments []string) (config, error) {
 	var value config
 	flags.StringVar(&value.listen, "listen", "127.0.0.1:8080", "HTTP listen address")
 	flags.StringVar(&value.dataDir, "data-dir", "./ferry-data", "directory for the SQLite database and uploaded files")
+	flags.BoolVar(&value.lan, "lan", false, "allow an authenticated HTTP listener on private LAN addresses")
+	flags.BoolVar(&value.pair, "pair", false, "issue a bootstrap code even when paired devices already exist")
 	if err := flags.Parse(arguments); err != nil {
 		return config{}, err
 	}
 	if flags.NArg() != 0 {
 		return config{}, fmt.Errorf("unexpected positional arguments")
 	}
-	if err := validateLoopbackAddress(value.listen); err != nil {
+	if err := validateListenAddress(value.listen, value.lan); err != nil {
 		return config{}, err
 	}
 	if value.dataDir == "" {
@@ -44,7 +48,7 @@ func parseConfig(arguments []string) (config, error) {
 	return value, nil
 }
 
-func validateLoopbackAddress(address string) error {
+func validateListenAddress(address string, allowLAN bool) error {
 	host, portText, err := net.SplitHostPort(address)
 	if err != nil {
 		return fmt.Errorf("listen must be a loopback host and numeric port: %w", err)
@@ -54,14 +58,21 @@ func validateLoopbackAddress(address string) error {
 		return fmt.Errorf("listen port must be between 1 and 65535")
 	}
 	ip := net.ParseIP(host)
-	if !strings.EqualFold(host, "localhost") && (ip == nil || !ip.IsLoopback()) {
-		return fmt.Errorf("listen host must be localhost or a loopback IP address")
+	if strings.EqualFold(host, "localhost") || ip != nil && (ip.IsLoopback() || allowLAN && allowedLANIP(ip)) {
+		return nil
 	}
-	return nil
+	if allowLAN {
+		return fmt.Errorf("listen host must be localhost, loopback, or a private/link-local IP address")
+	}
+	return fmt.Errorf("listen host must be localhost or a loopback IP address; use -lan for a private LAN listener")
+}
+
+func allowedLANIP(ip net.IP) bool {
+	return ip.IsPrivate() || ip.IsLinkLocalUnicast()
 }
 
 func run(ctx context.Context, value config) error {
-	if err := validateLoopbackAddress(value.listen); err != nil {
+	if err := validateListenAddress(value.listen, value.lan); err != nil {
 		return err
 	}
 	listener, err := net.Listen("tcp", value.listen)
@@ -70,8 +81,8 @@ func run(ctx context.Context, value config) error {
 	}
 	defer listener.Close()
 	address, ok := listener.Addr().(*net.TCPAddr)
-	if !ok || !address.IP.IsLoopback() {
-		return fmt.Errorf("resolved listen address must be loopback")
+	if !ok || !(address.IP.IsLoopback() || value.lan && allowedLANIP(address.IP)) {
+		return fmt.Errorf("resolved listen address is outside the allowed listener boundary")
 	}
 
 	store, err := ferry.OpenStore(ctx, value.dataDir)
@@ -79,10 +90,27 @@ func run(ctx context.Context, value config) error {
 		return err
 	}
 	defer store.Close()
+	pairing := ferry.NewPairingManager()
+	deviceCount, err := store.DeviceCount(ctx)
+	if err != nil {
+		return err
+	}
+	if shouldIssuePairingCode(deviceCount, value.pair) {
+		code, err := pairing.NewCode("")
+		if err != nil {
+			return err
+		}
+		log.Printf("Ferry bootstrap code: %s (expires %s)", code.Code, code.ExpiresAt)
+	}
+	if value.lan {
+		log.Printf("LAN mode uses unencrypted HTTP; use only on a trusted network")
+	}
 
 	server := &http.Server{
-		Addr:              value.listen,
-		Handler:           ferry.NewHandler(store, log.Default()),
+		Addr: value.listen,
+		Handler: ferry.NewHandler(store, ferry.HandlerOptions{
+			Pairing: pairing, AllowLANHosts: value.lan, Logger: log.Default(),
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       5 * time.Minute,
 		WriteTimeout:      5 * time.Minute,
@@ -113,6 +141,10 @@ func run(ctx context.Context, value config) error {
 		}
 		return err
 	}
+}
+
+func shouldIssuePairingCode(deviceCount int, force bool) bool {
+	return deviceCount == 0 || force
 }
 
 func main() {

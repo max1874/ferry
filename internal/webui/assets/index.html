@@ -14,10 +14,26 @@
         <span class="brand-mark" aria-hidden="true">F</span>
         <span>Ferry</span>
       </div>
-      <span class="connection" id="connection">Local</span>
+      <div class="top-actions">
+        <button class="device-button" id="device-button" type="button" hidden>Devices</button>
+        <span class="connection" id="connection">Connecting</span>
+      </div>
     </header>
 
-    <main class="conversation" id="conversation" aria-live="polite">
+    <section class="pairing" id="pairing" hidden>
+      <form class="pairing-card" id="pairing-form">
+        <span class="welcome-mark" aria-hidden="true">F</span>
+        <h1>Pair this device</h1>
+        <p>Enter a code from the Ferry Server or another paired device.</p>
+        <label>Device name<input id="device-name" name="device_name" maxlength="64" autocomplete="nickname" required></label>
+        <label>Pairing code<input id="pairing-code" name="code" maxlength="16" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" required></label>
+        <button class="primary" type="submit">Pair device</button>
+        <p class="form-error" id="pairing-error" role="alert"></p>
+        <small>Ferry currently uses unencrypted HTTP. Pair only on a trusted network.</small>
+      </form>
+    </section>
+
+    <main class="conversation" id="conversation" aria-live="polite" hidden>
       <section class="welcome" id="welcome">
         <span class="welcome-mark" aria-hidden="true">F</span>
         <h1>What should we ferry?</h1>
@@ -26,7 +42,7 @@
       <div class="messages" id="messages"></div>
     </main>
 
-    <footer class="composer-shell">
+    <footer class="composer-shell" id="composer-shell" hidden>
       <form class="composer" id="composer">
         <div class="file-chip" id="file-chip" hidden>
           <span id="file-name"></span>
@@ -43,5 +59,14 @@
       </form>
       <p class="footnote" id="status">Your data stays on this Ferry server.</p>
     </footer>
+
+    <dialog class="devices-dialog" id="devices-dialog">
+      <div class="dialog-head"><div><h2>Devices</h2><p id="current-device"></p></div><button id="close-devices" type="button" aria-label="Close">×</button></div>
+      <div class="device-list" id="device-list"></div>
+      <div class="pair-another">
+        <button class="secondary" id="generate-code" type="button">Pair another device</button>
+        <output id="generated-code" aria-live="polite"></output>
+      </div>
+    </dialog>
   </body>
 </html>

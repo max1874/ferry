@@ -32,6 +32,12 @@ CREATE TABLE IF NOT EXISTS messages (
     )
 );
 CREATE INDEX IF NOT EXISTS messages_created_at ON messages(created_at);
+CREATE TABLE IF NOT EXISTS devices (
+    id TEXT PRIMARY KEY CHECK(length(id) = 32),
+    name TEXT NOT NULL,
+    token_hash BLOB NOT NULL UNIQUE CHECK(length(token_hash) = 32),
+    created_at TEXT NOT NULL
+);
 `
 
 type Store struct {
@@ -84,7 +90,168 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
+func (s *Store) DeviceCount(ctx context.Context) (int, error) {
+	var count int
+	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM devices").Scan(&count); err != nil {
+		return 0, fmt.Errorf("count devices: %w", err)
+	}
+	return count, nil
+}
+
+func (s *Store) CreateDevice(ctx context.Context, name string, tokenHash [32]byte) (Device, error) {
+	return s.createDevice(ctx, name, tokenHash, "")
+}
+
+func (s *Store) CreateDeviceForIssuer(ctx context.Context, name string, tokenHash [32]byte, issuerID string) (Device, error) {
+	if !validID(issuerID) {
+		return Device{}, ErrNotFound
+	}
+	return s.createDevice(ctx, name, tokenHash, issuerID)
+}
+
+func (s *Store) createDevice(ctx context.Context, name string, tokenHash [32]byte, issuerID string) (Device, error) {
+	name, err := normalizeSenderName(name)
+	if err != nil {
+		return Device{}, err
+	}
+	id, err := newID()
+	if err != nil {
+		return Device{}, err
+	}
+	createdAt := time.Now().UTC().Format(time.RFC3339Nano)
+	query := `INSERT INTO devices (id, name, token_hash, created_at) VALUES (?, ?, ?, ?)`
+	arguments := []any{id, name, tokenHash[:], createdAt}
+	if issuerID != "" {
+		query = `
+            INSERT INTO devices (id, name, token_hash, created_at)
+            SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM devices WHERE id = ?)
+        `
+		arguments = append(arguments, issuerID)
+	}
+	result, err := s.db.ExecContext(ctx, query, arguments...)
+	if err != nil {
+		return Device{}, fmt.Errorf("insert device: %w", err)
+	}
+	inserted, err := result.RowsAffected()
+	if err != nil {
+		return Device{}, fmt.Errorf("read device insert result: %w", err)
+	}
+	if inserted != 1 {
+		return Device{}, ErrNotFound
+	}
+	return Device{ID: id, Name: name, CreatedAt: createdAt}, nil
+}
+
+func (s *Store) DeviceExists(ctx context.Context, id string) (bool, error) {
+	if !validID(id) {
+		return false, nil
+	}
+	var exists int
+	if err := s.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM devices WHERE id = ?)", id).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check device: %w", err)
+	}
+	return exists == 1, nil
+}
+
+func (s *Store) AuthenticateDevice(ctx context.Context, tokenHash [32]byte) (Device, error) {
+	row := s.db.QueryRowContext(ctx, `
+        SELECT id, name, created_at FROM devices WHERE token_hash = ?
+    `, tokenHash[:])
+	device, err := scanDevice(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Device{}, ErrNotFound
+	}
+	return device, err
+}
+
+func (s *Store) ListDevices(ctx context.Context) ([]Device, error) {
+	rows, err := s.db.QueryContext(ctx, `
+        SELECT id, name, created_at FROM devices ORDER BY created_at, id
+    `)
+	if err != nil {
+		return nil, fmt.Errorf("query devices: %w", err)
+	}
+	defer rows.Close()
+	devices := make([]Device, 0)
+	for rows.Next() {
+		device, err := scanDevice(rows)
+		if err != nil {
+			return nil, err
+		}
+		devices = append(devices, device)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate devices: %w", err)
+	}
+	return devices, nil
+}
+
+func (s *Store) DeleteDevice(ctx context.Context, requesterID, id string) error {
+	if !validID(requesterID) || !validID(id) {
+		return ErrNotFound
+	}
+	result, err := s.db.ExecContext(ctx, `
+        DELETE FROM devices
+        WHERE id = ? AND id <> ? AND (SELECT COUNT(*) FROM devices) > 1
+          AND EXISTS (SELECT 1 FROM devices WHERE id = ?)
+	`, id, requesterID, requesterID)
+	if err != nil {
+		return fmt.Errorf("delete device: %w", err)
+	}
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read delete result: %w", err)
+	}
+	if deleted != 1 {
+		var targetExists, requesterExists int
+		if err := s.db.QueryRowContext(ctx, `
+            SELECT EXISTS(SELECT 1 FROM devices WHERE id = ?),
+                   EXISTS(SELECT 1 FROM devices WHERE id = ?)
+        `, id, requesterID).Scan(&targetExists, &requesterExists); err != nil {
+			return fmt.Errorf("check device after delete: %w", err)
+		}
+		if requesterExists == 0 {
+			return ErrUnauthorized
+		}
+		if targetExists == 0 {
+			return ErrNotFound
+		}
+		return ErrInvalid
+	}
+	return nil
+}
+
+func scanDevice(row rowScanner) (Device, error) {
+	var device Device
+	if err := row.Scan(&device.ID, &device.Name, &device.CreatedAt); err != nil {
+		return Device{}, err
+	}
+	if !validID(device.ID) {
+		return Device{}, fmt.Errorf("stored device id is invalid")
+	}
+	name, err := normalizeSenderName(device.Name)
+	if err != nil || name != device.Name {
+		return Device{}, fmt.Errorf("stored device name is invalid")
+	}
+	createdAt, err := time.Parse(time.RFC3339Nano, device.CreatedAt)
+	if err != nil || createdAt.UTC().Format(time.RFC3339Nano) != device.CreatedAt {
+		return Device{}, fmt.Errorf("stored device timestamp is not canonical UTC RFC 3339")
+	}
+	return device, nil
+}
+
 func (s *Store) CreateText(ctx context.Context, senderName, text string) (Message, error) {
+	return s.createText(ctx, "", senderName, text)
+}
+
+func (s *Store) CreateTextForDevice(ctx context.Context, device Device, text string) (Message, error) {
+	if !validID(device.ID) {
+		return Message{}, ErrUnauthorized
+	}
+	return s.createText(ctx, device.ID, device.Name, text)
+}
+
+func (s *Store) createText(ctx context.Context, requesterID, senderName, text string) (Message, error) {
 	senderName, err := normalizeSenderName(senderName)
 	if err != nil {
 		return Message{}, err
@@ -98,11 +265,25 @@ func (s *Store) CreateText(ctx context.Context, senderName, text string) (Messag
 	}
 	createdAt := time.Now().UTC().Format(time.RFC3339Nano)
 	var sequence int64
-	err = s.db.QueryRowContext(ctx, `
+	query := `
         INSERT INTO messages (id, kind, sender_name, text_body, created_at)
         VALUES (?, 'text', ?, ?, ?)
-		RETURNING sequence
-	`, id, senderName, text, createdAt).Scan(&sequence)
+        RETURNING sequence
+    `
+	arguments := []any{id, senderName, text, createdAt}
+	if requesterID != "" {
+		query = `
+            INSERT INTO messages (id, kind, sender_name, text_body, created_at)
+            SELECT ?, 'text', ?, ?, ?
+            WHERE EXISTS (SELECT 1 FROM devices WHERE id = ? AND name = ?)
+            RETURNING sequence
+        `
+		arguments = append(arguments, requesterID, senderName)
+	}
+	err = s.db.QueryRowContext(ctx, query, arguments...).Scan(&sequence)
+	if errors.Is(err, sql.ErrNoRows) && requesterID != "" {
+		return Message{}, ErrUnauthorized
+	}
 	if err != nil {
 		return Message{}, fmt.Errorf("insert text message: %w", err)
 	}
@@ -117,6 +298,17 @@ func (s *Store) CreateText(ctx context.Context, senderName, text string) (Messag
 }
 
 func (s *Store) CreateFile(ctx context.Context, senderName, fileName, mediaType string, source io.Reader) (Message, error) {
+	return s.createFile(ctx, "", senderName, fileName, mediaType, source)
+}
+
+func (s *Store) CreateFileForDevice(ctx context.Context, device Device, fileName, mediaType string, source io.Reader) (Message, error) {
+	if !validID(device.ID) {
+		return Message{}, ErrUnauthorized
+	}
+	return s.createFile(ctx, device.ID, device.Name, fileName, mediaType, source)
+}
+
+func (s *Store) createFile(ctx context.Context, requesterID, senderName, fileName, mediaType string, source io.Reader) (Message, error) {
 	senderName, err := normalizeSenderName(senderName)
 	if err != nil {
 		return Message{}, err
@@ -163,11 +355,25 @@ func (s *Store) CreateFile(ctx context.Context, senderName, fileName, mediaType 
 
 	createdAt := time.Now().UTC().Format(time.RFC3339Nano)
 	var sequence int64
-	err = s.db.QueryRowContext(ctx, `
+	query := `
         INSERT INTO messages (id, kind, sender_name, file_name, media_type, file_size, blob_name, created_at)
         VALUES (?, 'file', ?, ?, ?, ?, ?, ?)
-		RETURNING sequence
-	`, id, senderName, fileName, mediaType, written, blobName, createdAt).Scan(&sequence)
+        RETURNING sequence
+    `
+	arguments := []any{id, senderName, fileName, mediaType, written, blobName, createdAt}
+	if requesterID != "" {
+		query = `
+            INSERT INTO messages (id, kind, sender_name, file_name, media_type, file_size, blob_name, created_at)
+            SELECT ?, 'file', ?, ?, ?, ?, ?, ?
+            WHERE EXISTS (SELECT 1 FROM devices WHERE id = ? AND name = ?)
+            RETURNING sequence
+        `
+		arguments = append(arguments, requesterID, senderName)
+	}
+	err = s.db.QueryRowContext(ctx, query, arguments...).Scan(&sequence)
+	if errors.Is(err, sql.ErrNoRows) && requesterID != "" {
+		return Message{}, ErrUnauthorized
+	}
 	if err != nil {
 		return Message{}, fmt.Errorf("insert file message: %w", err)
 	}

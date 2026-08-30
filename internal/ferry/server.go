@@ -1,6 +1,7 @@
 package ferry
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,29 +24,47 @@ const (
 )
 
 type server struct {
-	store  *Store
-	logger *log.Logger
+	store   *Store
+	pairing *PairingManager
+	logger  *log.Logger
 }
 
-func NewHandler(store *Store, logger *log.Logger) http.Handler {
-	if logger == nil {
-		logger = log.Default()
+type HandlerOptions struct {
+	Pairing       *PairingManager
+	AllowLANHosts bool
+	Logger        *log.Logger
+}
+
+func NewHandler(store *Store, options HandlerOptions) http.Handler {
+	if options.Pairing == nil {
+		panic("ferry: PairingManager is required")
 	}
-	s := &server{store: store, logger: logger}
+	if options.Logger == nil {
+		options.Logger = log.Default()
+	}
+	s := &server{store: store, pairing: options.Pairing, logger: options.Logger}
+	api := http.NewServeMux()
+	api.HandleFunc("GET /api/v1/session", s.session)
+	api.HandleFunc("GET /api/v1/messages", s.listMessages)
+	api.HandleFunc("POST /api/v1/messages/text", s.createText)
+	api.HandleFunc("POST /api/v1/messages/file", s.createFile)
+	api.HandleFunc("GET /api/v1/files/{message_id}", s.downloadFile)
+	api.HandleFunc("POST /api/v1/pairing/codes", s.createPairingCode)
+	api.HandleFunc("GET /api/v1/devices", s.listDevices)
+	api.HandleFunc("DELETE /api/v1/devices/{device_id}", s.deleteDevice)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
-	mux.HandleFunc("GET /api/v1/messages", s.listMessages)
-	mux.HandleFunc("POST /api/v1/messages/text", s.createText)
-	mux.HandleFunc("POST /api/v1/messages/file", s.createFile)
-	mux.HandleFunc("GET /api/v1/files/{message_id}", s.downloadFile)
+	mux.HandleFunc("POST /api/v1/pairing/claim", s.claimPairingCode)
+	mux.Handle("/api/v1/", s.requireDevice(api))
 	mux.Handle("/", webui.Handler())
-	return requestBoundary(securityHeaders(mux))
+	return requestBoundary(securityHeaders(mux), options.AllowLANHosts)
 }
 
-func requestBoundary(next http.Handler) http.Handler {
+func requestBoundary(next http.Handler, allowLANHosts bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !isLoopbackHost(r.Host) {
-			writeError(w, http.StatusMisdirectedRequest, "invalid_host", "this milestone only accepts loopback hosts")
+		if !isAllowedHost(r.Host, allowLANHosts) {
+			writeError(w, http.StatusMisdirectedRequest, "invalid_host", "Host must be localhost or an allowed IP address")
 			return
 		}
 		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions && !sameOriginOrNative(r) {
@@ -56,7 +75,7 @@ func requestBoundary(next http.Handler) http.Handler {
 	})
 }
 
-func isLoopbackHost(hostPort string) bool {
+func isAllowedHost(hostPort string, allowLANHosts bool) bool {
 	host := hostPort
 	if parsedHost, _, err := net.SplitHostPort(hostPort); err == nil {
 		host = parsedHost
@@ -66,15 +85,21 @@ func isLoopbackHost(hostPort string) bool {
 		return true
 	}
 	address := net.ParseIP(host)
-	return address != nil && address.IsLoopback()
+	if address == nil {
+		return false
+	}
+	return address.IsLoopback() || allowLANHosts && (address.IsPrivate() || address.IsLinkLocalUnicast())
 }
 
 func sameOriginOrNative(r *http.Request) bool {
-	origin := r.Header.Get("Origin")
-	if origin == "" {
+	origins := r.Header.Values("Origin")
+	if len(origins) == 0 {
 		return true
 	}
-	parsed, err := url.Parse(origin)
+	if len(origins) != 1 {
+		return false
+	}
+	parsed, err := url.Parse(origins[0])
 	expectedScheme := "http"
 	if r.TLS != nil {
 		expectedScheme = "https"
@@ -93,6 +118,177 @@ func securityHeaders(next http.Handler) http.Handler {
 
 func (s *server) health(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+type deviceContextKey struct{}
+
+func (s *server) requireDevice(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token, ok := requestDeviceToken(r)
+		if !ok {
+			s.unauthorized(w)
+			return
+		}
+		hash, ok := hashDeviceToken(token)
+		if !ok {
+			s.unauthorized(w)
+			return
+		}
+		device, err := s.store.AuthenticateDevice(r.Context(), hash)
+		if errors.Is(err, ErrNotFound) {
+			s.unauthorized(w)
+			return
+		}
+		if err != nil {
+			s.internalError(w, err)
+			return
+		}
+		ctx := context.WithValue(r.Context(), deviceContextKey{}, device)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func requestDeviceToken(r *http.Request) (string, bool) {
+	authorizationValues := r.Header.Values("Authorization")
+	if len(authorizationValues) != 1 {
+		return "", false
+	}
+	scheme, token, found := strings.Cut(authorizationValues[0], " ")
+	token = strings.TrimLeft(token, " ")
+	if !found || !strings.EqualFold(scheme, "Bearer") {
+		return "", false
+	}
+	return token, token != "" && !strings.ContainsAny(token, " \t\r\n,")
+}
+
+func currentDevice(r *http.Request) Device {
+	return r.Context().Value(deviceContextKey{}).(Device)
+}
+
+func (s *server) unauthorized(w http.ResponseWriter) {
+	w.Header().Set("WWW-Authenticate", "Bearer")
+	writeError(w, http.StatusUnauthorized, "unauthorized", "pair this device with Ferry")
+}
+
+func (s *server) session(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]Device{"device": currentDevice(r)})
+}
+
+type pairingClaimRequest struct {
+	Code       strictString
+	DeviceName strictString
+}
+
+func (s *server) claimPairingCode(w http.ResponseWriter, r *http.Request) {
+	if !hasMediaType(r.Header.Get("Content-Type"), "application/json") {
+		writeError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "Content-Type must be application/json")
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBody)
+	request, err := decodePairingClaimRequest(r.Body)
+	if err != nil {
+		var maxBytesError *http.MaxBytesError
+		if errors.As(err, &maxBytesError) {
+			writeError(w, http.StatusRequestEntityTooLarge, "payload_too_large", "request body is too large")
+			return
+		}
+		writeError(w, http.StatusBadRequest, "invalid_request", "request body must contain only code and device_name")
+		return
+	}
+	name, err := normalizeSenderName(string(request.DeviceName))
+	if err != nil {
+		s.domainError(w, err)
+		return
+	}
+	reservation, ok := s.pairing.Reserve(string(request.Code))
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid_pairing_code", "pairing code is invalid or expired")
+		return
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			reservation.Rollback()
+		}
+	}()
+	token, tokenHash, err := newDeviceToken()
+	if err != nil {
+		s.internalError(w, err)
+		return
+	}
+	var device Device
+	if reservation.IssuerID() == "" {
+		device, err = s.store.CreateDevice(r.Context(), name, tokenHash)
+	} else {
+		device, err = s.store.CreateDeviceForIssuer(r.Context(), name, tokenHash, reservation.IssuerID())
+	}
+	if errors.Is(err, ErrNotFound) {
+		s.pairing.RevokeIssuer(reservation.IssuerID())
+		writeError(w, http.StatusUnauthorized, "invalid_pairing_code", "pairing code is invalid or expired")
+		return
+	}
+	if err != nil {
+		s.domainError(w, err)
+		return
+	}
+	reservation.Commit()
+	committed = true
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusCreated, map[string]any{"device": device, "token": token})
+}
+
+func (s *server) createPairingCode(w http.ResponseWriter, r *http.Request) {
+	issuerID := currentDevice(r).ID
+	code, err := s.pairing.NewCode(issuerID)
+	if err != nil {
+		s.internalError(w, err)
+		return
+	}
+	exists, err := s.store.DeviceExists(r.Context(), issuerID)
+	if err != nil {
+		s.pairing.RevokeIssuer(issuerID)
+		s.internalError(w, err)
+		return
+	}
+	if !exists {
+		s.pairing.RevokeIssuer(issuerID)
+		s.unauthorized(w)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusCreated, code)
+}
+
+func (s *server) listDevices(w http.ResponseWriter, r *http.Request) {
+	devices, err := s.store.ListDevices(r.Context())
+	if err != nil {
+		s.internalError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string][]Device{"devices": devices})
+}
+
+func (s *server) deleteDevice(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("device_id")
+	err := s.store.DeleteDevice(r.Context(), currentDevice(r).ID, id)
+	if errors.Is(err, ErrUnauthorized) {
+		s.unauthorized(w)
+		return
+	}
+	if errors.Is(err, ErrNotFound) {
+		writeError(w, http.StatusNotFound, "not_found", "device was not found")
+		return
+	}
+	if errors.Is(err, ErrInvalid) {
+		writeError(w, http.StatusConflict, "cannot_revoke_device", "the current or last device cannot be revoked")
+		return
+	}
+	if err != nil {
+		s.internalError(w, err)
+		return
+	}
+	s.pairing.RevokeIssuer(id)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *server) listMessages(w http.ResponseWriter, r *http.Request) {
@@ -130,10 +326,14 @@ func (s *server) createText(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusRequestEntityTooLarge, "payload_too_large", "request body is too large")
 			return
 		}
-		writeError(w, http.StatusBadRequest, "invalid_request", "request body must contain only sender_name and text")
+		writeError(w, http.StatusBadRequest, "invalid_request", "request body must contain only text")
 		return
 	}
-	message, err := s.store.CreateText(r.Context(), string(request.SenderName), string(request.Text))
+	message, err := s.store.CreateTextForDevice(r.Context(), currentDevice(r), string(request.Text))
+	if errors.Is(err, ErrUnauthorized) {
+		s.unauthorized(w)
+		return
+	}
 	if err != nil {
 		s.domainError(w, err)
 		return
@@ -154,7 +354,7 @@ func (s *server) createFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.MultipartForm.RemoveAll()
 	if !validMultipartShape(r) {
-		writeError(w, http.StatusBadRequest, "invalid_request", "multipart body must contain exactly one sender_name and one file")
+		writeError(w, http.StatusBadRequest, "invalid_request", "multipart body must contain exactly one file")
 		return
 	}
 	source, header, err := r.FormFile("file")
@@ -164,7 +364,11 @@ func (s *server) createFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer source.Close()
 	mediaType := header.Header.Get("Content-Type")
-	message, err := s.store.CreateFile(r.Context(), r.MultipartForm.Value["sender_name"][0], header.Filename, mediaType, source)
+	message, err := s.store.CreateFileForDevice(r.Context(), currentDevice(r), header.Filename, mediaType, source)
+	if errors.Is(err, ErrUnauthorized) {
+		s.unauthorized(w)
+		return
+	}
 	if err != nil {
 		s.domainError(w, err)
 		return
@@ -174,10 +378,10 @@ func (s *server) createFile(w http.ResponseWriter, r *http.Request) {
 
 func validMultipartShape(r *http.Request) bool {
 	form := r.MultipartForm
-	if form == nil || len(form.Value) != 1 || len(form.File) != 1 {
+	if form == nil || len(form.Value) != 0 || len(form.File) != 1 {
 		return false
 	}
-	return len(form.Value["sender_name"]) == 1 && len(form.File["file"]) == 1
+	return len(form.File["file"]) == 1
 }
 
 func (s *server) downloadFile(w http.ResponseWriter, r *http.Request) {
@@ -246,52 +450,63 @@ func hasMediaType(value, expected string) bool {
 }
 
 type textRequest struct {
-	SenderName strictString
-	Text       strictString
+	Text strictString
 }
 
 func decodeTextRequest(source io.Reader) (textRequest, error) {
+	var request textRequest
+	err := decodeStrictObject(source, map[string]func(*json.Decoder) error{
+		"text": func(decoder *json.Decoder) error { return decoder.Decode(&request.Text) },
+	})
+	return request, err
+}
+
+func decodePairingClaimRequest(source io.Reader) (pairingClaimRequest, error) {
+	var request pairingClaimRequest
+	err := decodeStrictObject(source, map[string]func(*json.Decoder) error{
+		"code":        func(decoder *json.Decoder) error { return decoder.Decode(&request.Code) },
+		"device_name": func(decoder *json.Decoder) error { return decoder.Decode(&request.DeviceName) },
+	})
+	return request, err
+}
+
+func decodeStrictObject(source io.Reader, fields map[string]func(*json.Decoder) error) error {
 	decoder := json.NewDecoder(source)
 	opening, err := decoder.Token()
 	if err != nil || opening != json.Delim('{') {
-		return textRequest{}, fmt.Errorf("request must be a JSON object")
+		return fmt.Errorf("request must be a JSON object")
 	}
-	var request textRequest
-	seen := make(map[string]bool, 2)
+	seen := make(map[string]bool, len(fields))
 	for decoder.More() {
 		token, err := decoder.Token()
 		if err != nil {
-			return textRequest{}, err
+			return err
 		}
 		key, ok := token.(string)
 		if !ok || seen[key] {
-			return textRequest{}, fmt.Errorf("request contains a duplicate field")
+			return fmt.Errorf("request contains a duplicate field")
 		}
 		seen[key] = true
-		switch key {
-		case "sender_name":
-			err = decoder.Decode(&request.SenderName)
-		case "text":
-			err = decoder.Decode(&request.Text)
-		default:
-			return textRequest{}, fmt.Errorf("request contains unknown field %q", key)
+		decode, exists := fields[key]
+		if !exists {
+			return fmt.Errorf("request contains unknown field %q", key)
 		}
-		if err != nil {
-			return textRequest{}, err
+		if err := decode(decoder); err != nil {
+			return err
 		}
 	}
 	closing, err := decoder.Token()
-	if err != nil || closing != json.Delim('}') || !seen["sender_name"] || !seen["text"] {
-		return textRequest{}, fmt.Errorf("request must contain sender_name and text")
+	if err != nil || closing != json.Delim('}') || len(seen) != len(fields) {
+		return fmt.Errorf("request does not contain the exact required fields")
 	}
 	var extra any
 	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
 		if err == nil {
-			return textRequest{}, fmt.Errorf("multiple JSON values")
+			return fmt.Errorf("multiple JSON values")
 		}
-		return textRequest{}, err
+		return err
 	}
-	return request, nil
+	return nil
 }
 
 type strictString string

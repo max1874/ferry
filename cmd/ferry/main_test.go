@@ -18,6 +18,46 @@ func TestDefaultConfigBindsLoopback(t *testing.T) {
 	if value.dataDir != "./ferry-data" {
 		t.Fatalf("default data dir = %q", value.dataDir)
 	}
+	if value.lan {
+		t.Fatal("LAN mode was enabled by default")
+	}
+	if value.pair {
+		t.Fatal("pair recovery was enabled by default")
+	}
+}
+
+func TestConfigRequiresExplicitLANModeAndPrivateAddress(t *testing.T) {
+	for _, address := range []string{"10.0.0.13:8080", "192.168.1.20:8080", "169.254.1.2:8080", "[fd00::1]:8080"} {
+		t.Run("accept "+address, func(t *testing.T) {
+			value, err := parseConfig([]string{"-lan", "-listen", address})
+			if err != nil || !value.lan || value.listen != address {
+				t.Fatalf("config = %#v, error = %v", value, err)
+			}
+		})
+	}
+	for _, address := range []string{"10.0.0.13:8080", "0.0.0.0:8080"} {
+		if _, err := parseConfig([]string{"-listen", address}); err == nil {
+			t.Fatalf("accepted %q without -lan", address)
+		}
+	}
+	for _, address := range []string{"0.0.0.0:8080", "[::]:8080", "8.8.8.8:8080", "example.com:8080", ":8080"} {
+		if _, err := parseConfig([]string{"-lan", "-listen", address}); err == nil {
+			t.Fatalf("accepted non-private LAN address %q", address)
+		}
+	}
+}
+
+func TestConfigAcceptsExplicitPairRecovery(t *testing.T) {
+	value, err := parseConfig([]string{"-pair"})
+	if err != nil || !value.pair {
+		t.Fatalf("config = %#v, error = %v", value, err)
+	}
+}
+
+func TestPairingCodeIssuancePolicy(t *testing.T) {
+	if !shouldIssuePairingCode(0, false) || shouldIssuePairingCode(1, false) || !shouldIssuePairingCode(1, true) {
+		t.Fatal("pairing code issuance policy changed")
+	}
 }
 
 func TestConfigRejectsUnexpectedArguments(t *testing.T) {
