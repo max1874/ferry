@@ -5,6 +5,7 @@
 - **Decided（Max，2026-08-29）**：Ferry 是一个最终公开开源、由用户自托管的跨设备局域网剪贴板与文件共享项目。
 - **Decided（Max，2026-08-29）**：产品包含 iOS App、Android App、Web 与 Server；Web 和 Server 由用户 self-host。
 - **Decided（Max，2026-08-29）**：主要交互是一条学习 ChatGPT 信息层级的聊天时间线。
+- **Decided（Max，2026-08-30）**：iOS App 最低支持 iOS 26，默认使用 Liquid Glass，不维护旧系统视觉 fallback。
 - **Recommended**：一句话定义为“把文字和文件像给自己发消息一样，摆渡到自己的其他设备”。
 
 ## 目标用户与核心问题
