@@ -56,3 +56,29 @@ func TestHandlerServesIconAndReferencesItFromPage(t *testing.T) {
 		}
 	}
 }
+
+func TestPageOffersSeparatePhotoAndFilePickers(t *testing.T) {
+	handler := Handler()
+	page := httptest.NewRecorder()
+	handler.ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/", nil))
+	if page.Code != http.StatusOK {
+		t.Fatalf("page status = %d", page.Code)
+	}
+
+	html := page.Body.String()
+	for _, contract := range []string{
+		`id="attach"`,
+		`aria-controls="attachment-menu"`,
+		`id="choose-photos"`,
+		`id="photo" accept="image/*,video/*"`,
+		`id="choose-files"`,
+		`id="file" hidden`,
+	} {
+		if !strings.Contains(html, contract) {
+			t.Errorf("page does not contain attachment contract %q", contract)
+		}
+	}
+	if strings.Contains(html, `id="file" accept=`) {
+		t.Error("general file picker must remain unrestricted")
+	}
+}

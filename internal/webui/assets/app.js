@@ -4,7 +4,13 @@ const conversationElement = document.querySelector("#conversation");
 const composerShell = document.querySelector("#composer-shell");
 const composer = document.querySelector("#composer");
 const textInput = document.querySelector("#text");
+const photoInput = document.querySelector("#photo");
 const fileInput = document.querySelector("#file");
+const attachmentPicker = document.querySelector("#attachment-picker");
+const attachButton = document.querySelector("#attach");
+const attachmentMenu = document.querySelector("#attachment-menu");
+const choosePhotosButton = document.querySelector("#choose-photos");
+const chooseFilesButton = document.querySelector("#choose-files");
 const sendButton = document.querySelector("#send");
 const fileChip = document.querySelector("#file-chip");
 const fileName = document.querySelector("#file-name");
@@ -85,17 +91,33 @@ function resetTimeline() {
   welcome.hidden = false;
 }
 
+function selectedAttachment() {
+  return photoInput.files[0] || fileInput.files[0] || null;
+}
+
+function clearAttachment() {
+  photoInput.value = "";
+  fileInput.value = "";
+}
+
+function setAttachmentMenuOpen(open) {
+  attachmentMenu.hidden = !open;
+  attachButton.setAttribute("aria-expanded", String(open));
+  if (open) choosePhotosButton.focus();
+}
+
 function showAccess(message = "", clearCredential = true, passwordRequired = false) {
   authController.abort();
   authController = new AbortController();
   authGeneration += 1;
   currentDevice = null;
+  setAttachmentMenuOpen(false);
   if (clearCredential) {
     deviceToken = "";
     // localStorage is shared by every same-origin tab. A stale tab must not
     // delete a newer token written by another tab; a successful join replaces it.
     textInput.value = "";
-    fileInput.value = "";
+    clearAttachment();
     activityStatus = "";
     sendError = "";
     storageError = "";
@@ -148,10 +170,10 @@ function renderStatus() {
 }
 
 function updateComposer() {
-  const selected = fileInput.files.length === 1;
+  const selected = selectedAttachment();
   fileChip.hidden = !selected;
-  fileName.textContent = selected ? fileInput.files[0].name : "";
-  textInput.disabled = selected;
+  fileName.textContent = selected?.name || "";
+  textInput.disabled = Boolean(selected);
   sendButton.disabled = selected ? false : textInput.value.trim().length === 0;
 }
 
@@ -535,7 +557,7 @@ saveAccessButton.addEventListener("click", async () => {
 
 composer.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const selectedFile = fileInput.files[0];
+  const selectedFile = selectedAttachment();
   const text = textInput.value;
   const generation = authGeneration;
   sendButton.disabled = true;
@@ -545,7 +567,7 @@ composer.addEventListener("submit", async (event) => {
   try {
     if (selectedFile) {
       if (!await sendFile(selectedFile)) return;
-      fileInput.value = "";
+      clearAttachment();
     } else {
       if (!await sendText(text)) return;
       textInput.value = "";
@@ -577,9 +599,36 @@ textInput.addEventListener("keydown", (event) => {
   }
 });
 
-fileInput.addEventListener("change", updateComposer);
+attachButton.addEventListener("click", () => setAttachmentMenuOpen(attachmentMenu.hidden));
+choosePhotosButton.addEventListener("click", () => {
+  setAttachmentMenuOpen(false);
+  attachButton.focus();
+  photoInput.click();
+});
+chooseFilesButton.addEventListener("click", () => {
+  setAttachmentMenuOpen(false);
+  attachButton.focus();
+  fileInput.click();
+});
+photoInput.addEventListener("change", () => {
+  if (photoInput.files.length > 0) fileInput.value = "";
+  updateComposer();
+});
+fileInput.addEventListener("change", () => {
+  if (fileInput.files.length > 0) photoInput.value = "";
+  updateComposer();
+});
+document.addEventListener("click", (event) => {
+  if (!attachmentMenu.hidden && !attachmentPicker.contains(event.target)) setAttachmentMenuOpen(false);
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !attachmentMenu.hidden) {
+    setAttachmentMenuOpen(false);
+    attachButton.focus();
+  }
+});
 removeFileButton.addEventListener("click", () => {
-  fileInput.value = "";
+  clearAttachment();
   updateComposer();
   textInput.focus();
 });

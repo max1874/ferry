@@ -89,6 +89,8 @@ button, textarea, input { font: inherit; }
 
 .composer-row { display: flex; align-items: flex-end; gap: 8px; }
 
+.attachment-picker { position: relative; flex: 0 0 auto; }
+
 .attach, .send {
   width: 36px;
   height: 36px;
@@ -102,6 +104,27 @@ button, textarea, input { font: inherit; }
 
 .attach { color: #353535; background: #f1f1f1; font-size: 22px; }
 .attach:hover { background: #e8e8e8; }
+.attach[aria-expanded="true"] { transform: rotate(45deg); }
+.attachment-menu {
+  position: absolute;
+  z-index: 20;
+  bottom: calc(100% + 10px);
+  left: 0;
+  width: 238px;
+  padding: 6px;
+  color: #202123;
+  background: #ffffff;
+  border: 1px solid #dedede;
+  border-radius: 15px;
+  box-shadow: 0 14px 42px rgba(0, 0, 0, .16);
+}
+.attachment-menu > button { width: 100%; display: flex; align-items: center; gap: 11px; padding: 10px; color: inherit; text-align: left; background: transparent; border: 0; border-radius: 10px; cursor: pointer; }
+.attachment-menu > button:hover, .attachment-menu > button:focus-visible { background: #f3f3f3; outline: none; }
+.attachment-menu-icon { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 9px; color: #505050; background: #eeeeee; font-size: 20px; }
+.attachment-menu-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.attachment-menu strong, .attachment-menu small { display: block; }
+.attachment-menu strong { font-size: 14px; }
+.attachment-menu small { margin-top: 2px; color: #777777; font-size: 11px; }
 .send { color: #ffffff; background: #111111; font-size: 20px; font-weight: 700; }
 .send:disabled { color: #b8b8b8; background: #eeeeee; cursor: default; }
 
@@ -170,6 +193,10 @@ textarea:disabled { color: #aaaaaa; }
   body { background: #212121; }
   .topbar { background: rgba(33, 33, 33, 0.9); border-color: #373737; }
   .connection, .attach, .file-chip { color: #d6d6d6; background: #333333; }
+  .attachment-menu { color: #ececec; background: #2b2b2b; border-color: #484848; }
+  .attachment-menu > button:hover, .attachment-menu > button:focus-visible { background: #393939; }
+  .attachment-menu-icon { color: #dddddd; background: #3b3b3b; }
+  .attachment-menu small { color: #aaaaaa; }
   .device-button, .secondary { border-color: #505050; }
   .access-card, .devices-dialog { background: #2b2b2b; border-color: #484848; }
   .access-card > p, .access-card small, .dialog-head p, .device-meta { color: #aaaaaa; }
