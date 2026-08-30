@@ -19,10 +19,11 @@ import (
 )
 
 type config struct {
-	listen  string
-	dataDir string
-	lan     bool
-	pair    bool
+	listen        string
+	dataDir       string
+	publishedHost string
+	lan           bool
+	pair          bool
 }
 
 func parseConfig(arguments []string) (config, error) {
@@ -31,6 +32,7 @@ func parseConfig(arguments []string) (config, error) {
 	var value config
 	flags.StringVar(&value.listen, "listen", "127.0.0.1:8080", "HTTP listen address")
 	flags.StringVar(&value.dataDir, "data-dir", "./ferry-data", "directory for the SQLite database and uploaded files")
+	flags.StringVar(&value.publishedHost, "published-host", "", "optional host IP that publishes this listener")
 	flags.BoolVar(&value.lan, "lan", false, "allow an authenticated HTTP listener on private LAN addresses")
 	flags.BoolVar(&value.pair, "pair", false, "issue a bootstrap code even when paired devices already exist")
 	if err := flags.Parse(arguments); err != nil {
@@ -41,6 +43,12 @@ func parseConfig(arguments []string) (config, error) {
 	}
 	if err := validateListenAddress(value.listen, value.lan); err != nil {
 		return config{}, err
+	}
+	if value.publishedHost != "" {
+		ip := net.ParseIP(value.publishedHost)
+		if ip == nil || !(ip.IsLoopback() || value.lan && allowedLANIP(ip)) {
+			return config{}, fmt.Errorf("published-host must be a loopback or private/link-local IP address")
+		}
 	}
 	if value.dataDir == "" {
 		return config{}, fmt.Errorf("data-dir must not be empty")

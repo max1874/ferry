@@ -39,7 +39,7 @@ Plain brief: Ferry will show a short PIN that is easy to type on a phone. Only t
 ## Build and journey record
 
 - `env GOCACHE=/private/tmp/ferry-go-cache go test -race -count=1 ./...` — passed for all Go packages; `go vet ./...` and `git diff --check` also passed.
-- Signed Simulator run — all 18 `FerryTests` passed. A prior run with `CODE_SIGNING_ALLOWED=NO` failed only the Keychain integration with OSStatus `-34018`; rerunning with normal Simulator signing passed and confirmed the test command, not product code, was at fault.
+- Signed Simulator run — all 19 `FerryTests` passed, including invalid PIN paste rejection. A prior run with `CODE_SIGNING_ALLOWED=NO` failed only the Keychain integration with OSStatus `-34018`; rerunning with normal Simulator signing passed and confirmed the test command, not product code, was at fault.
 - Signed device build — `** BUILD SUCCEEDED **`, deep/strict signature verification passed, no `.xctest` bundle was present, and `devicectl` installed/launched `com.max1874.ferry` on the connected iPhone.
 - Docker — local image `sha256:7c6d6f…` built; macmini rebuilt `ferry:local`, runs as UID 10001 on container IP `192.168.148.2`, publishes only `10.0.0.2:42817`, and `/` returns HTTP 200.
 - Real Web — after the container rebuild, the paired Web identity and old exact messages remained present; Web generated `5045`, proving the deployed Server/Web candidate emits exactly four digits. Leading-zero preservation is covered by the `0000` generator test. Local browser-harness recording: `ferry-four-digit-macmini` (not committed).
@@ -47,7 +47,7 @@ Plain brief: Ferry will show a short PIN that is easy to type on a phone. Only t
 
 ## Seven contract attacks
 
-1. **Dual judges** — Server is final judge; OpenAPI response pattern, Web `[0-9]{4}`, and iOS ASCII filter agree. Evidence: `rg` found no live base32/16-character consumer outside the explicitly historical design record.
+1. **Dual judges** — Server is final judge; machine-readable OpenAPI request/response patterns, Web `[0-9]{4}`, and iOS reject-without-rewrite input validation agree. Evidence: `rg` found no live base32/16-character consumer outside the explicitly historical design record.
 2. **Extremes** — `0000` and `9999`, expiry boundary, wrong lengths, and exhausted randomness are covered by named auth tests.
 3. **Equivalent spellings** — Server accepts surrounding Unicode whitespace and rejects letters/full-width digits; the HTTP journey exercises `\u2003` around a real code.
 4. **Defaults as backdoors** — ten-minute and single-use defaults are unchanged; no rate limit is an explicit user decision, not an accidental unset default.
@@ -70,3 +70,13 @@ Plain brief: Ferry will show a short PIN that is easy to type on a phone. Only t
 11. Predicate producers — `reserved` is produced only by `Reserve` and cleared only by `Rollback`; issuer validity/revocation producers were traced and tested.
 12. Reversed findings — Keychain failure was traced to unsigned Simulator test execution (`-34018`); the same full suite passed with normal local signing, and pairing code codepaths do not touch Keychain.
 13. Pass limit — this author pass does not close independent verification; fresh zero-context verdict is required before push.
+
+## Independent review corrections
+
+The first zero-context review of candidate `200f890` returned FAIL with two P1 and one P2; all three conclusions were accepted rather than waived:
+
+- Public `FERRY_HOST_IP` could bypass the process listener check through Docker port publication. The container now passes the published host into Ferry's Go config validator; a `203.0.113.10` container probe exits closed with `published-host must be a loopback or private/link-local IP address`.
+- iOS previously deleted invalid characters and truncated long pasted values, which could turn `12a34` into another credential, `1234`. It now rejects the whole proposed edit and retains the prior field value; a signed Swift test covers letters, superscript digits, full-width digits, and five digits.
+- The OpenAPI claim request described four digits only in prose. It now has a machine-readable whitespace-aware four-ASCII-digit pattern, while the response remains strict `^[0-9]{4}$`.
+
+A second fresh zero-context verdict on the corrected commit remains required before push.

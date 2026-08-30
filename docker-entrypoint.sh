@@ -8,8 +8,10 @@ if [ -z "$container_ip" ]; then
 fi
 
 port="${FERRY_PORT:-42817}"
+published_host="${FERRY_HOST_IP:-127.0.0.1}"
 exec /usr/local/bin/ferry \
+    "$@" \
     -lan \
     -listen "${container_ip}:${port}" \
-    -data-dir /data \
-    "$@"
+    -published-host "${published_host}" \
+    -data-dir /data

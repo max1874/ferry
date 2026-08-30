@@ -3,7 +3,7 @@
 ## Delivery record
 
 - Status: `deployed` on macmini; final iPhone four-digit claim is awaiting user confirmation.
-- Subject: `d268b7a` plus the Docker deployment working-tree diff
+- Subject: the current main candidate containing the Docker deployment and four-digit pairing contract.
 - Requested (2026-08-30): run Ferry Server and Web on `macmini` in Docker on a high port rather than 8080.
 - Done: Web and iPhone use `http://10.0.0.2:42817`, exchange real messages, and retain data across a container restart.
 - Non-goals: TLS, a domain, reverse proxying, public-Internet exposure, and migration of the temporary laptop test data.
@@ -40,7 +40,7 @@ Plain brief: this adds a repeatable container package for the existing combined 
 
 - `go test ./...` and `go vet ./...` must remain green.
 - Image build must compile the same `./cmd/ferry` entry point used outside Docker.
-- Startup must fail if the container address is empty or ambiguous; Ferry itself remains the final numeric/private-address judge.
+- Startup must fail if the container address is empty or ambiguous, or if `FERRY_HOST_IP` is not loopback/private/link-local; Ferry itself remains the final numeric/private-address judge for both listener and published host.
 - Compose defaults to loopback publication; the Mac mini deployment opts into `10.0.0.2` through an untracked `.env` file.
 - `git diff --check` and a full-file security review gate shipping.
 
@@ -70,3 +70,4 @@ Plain brief: this adds a repeatable container package for the existing combined 
 - The rebuilt container returned HTTP 200 and the real Web session retained paired identity plus messages from the named volume. Server logs state the precise private listener and trusted-HTTP warning.
 - Web/iPhone exchange before the four-digit-only UI change produced exact messages `from web via macmini 42817` and `hiho`; the updated iPhone build is installed, with the new four-digit claim awaiting manual user confirmation.
 - Pairing contract attacks and the 13-item author review are recorded in `docs/four-digit-pairing.md`; fresh zero-context review remains the final pre-push gate.
+- An independent review found that Docker publication could name a public host even while the process bound a private bridge IP. The runtime now validates `-published-host`; a hostile public-IP container probe exits before listening, while a valid loopback smoke container runs as `ferry` and returns HTTP 200.

@@ -47,6 +47,24 @@ func TestConfigRequiresExplicitLANModeAndPrivateAddress(t *testing.T) {
 	}
 }
 
+func TestConfigValidatesPublishedHostAgainstListenerBoundary(t *testing.T) {
+	for _, host := range []string{"127.0.0.1", "10.0.0.2", "169.254.1.2", "fd00::1"} {
+		arguments := []string{"-lan", "-listen", "10.0.0.13:42817", "-published-host", host}
+		if _, err := parseConfig(arguments); err != nil {
+			t.Fatalf("rejected published host %q: %v", host, err)
+		}
+	}
+	for _, host := range []string{"0.0.0.0", "::", "8.8.8.8", "203.0.113.10", "example.com"} {
+		arguments := []string{"-lan", "-listen", "10.0.0.13:42817", "-published-host", host}
+		if _, err := parseConfig(arguments); err == nil {
+			t.Fatalf("accepted published host %q", host)
+		}
+	}
+	if _, err := parseConfig([]string{"-published-host", "10.0.0.2"}); err == nil {
+		t.Fatal("accepted private published host without LAN mode")
+	}
+}
+
 func TestConfigAcceptsExplicitPairRecovery(t *testing.T) {
 	value, err := parseConfig([]string{"-pair"})
 	if err != nil || !value.pair {

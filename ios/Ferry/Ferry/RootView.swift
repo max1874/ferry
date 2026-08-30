@@ -1,5 +1,13 @@
 import SwiftUI
 
+func validatedPairingCodeInput(_ proposed: String, current: String) -> String {
+    guard proposed.utf8.count <= 4,
+          proposed.utf8.allSatisfy({ $0 >= 48 && $0 <= 57 }) else {
+        return current
+    }
+    return proposed
+}
+
 struct RootView: View {
     @Bindable var model: AppModel
 
@@ -63,7 +71,7 @@ private struct PairingView: View {
         Binding(
             get: { model.pairingCode },
             set: { value in
-                model.pairingCode = String(value.filter { $0 >= "0" && $0 <= "9" }.prefix(4))
+                model.pairingCode = validatedPairingCodeInput(value, current: model.pairingCode)
             }
         )
     }

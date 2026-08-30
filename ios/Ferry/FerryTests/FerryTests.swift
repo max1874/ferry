@@ -3,6 +3,14 @@ import XCTest
 
 @MainActor
 final class FerryTests: XCTestCase {
+    func testPairingCodeInputRejectsInsteadOfRewritingInvalidCredentials() {
+        XCTAssertEqual(validatedPairingCodeInput("0123", current: ""), "0123")
+        XCTAssertEqual(validatedPairingCodeInput("", current: "0123"), "")
+        for invalid in ["12a34", "1²234", "12345", "１２３４"] {
+            XCTAssertEqual(validatedPairingCodeInput(invalid, current: "9876"), "9876", invalid)
+        }
+    }
+
     func testServerEndpointNormalizesOriginAndRejectsPathsOrCredentials() throws {
         XCTAssertEqual(try ServerEndpoint(" HTTPS://Example.COM:443/ ").origin, "https://example.com")
         XCTAssertEqual(try ServerEndpoint("http://EXAMPLE.com:80").origin, "http://example.com")
