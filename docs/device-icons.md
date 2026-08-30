@@ -58,7 +58,7 @@ Plain brief: Ferry learns only a broad UI category such as iPhone or Mac, not a 
 4. **DESIGN_NECESSARY** — missing/valid header joins succeed, invalid/duplicate header fails without creating a device; unchanged JSON remains old-Server compatible.
 5. **REPO_REQUIRED** — OpenAPI, Go/iOS/Web tests, full build/race/vet, Docker build, license notice, adversarial review, independent sealed contract review and final macmini journey pass.
 
-Status: `approved_for_deploy`; subject: `65adc74 + working tree`; pending gate: S7 macmini deployment journey; review round: 2; invalidations: 1.
+Status: `shipped`; source: `cf9f3af`; deployed image: `sha256:c67deffa1aad731f5783ddab0962e918cd31857e335c5ab14f7deb454d23f06f`; review round: 2; invalidations: 1.
 
 ## S3 — Build and boundary evidence
 
@@ -140,3 +140,15 @@ Fresh zero-context verifier verdict: code-level **SHIP**, P0/P1/P2 = 0; overall 
 - Independently ran Go, race, vet, Node syntax, OpenAPI enum parse, and diff-check successfully.
 - Confirmed S0 scope/budget, S1 mechanism, S2 items 1–4, and S4 repair parity. No code or design deviation remains.
 - The verifier intentionally did not run Xcode or deploy; the recorded 20-test iOS pass remains the iOS evidence, and the macmini journey remains the release gate.
+
+## S7 — Mac mini deployment journey
+
+- Pushed source commit `cf9f3af` to `origin/main`, synchronized the reviewed runtime files, and rebuilt the existing Docker Compose service in place.
+- Container `ferry` is up on `10.0.0.2:42817` with image `sha256:c67deffa1aad731f5783ddab0962e918cd31857e335c5ab14f7deb454d23f06f`; startup completed without migration error.
+- Live `/healthz` returned 200 with `{"status":"ok"}`; the embedded Tabler license endpoint returned the upstream title, URL, MIT notice, and copyright.
+- Existing five-message history remained present after migration. A live authenticated API read returned sender kinds in order: `mac, iphone, mac, android, android`, including the existing file message.
+- Real deployed Web at 390×844 rendered five SVG avatars with empty text and distinct desktop, phone, and Android paths. The Devices panel rendered seven SVG icons with empty text, including existing Mac, iPhone, Android, and unknown-name browser fallback devices.
+- Evidence screenshots: `/private/tmp/ferry-device-icons-macmini-cf9f3af-timeline.png`, `/private/tmp/ferry-device-icons-macmini-cf9f3af-devices.png`.
+- Recording: `/Users/max/.config/browser-harness/agent-workspace/recordings/ferry-device-icons-macmini-cf9f3af`.
+
+Final verdict: **SHIP**. All five frozen checklist items passed; P0/P1/P2 = 0 after the repaired side-door re-review.
