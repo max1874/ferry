@@ -39,7 +39,7 @@ Plain brief: Ferry will show a short PIN that is easy to type on a phone. Only t
 ## Build and journey record
 
 - `env GOCACHE=/private/tmp/ferry-go-cache go test -race -count=1 ./...` — passed for all Go packages; `go vet ./...` and `git diff --check` also passed.
-- Signed Simulator run — all 19 `FerryTests` passed, including invalid PIN paste rejection. A prior run with `CODE_SIGNING_ALLOWED=NO` failed only the Keychain integration with OSStatus `-34018`; rerunning with normal Simulator signing passed and confirmed the test command, not product code, was at fault.
+- Signed Simulator run — all 20 `FerryTests` passed, including invalid PIN paste rejection and proof that a short PIN makes zero client calls. A prior run with `CODE_SIGNING_ALLOWED=NO` failed only the Keychain integration with OSStatus `-34018`; rerunning with normal Simulator signing passed and confirmed the test command, not product code, was at fault.
 - Signed device build — `** BUILD SUCCEEDED **`, deep/strict signature verification passed, no `.xctest` bundle was present, and `devicectl` installed/launched `com.max1874.ferry` on the connected iPhone.
 - Docker — local image `sha256:7c6d6f…` built; macmini rebuilt `ferry:local`, runs as UID 10001 on container IP `192.168.148.2`, publishes only `10.0.0.2:42817`, and `/` returns HTTP 200.
 - Real Web — after the container rebuild, the paired Web identity and old exact messages remained present; Web generated `5045`, proving the deployed Server/Web candidate emits exactly four digits. Leading-zero preservation is covered by the `0000` generator test. Local browser-harness recording: `ferry-four-digit-macmini` (not committed).
@@ -57,8 +57,8 @@ Plain brief: Ferry will show a short PIN that is easy to type on a phone. Only t
 
 ## Author adversarial review — ship with one pending manual proof
 
-1. Coupled state — code map, `reserved`, expiry, and issuer fields are unchanged; race tests cover one-winner, rollback, revoke, and expiry interleavings.
-2. Failure paths — entropy read failure, 16 rejected samples, collision retry, DB rollback, and revoked issuer are covered by tests.
+1. Coupled state — code map, `reserved`, expiry, and issuer fields are unchanged; a race test covers concurrent one-winner, while focused sequential tests cover rollback, revoke, and expiry state transitions.
+2. Failure paths — 16 rejected samples, collision retry, DB rollback, and revoked issuer are covered by tests; direct entropy-reader failure propagation is unchanged code and covered by `io.ReadFull` return handling rather than a new test.
 3. Unchanged consumers — full-repo `rg` checked all `NewCode`/`Reserve` and UI/API consumers; no live 16-character constraint remains.
 4. Contract surfaces — OpenAPI, Web, Swift, Server, README, and deployment docs changed together; SQLite/device tokens/routes did not change.
 5. Original reproduction — deployed Web shows `5045`, replacing the long entry the user rejected.
@@ -78,5 +78,6 @@ The first zero-context review of candidate `200f890` returned FAIL with two P1 a
 - Public `FERRY_HOST_IP` could bypass the process listener check through Docker port publication. The container now passes the published host into Ferry's Go config validator; a `203.0.113.10` container probe exits closed with `published-host must be a loopback or private/link-local IP address`.
 - iOS previously deleted invalid characters and truncated long pasted values, which could turn `12a34` into another credential, `1234`. It now rejects the whole proposed edit and retains the prior field value; a signed Swift test covers letters, superscript digits, full-width digits, and five digits.
 - The OpenAPI claim request described four digits only in prose. Request and response now both use strict machine-readable `^[0-9]{4}$`; Server rejects whitespace too, avoiding incompatible Unicode whitespace tables across validators.
+- iOS allowed editing an incomplete PIN but also allowed submitting it. The Pair button and `AppModel.pair()` now independently require exactly four ASCII digits; a model test proves `123` makes zero client claim calls.
 
 A second fresh zero-context verdict on the corrected commit remains required before push.

@@ -59,6 +59,10 @@ final class AppModel {
     }
 
     func pair() async {
+        guard isValidPairingCode(pairingCode) else {
+            statusMessage = "Pairing code must be exactly four digits."
+            return
+        }
         let current: UUID
         let endpoint: ServerEndpoint
         do {

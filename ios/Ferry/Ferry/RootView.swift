@@ -1,5 +1,9 @@
 import SwiftUI
 
+func isValidPairingCode(_ value: String) -> Bool {
+    value.utf8.count == 4 && value.utf8.allSatisfy { $0 >= 48 && $0 <= 57 }
+}
+
 func validatedPairingCodeInput(_ proposed: String, current: String) -> String {
     guard proposed.utf8.count <= 4,
           proposed.utf8.allSatisfy({ $0 >= 48 && $0 <= 57 }) else {
@@ -57,7 +61,8 @@ private struct PairingView: View {
                         Button { focused = nil; Task { await model.pair() } } label: {
                             HStack { if model.phase == .connecting { ProgressView() }; Text("Pair device").frame(maxWidth: .infinity) }
                         }
-                        .buttonStyle(.glassProminent).controlSize(.large).disabled(model.phase == .connecting)
+                        .buttonStyle(.glassProminent).controlSize(.large)
+                        .disabled(model.phase == .connecting || !isValidPairingCode(model.pairingCode))
                         .accessibilityIdentifier("pair-device")
                     }
                     .padding(22).glassEffect(.regular, in: .rect(cornerRadius: 28))
