@@ -180,7 +180,7 @@ Author adversarial review, pass 4 (author fresh pass, not independent):
 - **Scope**：Server persistence/API projection plus Web rendering; iOS/Android visual alignment is excluded from this Web correction. Contract depth applies because the message response gains `is_current_device`; budget is 5 production files, ≤100 net lines and one nullable SQLite column, with no new service/dependency.
 - **Decision**：persist nullable `sender_device_id` at the existing authenticated create seam, keep it private, and project only contextual `is_current_device` from list/create handlers. Counterexample: two devices named `iPhone` with the same kind must still render on opposite sides.
 - **Frozen checks**：legacy DB migrates with old messages foreign; authenticated text/file creates retain sender identity; list responses differ by requesting device; Web maps strict boolean true to right and every other value to left; two real browser identities send and observe opposite sides at desktop/mobile widths.
-- Status: `ship_candidate`; implementation and author gates pass; Max explicitly waived the contract-class independent verifier on 2026-08-31 to preserve the standing no-subagent decision.
+- Status: `shipped`; implementation and author gates pass; Max explicitly waived the contract-class independent verifier on 2026-08-31 to preserve the standing no-subagent decision.
 
 Alignment evidence and adversarial closure:
 
@@ -204,3 +204,8 @@ Author adversarial review (fresh final tree, not independent):
 11. Predicate producers — all `sender_device_id` and `is_current_device` reads/writes were grepped before trusting tests.
 12. Reversed findings — the old all-right Web default is intentionally reversed; legacy messages remain left because identity is unknowable.
 13. Pass limit — author S5 is green with no known P0/P1/P2; Max explicitly waived S6 after seeing the no-subagent conflict.
+
+### Current-device alignment — S7 deployed closure
+
+- Subject `c572b98` was pushed and deployed on Mac mini as image `sha256:1daba82f8096757c33975e41d42ecadb153c682c08a3d250d3ef2b86a6065b18`; container is running on the retained `ferry_ferry-data:/data` volume and `http://10.0.0.2:42817/healthz` returned 200.
+- Live Chromium retained the five historical messages, then sent `deployed right-side check c572b98`; its bubble was current/right `{x:893.25,right:1172}` with overflow 0. A temporary same-kind peer observed `is_current_device:false`, `Cache-Control:no-store`, and no raw sender ID, then was revoked. Recording: `ferry-current-device-alignment-macmini` (7 frames); screenshot: `/private/tmp/ferry-current-device-alignment-macmini.png`.
