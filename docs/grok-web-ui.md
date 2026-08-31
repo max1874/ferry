@@ -167,3 +167,9 @@ Author adversarial review, pass 4 (author fresh pass, not independent):
 ### Authenticated correction — S5/S6 status
 
 - **SHIP candidate, author fresh pass**: no known P0/P1/P2 after one repair round. `go test ./...`, `go vet ./...`, JS parse, repo policy and diff checks are required again at the final tree. No contract-class S6 gate applies.
+
+### Authenticated correction — S7 deployed closure
+
+- Subject `3158cea` was pushed, built on Mac mini as image `sha256:70d8ef9a9494d10cf364b53c1300f3268fa029c8bdb12df13f6d7aa82ef1539d`, and restarted with its existing data volume; `http://10.0.0.2:42817/` returned 200.
+- Live desktop measured sidebar/main `257/1126`, message column 704, composer `{x:444,y:899,w:752,h:60}`, 5 retained messages, Local and overflow 0. Live mobile measured rail/main `56/334`, composer `{x:64,y:755,w:318,h:60}`, right bubble ending x=378 and overflow 0.
+- Live Devices showed 8 retained devices, `Current device: Mac browser` and `No password is required.` Recording: `ferry-authenticated-grok-rebuild` (52 frames). Final status: `shipped`; one authenticated-reference semantic invalidation; review provenance: author fresh pass, no subagent per user decision.
