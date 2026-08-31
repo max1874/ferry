@@ -107,6 +107,28 @@ func TestCSSKeepsCompatibilityFallbacks(t *testing.T) {
 	}
 }
 
+func TestComposerFocusStaysOnRoundedContainer(t *testing.T) {
+	handler := Handler()
+	stylesheet := httptest.NewRecorder()
+	handler.ServeHTTP(stylesheet, httptest.NewRequest(http.MethodGet, "/app.css", nil))
+	if stylesheet.Code != http.StatusOK {
+		t.Fatalf("stylesheet status = %d", stylesheet.Code)
+	}
+
+	css := stylesheet.Body.String()
+	if strings.Contains(css, `button:focus-visible, input:focus-visible, textarea:focus-visible`) {
+		t.Error("textarea inherited the rectangular global focus outline")
+	}
+	for _, contract := range []string{
+		`.composer:focus-within { border-color: var(--focus-border); }`,
+		`textarea:focus-visible { outline: none; }`,
+	} {
+		if !strings.Contains(css, contract) {
+			t.Errorf("stylesheet does not contain composer focus contract %q", contract)
+		}
+	}
+}
+
 func TestWebUsesLicensedDeviceIconsInsteadOfInitials(t *testing.T) {
 	handler := Handler()
 	app := httptest.NewRecorder()

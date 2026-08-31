@@ -95,3 +95,25 @@ Author self-review, items 1–13:
 - Round 2: **SHIP**. Independent full-file re-review verified every fallback, the sibling-state mechanism, unchanged JS contracts and the new regression test; its `go test`, `go vet`, JS parse and diff checks passed independently. Residual non-blocker: composer/status now live inside `main[aria-live=polite]`, so future screen-reader testing should watch announcement cadence.
 
 Status: `shipped-ready`; subject: working tree based on `24db715`; all S2 gates closed; author review round: 2; fresh review rounds: NOT SHIP → repair → SHIP; browser invalid invocations: 3 (one over execution sub-budget, disclosed above).
+
+## Post-deploy composer focus repair
+
+User screenshot on 2026-08-31 exposed a rectangular outline inside the rounded composer. Browser reproduction measured textarea `outline: rgb(119,119,119) solid 2px`; the global `textarea:focus-visible` selector had higher specificity than the later base `textarea { outline:0 }` declaration. The repair removes textarea from the global rule, explicitly suppresses its own outline, and keeps focus feedback on the rounded composer border. `TestComposerFocusStaysOnRoundedContainer` fossilizes the exact regression.
+
+Author review (pass 3, no subagent by user decision):
+
+1. Coupled state — no JS/runtime state changed; only CSS focus selectors and theme variables; `git diff` is the producer list.
+2. Failure paths — N/A: no I/O/async path; unsupported variables fall back only to the existing border color.
+3. Unchanged consumers — button/input focus rings remain; textarea focus is represented by `.composer:focus-within`; CSS asset test passed.
+4. Contract surfaces — no HTML/API/schema/env change; only CSS and its embedded-resource test.
+5. Original reproduction — before: `solid 2px`; after: `outlineStyle=none`, active element still `#text`, rounded composer border `rgb(189,189,189)`.
+6. Current-HEAD journey — fresh local Server, real browser focus at desktop and 390×844; both screenshots show no inner rectangle.
+7. Mechanism discrimination — `#text` remains focused while only its outline disappears, excluding loss-of-focus as a false pass.
+8. Regression scan — keyboard focus visibility could regress; computed composer border changes from base `#e4e4e4` to focus `#bdbdbd` and retains 32 px radius.
+9. Scale/edge — desktop and mobile focused states both have overflow 0; text sizing/upload limits are untouched.
+10. Contract attacks — dual judges are CSS test + rendered computed style; other protocol patterns are N/A because no protocol changed.
+11. Predicate producers — `focus-visible` and `focus-within` occurrences were fully inspected in `app.css`; no alternate textarea outline producer remains.
+12. Reversed finding — the prior generic accessibility rule was not universally safe; button/input rings remain while composer owns textarea focus.
+13. Pass limit — finite gates are the named regression test, full repo gates, and real-browser reproduction; no claim of reviewer silence.
+
+Evidence: `go test ./...`, `go vet ./...`, JS parse, repo policy and diff check passed; recording `ferry-composer-focus-fixed` (5 frames), screenshots `/private/tmp/ferry-focus-fixed.png` and `/private/tmp/ferry-focus-fixed-mobile.png`.
