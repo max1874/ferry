@@ -63,14 +63,17 @@ func TestLegacyDatabaseMigratesDeviceKindsAndInfersHistory(t *testing.T) {
 	if err != nil || len(messages) != 1 || messages[0].SenderKind != DeviceKindIPhone {
 		t.Fatalf("legacy messages = %#v, error = %v", messages, err)
 	}
-	var nullDeviceKind, nullMessageKind bool
+	var nullDeviceKind, nullMessageKind, nullSenderDeviceID bool
 	if err := store.db.QueryRow("SELECT kind IS NULL FROM devices LIMIT 1").Scan(&nullDeviceKind); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.db.QueryRow("SELECT sender_kind IS NULL FROM messages LIMIT 1").Scan(&nullMessageKind); err != nil {
 		t.Fatal(err)
 	}
-	if !nullDeviceKind || !nullMessageKind {
+	if err := store.db.QueryRow("SELECT sender_device_id IS NULL FROM messages LIMIT 1").Scan(&nullSenderDeviceID); err != nil {
+		t.Fatal(err)
+	}
+	if !nullDeviceKind || !nullMessageKind || !nullSenderDeviceID || messages[0].SenderDeviceID != "" {
 		t.Fatal("migration rewrote legacy rows instead of preserving nullable history")
 	}
 	if err := store.Close(); err != nil {
@@ -90,6 +93,12 @@ func TestLegacyDatabaseMigratesDeviceKindsAndInfersHistory(t *testing.T) {
 	}
 	if _, err := reopened.AuthenticateDevice(t.Context(), tokenHash); err == nil || !strings.Contains(err.Error(), "stored device kind is invalid") {
 		t.Fatalf("corrupt stored device kind error = %v", err)
+	}
+	if _, err := reopened.db.Exec("UPDATE messages SET sender_device_id = 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz'"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := reopened.ListMessages(t.Context(), 0, 10); err == nil || !strings.Contains(err.Error(), "stored sender device id is invalid") {
+		t.Fatalf("corrupt sender device id error = %v", err)
 	}
 }
 
@@ -713,6 +722,35 @@ func TestOpeningPreAuthDataAddsDevicesWithoutLosingMessages(t *testing.T) {
 	messages, _, err := reopened.ListMessages(ctx, 0, 10)
 	if err != nil || len(messages) != 1 || messages[0].ID != message.ID {
 		t.Fatalf("messages = %#v, error = %v", messages, err)
+	}
+}
+
+func TestAuthenticatedMessagesPersistSenderDeviceIdentity(t *testing.T) {
+	store := openTestStore(t)
+	_, tokenHash, err := newDeviceToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	device, err := store.CreateDevice(t.Context(), "Same Mac", tokenHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text, err := store.CreateTextForDevice(t.Context(), device, "text identity")
+	if err != nil {
+		t.Fatal(err)
+	}
+	file, err := store.CreateFileForDevice(t.Context(), device, "identity.txt", "text/plain", strings.NewReader("file identity"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	messages, _, err := store.ListMessages(t.Context(), 0, 10)
+	if err != nil || len(messages) != 2 {
+		t.Fatalf("messages = %#v, error = %v", messages, err)
+	}
+	for _, message := range append([]Message{text, file}, messages...) {
+		if message.SenderDeviceID != device.ID {
+			t.Fatalf("message %s sender device = %q, want %q", message.ID, message.SenderDeviceID, device.ID)
+		}
 	}
 }
 

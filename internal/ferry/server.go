@@ -351,6 +351,11 @@ func (s *server) listMessages(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, err)
 		return
 	}
+	deviceID := currentDevice(r).ID
+	for index := range messages {
+		messages[index].IsCurrentDevice = messages[index].SenderDeviceID != "" && messages[index].SenderDeviceID == deviceID
+	}
+	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, http.StatusOK, map[string]any{
 		"messages":    messages,
 		"next_cursor": nextCursor,
@@ -382,6 +387,7 @@ func (s *server) createText(w http.ResponseWriter, r *http.Request) {
 		s.domainError(w, err)
 		return
 	}
+	message.IsCurrentDevice = true
 	writeJSON(w, http.StatusCreated, message)
 }
 
@@ -417,6 +423,7 @@ func (s *server) createFile(w http.ResponseWriter, r *http.Request) {
 		s.domainError(w, err)
 		return
 	}
+	message.IsCurrentDevice = true
 	writeJSON(w, http.StatusCreated, message)
 }
 

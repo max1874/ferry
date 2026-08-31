@@ -228,6 +228,7 @@ function renderMessage(message) {
 
   const article = document.createElement("article");
   article.className = "message";
+  article.classList.toggle("is-current-device", message.is_current_device === true);
   article.dataset.messageId = message.id;
 
   const body = document.createElement("div");

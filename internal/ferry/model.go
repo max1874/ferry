@@ -52,14 +52,16 @@ type FileInfo struct {
 }
 
 type Message struct {
-	ID         string     `json:"id"`
-	Sequence   int64      `json:"sequence"`
-	Kind       Kind       `json:"kind"`
-	SenderName string     `json:"sender_name"`
-	SenderKind DeviceKind `json:"sender_kind"`
-	CreatedAt  string     `json:"created_at"`
-	Text       *string    `json:"text,omitempty"`
-	File       *FileInfo  `json:"file,omitempty"`
+	ID              string     `json:"id"`
+	Sequence        int64      `json:"sequence"`
+	Kind            Kind       `json:"kind"`
+	SenderName      string     `json:"sender_name"`
+	SenderKind      DeviceKind `json:"sender_kind"`
+	SenderDeviceID  string     `json:"-"`
+	IsCurrentDevice bool       `json:"is_current_device"`
+	CreatedAt       string     `json:"created_at"`
+	Text            *string    `json:"text,omitempty"`
+	File            *FileInfo  `json:"file,omitempty"`
 }
 
 type Device struct {

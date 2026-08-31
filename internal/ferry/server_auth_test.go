@@ -183,6 +183,47 @@ func TestJoinDeviceKindHeaderIsOptionalStrictAndCopiedToMessages(t *testing.T) {
 	}
 }
 
+func TestMessageCurrentDeviceProjectionUsesIdentityNotName(t *testing.T) {
+	handler, _ := newRawTestApp(t, false)
+	join := func() claimResponse {
+		t.Helper()
+		response := requestJSON(t, handler, http.MethodPost, "/api/v1/access/join", `{"device_name":"Same Mac","password":""}`)
+		assertStatus(t, response, http.StatusCreated)
+		return decodeClaim(t, response)
+	}
+	first := join()
+	second := join()
+	if first.Device.ID == second.Device.ID || first.Device.Name != second.Device.Name || first.Device.Kind != second.Device.Kind {
+		t.Fatalf("test devices do not isolate identity: first=%#v second=%#v", first.Device, second.Device)
+	}
+
+	created := authenticatedRequest(t, handler, http.MethodPost, "/api/v1/messages/text", `{"text":"identity decides alignment"}`, first.Token)
+	var createdMessage Message
+	decodeResponse(t, created, &createdMessage)
+	if created.Code != http.StatusCreated || !createdMessage.IsCurrentDevice || strings.Contains(created.Body.String(), "sender_device_id") {
+		t.Fatalf("created message status=%d message=%#v body=%s", created.Code, createdMessage, created.Body.String())
+	}
+
+	listFor := func(token string) Message {
+		t.Helper()
+		response := authenticatedRequest(t, handler, http.MethodGet, "/api/v1/messages", "", token)
+		var page struct {
+			Messages []Message `json:"messages"`
+		}
+		decodeResponse(t, response, &page)
+		if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" || len(page.Messages) != 1 || strings.Contains(response.Body.String(), "sender_device_id") {
+			t.Fatalf("list status=%d messages=%#v body=%s", response.Code, page.Messages, response.Body.String())
+		}
+		return page.Messages[0]
+	}
+	if message := listFor(first.Token); !message.IsCurrentDevice {
+		t.Fatalf("sender saw its message as foreign: %#v", message)
+	}
+	if message := listFor(second.Token); message.IsCurrentDevice {
+		t.Fatalf("same-name peer saw foreign message as current: %#v", message)
+	}
+}
+
 func TestCrossOriginJoinIsRejected(t *testing.T) {
 	handler, _ := newRawTestApp(t, false)
 	body := `{"device_name":"Mac","password":""}`

@@ -173,3 +173,34 @@ Author adversarial review, pass 4 (author fresh pass, not independent):
 - Subject `3158cea` was pushed, built on Mac mini as image `sha256:70d8ef9a9494d10cf364b53c1300f3268fa029c8bdb12df13f6d7aa82ef1539d`, and restarted with its existing data volume; `http://10.0.0.2:42817/` returned 200.
 - Live desktop measured sidebar/main `257/1126`, message column 704, composer `{x:444,y:899,w:752,h:60}`, 5 retained messages, Local and overflow 0. Live mobile measured rail/main `56/334`, composer `{x:64,y:755,w:318,h:60}`, right bubble ending x=378 and overflow 0.
 - Live Devices showed 8 retained devices, `Current device: Mac browser` and `No password is required.` Recording: `ferry-authenticated-grok-rebuild` (52 frames). Final status: `shipped`; one authenticated-reference semantic invalidation; review provenance: author fresh pass, no subagent per user decision.
+
+## Current-device message alignment
+
+- **Requested**：`本机发的在右边，其他发的在左边`。Done is exact device identity, not name/kind guessing; old messages without identity remain on the left.
+- **Scope**：Server persistence/API projection plus Web rendering; iOS/Android visual alignment is excluded from this Web correction. Contract depth applies because the message response gains `is_current_device`; budget is 5 production files, ≤100 net lines and one nullable SQLite column, with no new service/dependency.
+- **Decision**：persist nullable `sender_device_id` at the existing authenticated create seam, keep it private, and project only contextual `is_current_device` from list/create handlers. Counterexample: two devices named `iPhone` with the same kind must still render on opposite sides.
+- **Frozen checks**：legacy DB migrates with old messages foreign; authenticated text/file creates retain sender identity; list responses differ by requesting device; Web maps strict boolean true to right and every other value to left; two real browser identities send and observe opposite sides at desktop/mobile widths.
+- Status: `ship_candidate`; implementation and author gates pass; Max explicitly waived the contract-class independent verifier on 2026-08-31 to preserve the standing no-subagent decision.
+
+Alignment evidence and adversarial closure:
+
+- **S3 behavior**：two real browser identities, both named/kind `Mac Web/browser`, sent A/B; each reload placed its own message right and its peer left. At 390 px, right ended x=378, left began x=68, overflow 0. Authenticated curl returned `Cache-Control: no-store`, contextual booleans and no `sender_device_id`.
+- **S3 mutation**：temporarily replacing ID equality with sender-name equality made `TestMessageCurrentDeviceProjectionUsesIdentityNotName` fail; restoring ID equality passed.
+- **Attacks 1–3**：dual judges were Store/API tests plus Chromium; legacy NULL, text, file, same-name peers and mobile were exercised; equivalent name/kind spellings could not collapse distinct IDs.
+- **Attacks 4–7**：missing/legacy values fail left through strict `=== true`; direct legacy plus authenticated text/file/list/open-file paths were enumerated; the name-comparison mutation failed closed; two auth tokens and a no-store response exercised the identity/cache boundary.
+
+Author adversarial review (fresh final tree, not independent):
+
+1. Coupled state — persisted sender ID has create/scan producers; contextual boolean has only list/create response producers; `rg` enumerated both.
+2. Failure paths — legacy NULL remains readable/left; malformed non-NULL ID fails closed; both have Store tests.
+3. Unchanged consumers — complete Go/Web files were reread; additive JSON remains ignorable by current iOS/Android decoders.
+4. Contract surfaces — exact response keys include the boolean and exclude raw ID; same-name identity test proves the boundary.
+5. Original reproduction — authenticated A/B desktop rectangles proved own-right/peer-left.
+6. Current-HEAD journey — the A/B and 390 px journeys were replayed after the final cache repair.
+7. Mechanism discrimination — the same two messages reverse sides when only the device token changes; name-based mutation fails.
+8. Regression scan — author found and fixed contextual-cache leakage with `no-store`; mobile overflow stayed 0.
+9. Scale/edge — legacy, text, file, same-name and pagination paths pass; Ferry has one shared LAN space, not tenant partitioning.
+10. Contract attacks — all seven required attack patterns are recorded above with machine/browser evidence.
+11. Predicate producers — all `sender_device_id` and `is_current_device` reads/writes were grepped before trusting tests.
+12. Reversed findings — the old all-right Web default is intentionally reversed; legacy messages remain left because identity is unknowable.
+13. Pass limit — author S5 is green with no known P0/P1/P2; Max explicitly waived S6 after seeing the no-subagent conflict.

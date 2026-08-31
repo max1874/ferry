@@ -69,6 +69,7 @@ func TestMessagesUseCompactUserBubbles(t *testing.T) {
 	for _, contract := range []string{
 		`body.className = "message-body"`,
 		`sourceIcon.className = "message-source-icon"`,
+		`article.classList.toggle("is-current-device", message.is_current_device === true)`,
 		`article.append(body, head)`,
 	} {
 		if !strings.Contains(javascript, contract) {
@@ -86,8 +87,10 @@ func TestMessagesUseCompactUserBubbles(t *testing.T) {
 	}
 	css := stylesheet.Body.String()
 	for _, contract := range []string{
-		`.message { display: flex; flex-direction: column; align-items: flex-end; }`,
+		`.message { display: flex; flex-direction: column; align-items: flex-start; }`,
+		`.message.is-current-device { align-items: flex-end; }`,
 		`.message-body { max-width: 90%;`,
+		`.message.is-current-device .message-body { border-radius: 24px 24px 8px; }`,
 		`.message-source-icon .device-icon { width: 13px;`,
 	} {
 		if !strings.Contains(css, contract) {
