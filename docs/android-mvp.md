@@ -3,7 +3,7 @@
 ## S0 — Confirmed scope
 
 - **REQUESTED（Max，2026-08-30）**：完成尚未开发的 Android App；构建环境只能使用 Mac mini 已有 Android 环境，不在当前 Mac 安装工具。
-- **Target acceptance**：真实 Android 设备可连接现有 Ferry Server、恢复凭据、显示时间线、发送和复制文字、从相册或文件选择器发送文件，并把收到的文件保存到用户选择的位置；当前尚未完成真机证据。
+- **Target acceptance**：真实 Android 设备可连接现有 Ferry Server、恢复凭据、显示时间线、发送和复制文字、从相册或文件选择器发送文件，并把收到的文件保存到用户选择的位置；APK 真机安装与启动已由用户确认，其余局域网旅程尚未完成。
 - **DESIGN_NECESSARY**：Server origin 与设备名持久化；token 使用 Android Keystore 加密后持久化；否则重启后入口或身份丢失。
 - **DESIGN_NECESSARY**：会话 generation 与 coroutine cancellation 隔离旧连接、轮询、发送和下载；否则切换 Server 或被撤销后旧任务可回写。
 - **DESIGN_NECESSARY**：照片使用系统 Photo Picker、普通文件使用 Storage Access Framework、下载使用 Create Document；否则需要宽泛存储权限或不能完成文件共享。
@@ -14,10 +14,10 @@
 - **Depth**：full；新增原生客户端和跨进程用户旅程，但不修改 Server、OpenAPI 或 SQLite。
 - **Budget**：最多 20 个 production Kotlin/XML/Gradle files、production 净新增 1,600 行；一个 Android application module、一个 Keystore credential mechanism、零新增 Server/API/DB mechanism。
 - **Artifact budget**：本文件是 S0–S7 唯一过程记录，最多 260 行。
-- **Boundary plan**：Mac mini 完成 assemble/lint/JVM tests；真实 Server API 提供支持证据；Android 设备旅程必须使用真实 App，当前因无 emulator/connected device 标记 `BLOCKED (external)`，不得由单测替代。
+- **Boundary plan**：Mac mini 完成 assemble/lint/JVM tests；真实 Server API 提供支持证据；Android 设备旅程必须使用真实 App。安装与启动已有真机证据；其余 LAN 旅程在用户回到家庭局域网前标记 `BLOCKED (external)`，不得由单测替代。
 - **Expansion triggers**：需要安装新工具、修改 API、后台 worker、本地数据库、分享扩展或超过预算时 HALT。
 
-Status: `local_candidate`; subject: `uncommitted Android tree`; pending gate: real Android device journey; review round: 4 complete; invalidations: 19 builder/reviewer findings closed.
+Status: `device_launch_candidate`; subject: commit `888547f`; pending gate: real Android LAN journey; review round: 4 complete; invalidations: 19 builder/reviewer findings closed.
 
 ## S1 — Architecture decision
 
@@ -121,4 +121,5 @@ Confirmed counterexamples include automatic redirects, JSON wire expansion, loca
 
 ## S7 — Physical-device gate
 
-Mac mini `adb devices -l` is empty and no emulator is installed. Therefore the frozen launch/connect/timeline/text/photo/file/save/revoke journey is still `BLOCKED (external)`; the APK is a local test candidate, not final SHIP.
+- **Observed（Max，2026-08-31）**：APK 已安装到真实 Android 手机，App 可以正常打开。由此，真机安装与启动门槛通过。
+- 用户当前不在部署 Ferry Server 的家庭局域网内，尚不能执行 connect/timeline/text/photo/file/save/revoke 旅程。因此剩余 LAN 旅程仍为 `BLOCKED (external)`，当前状态是已通过真机启动的测试候选版本，不是最终 SHIP。
