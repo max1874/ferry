@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Repository policy
+        run: scripts/check-repo.sh
+
+  server-web-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Server and Web tests
+        run: |
+          go test -race -count=1 ./...
+          go vet ./...
+          node --check internal/webui/assets/app.js
+      - name: Container and data workflow
+        run: |
+          docker compose config
+          scripts/ferry-data.sh self-test
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+      - name: Android SDK 35
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Android tests, lint and debug APK
+        working-directory: android
+        run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon
+
+  ios:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Xcode identity
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
+          xcodebuild -version
+      - name: iOS unit tests
+        run: |
+          xcodebuild test \
+            -project ios/Ferry/Ferry.xcodeproj \
+            -scheme Ferry \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+            -only-testing:FerryTests \
+            -derivedDataPath "$RUNNER_TEMP/FerryDerivedData"
+      - name: Property lists
+        run: |
+          plutil -lint ios/Ferry/Ferry/Info.plist
+          plutil -lint ios/Ferry/FerryUITests/Info.plist
+          plutil -lint ios/ExportOptions.plist.example

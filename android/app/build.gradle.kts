@@ -1,8 +1,21 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+val releaseSigningFile = rootProject.file("signing.properties")
+val releaseSigning = Properties()
+
+if (releaseSigningFile.isFile) {
+    releaseSigningFile.inputStream().use(releaseSigning::load)
+}
+
+fun requiredSigningProperty(name: String): String =
+    releaseSigning.getProperty(name)?.takeIf { it.isNotBlank() }
+        ?: throw GradleException("android/signing.properties is missing required property: $name")
 
 android {
     namespace = "com.max1874.ferry"
@@ -19,6 +32,27 @@ android {
 
     buildFeatures { compose = true }
 
+    signingConfigs {
+        if (releaseSigningFile.isFile) {
+            create("release") {
+                val configuredStore = rootProject.file(requiredSigningProperty("storeFile"))
+                if (!configuredStore.isFile) {
+                    throw GradleException("Android release keystore does not exist: $configuredStore")
+                }
+                storeFile = configuredStore
+                storePassword = requiredSigningProperty("storePassword")
+                keyAlias = requiredSigningProperty("keyAlias")
+                keyPassword = requiredSigningProperty("keyPassword")
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            signingConfig = signingConfigs.findByName("release")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -29,6 +63,17 @@ android {
 
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}")
+    }
+}
+
+gradle.taskGraph.whenReady {
+    val packagesRelease = allTasks.any {
+        it.path == ":app:packageRelease" || it.path == ":app:bundleRelease"
+    }
+    if (packagesRelease && !releaseSigningFile.isFile) {
+        throw GradleException(
+            "Release signing is not configured. Copy signing.properties.example to signing.properties and fill it locally."
+        )
     }
 }
 

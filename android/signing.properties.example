@@ -1,0 +1,5 @@
+# Copy to signing.properties. The real file and keystore are ignored by Git.
+storeFile=ferry-release.jks
+storePassword=replace-me
+keyAlias=ferry
+keyPassword=replace-me

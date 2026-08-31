@@ -14,6 +14,7 @@ DerivedData/
 *.dSYM
 *.dSYM.zip
 *.xcresult
+/ios/ExportOptions.plist
 
 # Swift Package Manager
 .build/
@@ -36,4 +37,7 @@ artifacts/
 /android/.gradle/
 /android/.gradle-home/
 /android/local.properties
+/android/signing.properties
+/android/*.jks
+/android/*.keystore
 /android/**/build/

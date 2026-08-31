@@ -1,61 +1,122 @@
 # Ferry
 
-Ferry is a self-hosted, chat-shaped clipboard and file ferry for your own devices.
+Ferry is a self-hosted, chat-shaped clipboard and file ferry for devices on the same trusted local network.
 
-The Go process serves both the Web chat and API, persists messages and connected devices in SQLite, and stores uploaded file bytes in a local blob directory. A native iOS 26 App covers connection plus text and file sending; Android, automatic discovery, and TLS come later.
+One Go process serves the Web app and API, stores messages and device identities in SQLite, and keeps uploaded bytes in a local blob directory. Native iOS and Android apps use the same timeline as the browser.
 
-## Run locally
+## Project status
 
-Requirements: Go 1.26 or newer.
+Ferry is under active development in a private repository and will be made public after the remaining physical-device journey is complete.
 
-```bash
-go run ./cmd/ferry
-```
+| Component | Current state |
+| --- | --- |
+| Server + Web | Go/SQLite MVP, deployed together with Docker Compose |
+| iOS App | Native SwiftUI MVP for iOS 26 |
+| Android App | Native Compose MVP for Android 8+; real-device install and launch confirmed |
 
-Open <http://127.0.0.1:8080>. A new Web browser joins directly when no access password is enabled. An already connected Web device can enable, change, or disable the shared password from **Devices → Access password**. The setting is stored in Ferry's SQLite database, not an environment variable. By default Ferry writes local state to `./ferry-data`, which is ignored by Git.
+Automatic discovery, automatic clipboard capture, background transfer, TLS/public-Internet exposure and store publication are not part of the current milestone.
 
-Choose another loopback address or data directory explicitly:
+## Docker quick start
 
-```bash
-go run ./cmd/ferry -listen 127.0.0.1:18080 -data-dir /path/to/ferry-data
-```
+Requirements: Docker with Compose v2.
 
-## Security status
-
-Every message, file, settings, and device endpoint requires a connected-device Bearer token. The Web client stores it in origin-scoped browser storage, so another HTTP service on a different port does not receive it as a cookie. Each device has an independently revocable token whose hash—not its original value—is stored by the Server. If enabled, the shared access password gates only new devices; Ferry stores a salted PBKDF2 verifier, never the password itself.
-
-To listen on private LAN addresses, opt in explicitly:
-
-```bash
-go run ./cmd/ferry -lan -listen 192.168.1.20:8080
-```
-
-Replace the example with a specific private or link-local Server address, then open it from each device. Wildcard listeners, hostnames, and public IPs are rejected. Ferry currently uses unencrypted HTTP, so LAN mode protects device identity but not content from someone who can capture trusted-network traffic. Do not expose this milestone to the public internet; TLS is a separate future layer.
-
-## Run with Docker Compose
-
-The container serves both the Web UI and API and stores SQLite plus uploaded blobs in a named volume. Publish it on one specific trusted-LAN address and a high port:
+Publish Ferry on one specific trusted-LAN address and a high port:
 
 ```bash
 FERRY_HOST_IP=192.168.1.20 FERRY_PORT=42817 docker compose up --build -d
 docker compose logs ferry
 ```
 
-Open `http://192.168.1.20:42817`; the browser joins directly unless a password was enabled in Ferry's Web settings. The Compose defaults publish only to `127.0.0.1`; `FERRY_HOST_IP` controls only the listener address and does not configure product access. Stop the service with `docker compose down`; the `ferry-data` named volume remains until it is explicitly removed.
+Open `http://192.168.1.20:42817`. Compose defaults to `127.0.0.1:42817` unless `FERRY_HOST_IP` is supplied. Ferry rejects wildcard, hostname and public-IP publication; do not expose this HTTP milestone to the public Internet.
 
-## Run the iOS App
+The first browser or App joins directly when no access password is configured. Any connected Web device can enable, change or disable the shared password in **Devices → Access password**. The password setting lives in Ferry's SQLite database, not deployment configuration.
 
-Open `ios/Ferry/Ferry.xcodeproj` in Xcode 26.6 or newer and run the `Ferry` scheme on iOS 26. The project intentionally has no Development Team configured; Simulator builds work as-is, while a real device requires your own signing team.
+### Back up and restore
 
-For Simulator development, the default Server address is `http://127.0.0.1:8080`. For a real iPhone, start Ferry with an explicit private LAN address or the Docker Compose deployment above, enter that origin in the App, optionally enter the Web-configured password, and tap Connect.
-
-## Verify
+Build the image once, then use the data tool from the repository root:
 
 ```bash
-go test ./...
-go vet ./...
+scripts/ferry-data.sh backup ./ferry-backup-2026-08-31.tar.gz
+scripts/ferry-data.sh restore ./ferry-backup-2026-08-31.tar.gz ./before-restore.tar.gz
 ```
 
-The product boundary is in `docs/product-core.md`; the first-slice architecture and contract are in `docs/architecture.md` and `api/openapi.yaml`.
+The tool briefly stops a running Ferry service so SQLite and blobs are archived together. It refuses to call a snapshot successful if the volume contains unsupported entries. Restore validates a private copy of the archive, creates and validates the requested safety backup, replaces the named volume, and restarts Ferry only after a successful restore and only if it was running before the operation. A failed restore leaves the service stopped so partial data is not served. Copy backups away from the Server host; they contain messages, files, hashed device tokens and the password verifier.
 
-Ferry will become public after it is ready. A license has not been selected yet.
+Upgrade after taking a backup:
+
+```bash
+git pull --ff-only
+docker compose build --pull ferry
+docker compose up -d ferry
+docker compose logs --tail=100 ferry
+```
+
+## Run from source
+
+Requirements: Go 1.26.3 or newer.
+
+```bash
+go run ./cmd/ferry -listen 127.0.0.1:42817
+```
+
+For LAN access, use an explicit private address:
+
+```bash
+go run ./cmd/ferry -lan -listen 192.168.1.20:42817
+```
+
+By default local state is written to the ignored `./ferry-data` directory. Use `-data-dir` to choose another location.
+
+## Native apps
+
+### iOS
+
+Open `ios/Ferry/Ferry.xcodeproj` in Xcode 26.6 or newer and run the `Ferry` scheme. Simulator builds need no Team; a physical device requires your Apple Development Team. Enter the Docker URL, a device name and the optional Web-configured password.
+
+For an eventual archive, set the Team in Xcode and keep certificates/profiles outside Git:
+
+```bash
+xcodebuild archive -project ios/Ferry/Ferry.xcodeproj -scheme Ferry \
+  -destination 'generic/platform=iOS' -archivePath /tmp/Ferry.xcarchive \
+  DEVELOPMENT_TEAM=YOUR_TEAM_ID
+```
+
+Store export remains a maintainer-authorized step; this repository does not contain Apple credentials or an App Store export profile. When publication is explicitly authorized, copy `ios/ExportOptions.plist.example` to the ignored `ios/ExportOptions.plist`, replace `YOUR_TEAM_ID`, and pass that local file to `xcodebuild -exportArchive`.
+
+### Android
+
+Open `android/` in Android Studio, or build the debug APK with JDK 17 and Android SDK 35:
+
+```bash
+cd android
+./gradlew :app:assembleDebug
+```
+
+The APK is produced below `android/app/build/outputs/apk/debug/`. To configure a signed release, copy `android/signing.properties.example` to the ignored `android/signing.properties`, restrict it to the current user, create the referenced keystore locally, and run `./gradlew :app:bundleRelease`. Any Gradle task graph that packages a release fails if signing configuration is absent or incomplete.
+
+## Development
+
+Run the local gates that match your change:
+
+```bash
+scripts/check-repo.sh
+go test -race -count=1 ./...
+go vet ./...
+node --check internal/webui/assets/app.js
+docker compose config
+(cd android && ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug)
+xcodebuild test -project ios/Ferry/Ferry.xcodeproj -scheme Ferry \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+  -only-testing:FerryTests \
+  -derivedDataPath /tmp/FerryDerivedData
+```
+
+GitHub Actions runs these Server/Web, Android and iOS gates. See [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change. Product boundaries live in [docs/product-core.md](docs/product-core.md), while [api/openapi.yaml](api/openapi.yaml) is the HTTP contract.
+
+## Security
+
+Ferry uses unencrypted HTTP on a trusted LAN. Every content/settings/device endpoint requires a revocable device Bearer token; the optional shared password gates only new devices. Read [SECURITY.md](SECURITY.md) before deployment or vulnerability reporting.
+
+## License
+
+Ferry is licensed under the [Apache License 2.0](LICENSE).

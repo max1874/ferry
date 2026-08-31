@@ -4,8 +4,8 @@
 
 ## Delivery record
 
-- Status: `deployed` on macmini; final iPhone four-digit claim is awaiting user confirmation.
-- Subject: the current main candidate containing the Docker deployment and four-digit pairing contract.
+- Status: `deployed` on macmini under the current passwordless/optional-password admission model; cross-device home-LAN revalidation is tracked in `docs/release-readiness.md` rather than under the retired pairing flow.
+- Subject: the current main deployment; the pairing-code checklist below is retained only as historical evidence for the original container boundary.
 - Requested (2026-08-30): run Ferry Server and Web on `macmini` in Docker on a high port rather than 8080.
 - Done: Web and iPhone use `http://10.0.0.2:42817`, exchange real messages, and retain data across a container restart.
 - Non-goals: TLS, a domain, reverse proxying, public-Internet exposure, and migration of the temporary laptop test data.
@@ -46,7 +46,7 @@ Plain brief: this adds a repeatable container package for the existing combined 
 - Compose defaults to loopback publication; the Mac mini deployment opts into `10.0.0.2` through an untracked `.env` file.
 - `git diff --check` and a full-file security review gate shipping.
 
-## Frozen ship checklist
+## Historical pairing-era ship checklist
 
 1. **REQUESTED** — `docker compose config` resolves host port 42817 and a persistent `/data` volume.
 2. **DESIGN_NECESSARY** — the running process binds a specific container-private IP, while Docker publishes only `10.0.0.2:42817`; wildcard binding remains rejected by existing tests.
@@ -57,7 +57,7 @@ Plain brief: this adds a repeatable container package for the existing combined 
 7. **DESIGN_NECESSARY kill probe** — publishing a different/unconfigured port does not make the accepted URL succeed; stopping the container makes the journey unavailable.
 8. **REPO_REQUIRED** — adversarial self-review and fresh zero-context contract review have no unresolved P0/P1/P2 findings.
 
-## Journey expectations frozen before build
+## Historical pairing-era journey expectations
 
 - Browser entry: opening `/` renders Ferry's pairing screen, not an API error or another service.
 - Bootstrap: the first successful claim returns a Web device identity; replaying that code is rejected.
