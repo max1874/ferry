@@ -193,4 +193,12 @@ Builder seven-pattern record:
 
 - **S5 author fresh pass** (not independent): complete final `index.html`, `app.css`, `app.js`, `web_test.go`, old implementation and this design were reread. Two requested-path regressions found in S4 were fixed and fossilized; the repaired full files and real journeys have no remaining author-known P0/P1. Repository gates passed: `go test ./...`, `go vet ./...`, JS parse, `scripts/check-repo.sh`, and `git diff --check`.
 - **S6 N/A** — no API/protocol/schema/auth/data-integrity contract changed.
-- Status: `local_candidate`; base `24bc4a9`; review provenance `author fresh pass`; semantic invalidations 0; planned/current production scope `3 files / -1 net line / 0 persistent mechanisms`.
+- Status before deployment: `local_candidate`; base `24bc4a9`; review provenance `author fresh pass`; semantic invalidations 0; planned/current production scope `3 files / -1 net line / 0 persistent mechanisms`.
+
+### Actual-chat redesign — S7 deployed closure
+
+- Subject `3b59eee` was pushed to `origin/main`, archived to the existing Mac mini deployment directory, built as `ferry:local` image `sha256:5394083373c3512b0b732c3e1884ee3831117630fe0860b3aa58f5b8e47e7200`, and restarted without removing the named data volume. `http://10.0.0.2:42817/` returned 200.
+- Deployed desktop browser loaded 5 retained historical messages: all had right-aligned `.message-body`, 0 `.avatar`, and 5 device SVG provenance rows; the existing Android file rendered in a `{right:1087.5,w:491.63}` bubble, composer was `{w:760,bottom:959}`, connection `Local`, overflow 0.
+- Deployed Devices showed 8 retained devices, `Current device: Mac browser`, and `No password is required.` Mobile 390×844 light/dark rendered the file bubble at `{x:66.13,w:307.88,right:374}`, composer `{x:8,w:374,bottom:815}`, overflow 0. Recording: `ferry-actual-chat-macmini` (10 frames).
+- Checklist closure: S2 items 1–4 have final-subject browser evidence plus permanent asset tests; item 5 has full gates, author fresh-pass provenance, push and live deployment. No contract-class S6 gate applies. Journey script: deleted, transcript above.
+- Final status: `shipped`; exact production subject `3b59eee`; review rounds 1 author fresh pass; semantic invalidations 0; planned/current production scope `3 files / -1 net line / 0 persistent mechanisms`.
