@@ -13,7 +13,7 @@ This is the authoritative record for the repository-preparation milestone. It do
 - **Boundary plan**：local builds/tests and an isolated temporary Compose volume may close repository tooling claims; real-device/LAN acceptance remains `BLOCKED (external)` and cannot be replaced by those checks.
 - **Expansion triggers**：runtime/API/schema changes, a new dependency, a secret, publishing, deployment, or more than 14 files halts additive work.
 
-Status: `local_candidate`; subject: `97104f1` plus the checkout-v5 warning repair; pending gate: remote GitHub Actions execution; review round: 1 author fresh pass; invalidations: 0.
+Status: `shipped`; subject: `060bd2f`; remote gate: GitHub Actions run `33354550978`; review round: 1 author fresh pass; invalidations: 0.
 
 ## S1 — Design decision
 
@@ -94,11 +94,11 @@ Verdict after repair: P0 0, P1 0, P2 0. The reviewer read every changed file in 
 ## S7 — Closure
 
 1. License/docs — local policy passed; `LICENSE` is byte-identical to apache.org's canonical Apache-2.0 text.
-2. CI — YAML parsed; every action is SHA-pinned; local equivalent Go/Web/Docker/Android/iOS commands passed. The first remote run raised the checkout-v4 Node 20 deprecation warning, so the candidate now pins checkout v5; the replacement run is pending.
+2. CI — YAML parsed; every action is SHA-pinned; local equivalent Go/Web/Docker/Android/iOS commands passed. The first remote run raised the checkout-v4 Node 20 deprecation warning, so the candidate now pins checkout v5. [Run 33354550978](https://github.com/max1874/ferry/actions/runs/33354550978) passed repository, Server/Web/Docker, Android and iOS jobs against `060bd2f`.
 3. Android release — aggregate `build` rejected absent signing; a complete temporary configuration produced a verified signed AAB; test files were deleted.
 4. iOS release — all three plists validate; the template contains policy/Team placeholder only and the real export file is ignored.
 5. Docker data — final isolated Compose journey restored exact database/blob bytes and rejected unsupported volume data, overwrite, unexpected member, symlink and corrupt archive.
 6. Repository policy — instruction symlink, stale live-product text, ignored local data/signing material, action pins, shell syntax and `git diff --check` pass.
-7. Reviews — seven attacks, ordered 13-item author self-review and author fresh full-file review are recorded; remote CI is the only remaining non-external gate.
+7. Reviews — seven attacks, ordered 13-item author self-review and author fresh full-file review are recorded; all repository-local gates are closed. Only the explicitly postponed physical-device/home-LAN journeys remain external.
 
 Journey script: committed to `scripts/ferry-data.sh self-test` — it permanently discriminates recoverable database/blob restore from overwrite, unsupported-volume, corrupt-archive and link-entry failures.
