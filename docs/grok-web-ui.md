@@ -117,3 +117,80 @@ Author review (pass 3, no subagent by user decision):
 13. Pass limit — finite gates are the named regression test, full repo gates, and real-browser reproduction; no claim of reviewer silence.
 
 Evidence: `go test ./...`, `go vet ./...`, JS parse, repo policy and diff check passed; recording `ferry-composer-focus-fixed` (5 frames), screenshots `/private/tmp/ferry-focus-fixed.png` and `/private/tmp/ferry-focus-fixed-mobile.png`.
+
+## Actual-chat redesign — S0 scope card
+
+- **REQUESTED（Max）**：`你觉和 grok 不像呢`，随后要求 `go` 继续处理。
+- **Done**：部署在 Mac mini 的 Ferry 已有消息页，第一眼呈现 Grok 实际聊天页的信息层级：右侧发送气泡、无头像内容流、弱化元信息、窄正文列与贴底 composer；文字、文件、设备和密码功能保持可用。
+- **Non-goals**：不复制 Grok 商标、文案或专有资产；不伪造 AI 回复、模型选择、搜索、会话列表或账号功能；不修改 Server/API、认证、iOS、Android 或持久化数据。
+- **INFERRED（不纳入）**：完整左侧会话栏、登录态 Grok 的隐藏功能、主题切换与消息编辑。
+- **REPO_REQUIRED**：保留 Ferry/device icon、照片与文件入口、可观察错误；真实桌面/手机浏览器 journey；相关测试、diff check、完整文件复核与对抗式自审。
+- **Depth**：full；已有消息、文件卡片、空状态、composer、设备面板与响应式布局需要作为一个页面系统重做，但无外部合同变化。
+- **Budget**：最多 3 个生产文件、净新增不超过 350 行、0 个新持久机制；沿用本过程文件，总行数不超过 220 行。
+- **Execution budget**：60 分钟；最多 2 次无效浏览器验收；外部动作限 Grok 匿名 UI 对照、`origin/main` push 和既有 Mac mini Ferry 容器部署。
+- **Boundary plan**：真实本地 Ferry Server 上验证桌面空/有消息、文件卡、设备面板与 390×844 手机布局，再在 Mac mini 部署后的真实入口复验。匿名 Grok 登录墙后的内容不作臆测。
+- **Expansion triggers**：需要 API/数据模型变化、第四个生产文件、新依赖、专有资产或超预算时立即停止。
+
+Read-only evidence: Grok anonymous desktop and mobile chat state captured in `/private/tmp/grok-live-chat-result.png` and `/private/tmp/grok-live-chat-mobile.png`; recording `grok-actual-chat-study` (18 frames). The login wall blocked assistant-response inspection, so only directly observed user-bubble, content-card, typography, spacing and responsive behavior enter the design.
+
+Scope confirmed by Max's `go` on 2026-08-31 after the card was displayed.
+
+### Actual-chat redesign — S1 decision
+
+**Observed old semantics**：`renderMessage` creates a 34 px device avatar, then sender/time above text or file; CSS lays every item out as a left-aligned two-column row. This is why the page still reads as a conventional messenger even after the homepage shell changed.
+
+1. **Selected — reuse the current DOM/API state machine, change message markup classes and the presentation layer**. Every Ferry event remains a message from one of the user's devices, so its content becomes a right-aligned Grok-style user bubble with compact device/time provenance below it. Empty state, composer, attachment and settings keep their existing owners and IDs.
+2. **Rejected — add a Grok-like sidebar and conversation history**. Ferry has one shared timeline, so a fake sidebar would add controls with no product meaning.
+3. **Rejected — identify “my” messages by sender name/kind and render two sides**. The API intentionally snapshots name/kind but exposes no sender device ID; the heuristic can misclassify two identically named devices.
+
+Counterexample: if the avatar column, bold sender heading or full-width left-aligned row remains after a real send, the selected design has not solved the reported mismatch. Governing gates remain Web asset tests, JS parse, `go test ./...`, `go vet ./...`, `scripts/check-repo.sh`, `git diff --check`, and real desktop/mobile browser journeys. Status: **Decided by the confirmed scope**; no new mechanism or external contract.
+
+### Actual-chat redesign — S2 frozen checklist
+
+1. **REQUESTED** — a real desktop send renders a right-aligned rounded message bubble, with no avatar column or bold sender header; browser DOM/style assertion and screenshot.
+2. **REQUESTED** — file messages use the same compact bubble language while filename, size and download behavior remain; static contract plus real populated-page inspection.
+3. **DESIGN_NECESSARY** — device kind/name/time remain visible as quiet provenance below each message, preventing the requested icon work from disappearing; DOM assertion for SVG plus metadata.
+4. **REPO_REQUIRED** — empty state, composer focus, Photos/Files, device/password panel, light/dark and 390×844 layout remain usable; existing tests plus real browser journeys.
+5. **REPO_REQUIRED** — full repository gates, author attack/self-review, complete-file fresh pass, final-HEAD Mac mini browser replay, then commit/push/deploy.
+
+Frozen journeys: desktop populated timeline checks bubble geometry and metadata; a new text send moves through the real API into that shape; attachment menu and Devices dialog remain operable; 390×844 populated light/dark pages have no horizontal overflow and keep the composer reachable. Expected failure witness: restoring `.message { grid-template-columns: 34px ... }` or appending `.avatar` must fail the new asset regression.
+
+### Actual-chat redesign — S3 build and journeys
+
+- Replaced semantics: the old left avatar column plus bold sender heading became a right-aligned content bubble with device SVG/name/time provenance below it; no API, state field, dependency or persistent mechanism changed.
+- Real local Server (`127.0.0.1:42831`): text `actual chat journey` rendered in a `{x:924.98,w:162.52,right:1087.5}` bubble, no `.avatar`, with Mac SVG metadata; composer remained `{w:760,bottom:959}` and horizontal overflow was 0.
+- Real file input uploaded `ferry-ui-sample.txt`; rendered file title, `19 B`, `.message-body`, and retained the download button. Photos/Files menu, Devices dialog, current device and `No password is required.` were observed.
+- 390×844 light/dark: bubble ended at x=374, composer `{x:8,w:374,bottom:815}`, overflow 0. A 360-character message wrapped to 307.88 px without overflow; focused textarea outline was `none`, rounded composer remained 26 px.
+- Kill probe: stopping the real Server changed connection to `Offline`, status to visible `Failed to fetch`, and the indicator to neutral `rgb(112,112,112)`; restarting recovered `Local` and cleared the error. Recordings: `ferry-actual-chat-local` (21), `ferry-actual-chat-final-local` (10), `ferry-actual-chat-edge` (7).
+
+Builder seven-pattern record:
+
+1. Two judges — Web asset tests and rendered Chromium both rejected the avatar-column shape and observed bubble/device provenance.
+2. Extremes — zero messages, text/file messages, 360 characters, desktop and 390 px mobile all rendered; overflow stayed 0.
+3. Equivalent spellings — N/A: no parser, normalization or protocol changed.
+4. Defaults — light/dark system defaults both rendered; no new stored theme or omitted-field behavior.
+5. Side doors — empty/populated timeline, file input, attachment menu, Devices/password panel and Offline/recovery were walked.
+6. Policy gate — `TestMessagesUseCompactUserBubbles` rejects restored avatar/grid layout; `TestStatusAndSettingsButtonsKeepTruthfulStyling` fossilizes the two self-found regressions.
+7. No self-certification — real Go Server, real Chromium send/upload and actual DOM geometry are the acceptance witnesses; unit tests are supporting evidence.
+
+### Actual-chat redesign — S4 author self-review
+
+1. Coupled state — no state/timer/cache changed; `rg renderMessage|welcome.hidden|composerShell.hidden` enumerated the existing producers, and only rendered DOM order/classes changed.
+2. Failure paths — no I/O branch changed; real Server kill/recovery preserved visible Offline/error and returned to Local.
+3. Unchanged consumers — complete `app.js` read; `loadMessages` is the only `renderMessage` caller, and every JS-owned HTML ID remains; JS parse and Go tests passed.
+4. Contract surfaces — `git diff -- api internal/ferry ios android cmd` was empty; no API/schema/DB/env/client contract changed.
+5. Original reproduction — current desktop screenshot has a right bubble and no avatar/bold sender row; the exact old grid string is absent and test-forbidden.
+6. Current-HEAD journey — CSS repair was followed by a fresh real-Server desktop/mobile/dialog replay; final local evidence is listed in S3.
+7. Mechanism discrimination — `.message-body` geometry plus `avatar:false` witnesses the selected layout; restoring the old grid/avatar strings fails the regression test.
+8. Regression scan — fixed two found regressions: false-green Offline status and transparent Save button; browser measured neutral Offline and an opaque bordered secondary button.
+9. Scale/edge — zero state and a 360-character mobile message passed; file size limits and storage behavior are unchanged.
+10. Contract attacks — the seven-pattern record above scopes parser/protocol attacks N/A and gives concrete UI probes for the rest.
+11. Predicate producers — `rg connectionElement.textContent` enumerated Connect/Local/Offline/password producers; the indicator now inherits each status text color rather than asserting online.
+12. Reversed findings — the old shared device/secondary selector question was replayed against both consumers; `.secondary` now restores raised background/border while `.device-button` remains minimal.
+13. Pass limit — this is an author pre-filter, not an independent review; closure remains the finite S2 checklist plus complete-file fresh pass and deployed journey.
+
+### Actual-chat redesign — S5/S6 review status
+
+- **S5 author fresh pass** (not independent): complete final `index.html`, `app.css`, `app.js`, `web_test.go`, old implementation and this design were reread. Two requested-path regressions found in S4 were fixed and fossilized; the repaired full files and real journeys have no remaining author-known P0/P1. Repository gates passed: `go test ./...`, `go vet ./...`, JS parse, `scripts/check-repo.sh`, and `git diff --check`.
+- **S6 N/A** — no API/protocol/schema/auth/data-integrity contract changed.
+- Status: `local_candidate`; base `24bc4a9`; review provenance `author fresh pass`; semantic invalidations 0; planned/current production scope `3 files / -1 net line / 0 persistent mechanisms`.

@@ -1,13 +1,13 @@
 :root {
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #0a0a0a;
-  background: #fcfcfc;
+  color: #111111;
+  background: #ffffff;
   font-synthesis: none;
-  --base: #fcfcfc;
+  --base: #ffffff;
   --raised: #ffffff;
-  --soft: #f2f2f2;
-  --hover: #e9e9e9;
-  --border: #e4e4e4;
+  --soft: #f4f4f4;
+  --hover: #ebebeb;
+  --border: #e7e7e7;
   --focus-border: #bdbdbd;
   --muted: #707070;
   --faint: #999999;
@@ -39,7 +39,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-off
 .brand-mark, .welcome-mark { display: block; object-fit: cover; }
 .brand-mark { width: 38px; height: 38px; border-radius: 12px; }
 .top-actions { margin-left: auto; }
-.connection { padding: 7px 11px; color: var(--muted); background: var(--soft); background: color-mix(in srgb, var(--soft) 88%, transparent); border-radius: 999px; font-size: 12px; backdrop-filter: blur(18px); }
+.connection { display: inline-flex; align-items: center; gap: 6px; padding: 7px 4px; color: var(--muted); font-size: 12px; }
+.connection::before { width: 6px; height: 6px; content: ""; border-radius: 50%; background: currentColor; }
 .device-button, .secondary {
   min-height: 38px;
   display: inline-flex;
@@ -47,14 +48,14 @@ button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-off
   gap: 7px;
   padding: 0 13px;
   color: inherit;
-  background: var(--raised);
-  background: color-mix(in srgb, var(--raised) 84%, transparent);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 999px;
   cursor: pointer;
   backdrop-filter: blur(18px);
 }
-.device-button:hover, .secondary:hover { background: var(--soft); }
+.device-button:hover, .secondary:hover { background: var(--soft); border-color: var(--border); }
+.secondary { background: var(--raised); border-color: var(--border); }
 .device-button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 
 .access { min-height: 100vh; display: grid; place-items: center; padding: 88px 20px 56px; }
@@ -81,23 +82,24 @@ button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-off
 .primary:hover { opacity: .86; }
 .form-error { min-height: 18px; margin: -5px 0 !important; color: #c52c20 !important; font-size: 13px; }
 
-.conversation { width: min(820px, 100%); min-height: 100vh; margin: 0 auto; padding: 96px 30px 190px; }
-.welcome { position: fixed; inset: calc(50% - 178px) 20px auto; display: grid; justify-items: center; text-align: center; pointer-events: none; }
-.welcome-brand { display: flex; align-items: center; gap: 16px; }
-.welcome-mark { width: 62px; height: 62px; margin: 0; border-radius: 20px; }
-.welcome h1 { margin: 0; font-size: clamp(38px, 5vw, 52px); letter-spacing: -.055em; }
-.welcome p { margin: 15px 0 0; color: var(--muted); font-size: 15px; }
-.messages { display: flex; flex-direction: column; gap: 30px; }
-.message { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 13px; }
-.avatar { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px; color: var(--on-contrast); background: var(--contrast); font-size: 12px; font-weight: 700; }
+.conversation { width: min(860px, 100%); min-height: 100vh; margin: 0 auto; padding: 96px 34px 210px; }
+.welcome { position: fixed; inset: calc(50% - 116px) 20px auto; display: grid; justify-items: center; text-align: center; pointer-events: none; }
+.welcome h1 { margin: 0; font-size: clamp(28px, 3vw, 34px); font-weight: 650; letter-spacing: -.04em; }
+.welcome p { margin: 12px 0 0; color: var(--muted); font-size: 14px; }
+.messages { display: flex; flex-direction: column; gap: 28px; }
+.message { display: flex; flex-direction: column; align-items: flex-end; }
+.message-body { max-width: min(74%, 620px); padding: 11px 16px; background: var(--soft); border-radius: 24px; }
 .device-icon { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.message-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 5px; }
-.sender { font-size: 15px; font-weight: 650; }
-.time { color: var(--faint); font-size: 12px; }
-.message-text { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; line-height: 1.55; }
-.file-card { width: min(390px, 100%); display: flex; align-items: center; gap: 12px; padding: 12px; color: inherit; text-align: left; background: var(--raised); cursor: pointer; border: 1px solid var(--border); border-radius: 16px; transition: background 120ms ease; }
-.file-card:hover { background: var(--soft); }
-.file-icon { width: 38px; height: 42px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 10px; color: #fff; background: #5b5bd6; font-size: 11px; font-weight: 750; }
+.message-head { display: flex; align-items: center; gap: 5px; margin: 6px 9px 0; color: var(--faint); font-size: 11px; line-height: 1.2; }
+.message-source-icon { display: inline-flex; }
+.message-source-icon .device-icon { width: 13px; height: 13px; stroke-width: 1.7; }
+.sender { font-weight: 500; }
+.time { color: inherit; }
+.time::before { margin-right: 5px; content: "·"; }
+.message-text { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; font-size: 15px; line-height: 1.5; }
+.file-card { width: min(330px, 100%); display: flex; align-items: center; gap: 11px; padding: 2px 0; color: inherit; text-align: left; background: transparent; cursor: pointer; border: 0; border-radius: 12px; }
+.file-card:hover .file-title { text-decoration: underline; }
+.file-icon { width: 38px; height: 42px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 10px; color: #fff; background: #2e6da8; font-size: 10px; font-weight: 750; }
 .file-copy { min-width: 0; }
 .file-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; }
 .file-meta { margin-top: 3px; color: var(--muted); font-size: 12px; }
@@ -110,22 +112,22 @@ button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-off
   background: linear-gradient(to top, var(--base) 64%, transparent);
   transition: top 180ms ease, bottom 180ms ease;
 }
-.composer { width: min(760px, 100%); margin: 0 auto; padding: 10px; background: var(--raised); border: 1px solid var(--border); border-radius: 32px; box-shadow: 0 8px 30px rgba(0, 0, 0, .06); }
+.composer { width: min(760px, 100%); margin: 0 auto; padding: 10px 11px 9px; background: var(--raised); border: 1px solid var(--border); border-radius: 28px; box-shadow: 0 8px 30px rgba(0, 0, 0, .06); }
 .composer:focus-within { border-color: var(--focus-border); }
-.composer-row { display: flex; align-items: flex-end; gap: 8px; }
+.composer-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .attachment-picker { position: relative; flex: 0 0 auto; }
-.attach, .send { width: 44px; height: 44px; display: grid; place-items: center; flex: 0 0 auto; padding: 0; border: 0; border-radius: 50%; cursor: pointer; }
+.attach, .send { width: 38px; height: 38px; display: grid; place-items: center; flex: 0 0 auto; padding: 0; border: 0; border-radius: 50%; cursor: pointer; }
 .attach { background: var(--soft); }
 .attach:hover { background: var(--hover); }
 .attach[aria-expanded="true"] { transform: rotate(45deg); }
 .attach svg, .send svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .send { color: var(--on-contrast); background: var(--contrast); }
 .send:disabled { color: var(--faint); background: var(--soft); cursor: default; }
-textarea { min-height: 44px; max-height: 180px; width: 100%; resize: none; padding: 11px 4px 8px; color: inherit; background: transparent; border: 0; outline: 0; line-height: 1.45; }
+textarea { min-height: 34px; max-height: 180px; width: 100%; resize: none; padding: 4px 8px 2px; color: inherit; background: transparent; border: 0; outline: 0; line-height: 1.45; }
 textarea:focus-visible { outline: none; }
 textarea::placeholder { color: var(--faint); }
 textarea:disabled { color: var(--faint); }
-.file-chip { margin: 1px 0 8px 52px; padding: 9px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-radius: 14px; background: var(--soft); font-size: 13px; }
+.file-chip { margin: 1px 4px 8px; padding: 9px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-radius: 14px; background: var(--soft); font-size: 13px; }
 .file-chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-chip button { padding: 0; color: var(--muted); background: transparent; border: 0; cursor: pointer; font-size: 20px; }
 .footnote { min-height: 15px; margin: 7px auto 0; color: var(--faint); text-align: center; font-size: 11px; }
@@ -161,18 +163,18 @@ textarea:disabled { color: var(--faint); }
 .access-settings output { min-height: 18px; }
 
 @media (min-width: 641px) {
-  .welcome:not([hidden]) ~ .composer-shell { inset: calc(50% - 45px) 0 auto; background: transparent; }
+  .welcome:not([hidden]) ~ .composer-shell { inset: calc(50% - 38px) 0 auto; background: transparent; }
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f2f2f2;
-    background: #050505;
-    --base: #050505;
-    --raised: #111111;
-    --soft: #242424;
-    --hover: #303030;
-    --border: #292929;
+    background: #131211;
+    --base: #131211;
+    --raised: #1f1e1c;
+    --soft: #262523;
+    --hover: #302f2c;
+    --border: #333230;
     --focus-border: #4a4a4a;
     --muted: #a3a3a3;
     --faint: #777777;
@@ -191,14 +193,13 @@ textarea:disabled { color: var(--faint); }
   .device-button { width: 40px; min-height: 40px; justify-content: center; padding: 0; }
   .device-button span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
   .conversation { padding: 86px 16px 174px; }
-  .welcome { inset: calc(50% - 150px) 16px auto; }
-  .welcome-brand { gap: 12px; }
-  .welcome-mark { width: 48px; height: 48px; border-radius: 15px; }
-  .welcome h1 { font-size: 38px; }
+  .welcome { inset: calc(50% - 132px) 16px auto; }
+  .welcome h1 { font-size: 28px; }
   .welcome p { margin-top: 12px; font-size: 14px; }
-  .messages { gap: 25px; }
+  .messages { gap: 24px; }
+  .message-body { max-width: 86%; }
   .composer-shell { padding: 9px 8px calc(9px + env(safe-area-inset-bottom)); }
-  .composer { padding: 7px; border-radius: 28px; }
+  .composer { padding: 8px; border-radius: 26px; }
   .attach, .send { width: 42px; height: 42px; }
   textarea { min-height: 42px; padding-top: 10px; }
   .footnote { margin-top: 5px; }

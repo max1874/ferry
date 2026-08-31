@@ -26,7 +26,7 @@ func TestHandlerServesIconAndReferencesItFromPage(t *testing.T) {
 	if count := strings.Count(pageHTML, `class="brand-mark" src="/ferry-icon-64.png"`); count != 1 {
 		t.Errorf("brand icon count = %d", count)
 	}
-	if count := strings.Count(pageHTML, `class="welcome-mark" src="/ferry-icon-256.png"`); count != 2 {
+	if count := strings.Count(pageHTML, `class="welcome-mark" src="/ferry-icon-256.png"`); count != 1 {
 		t.Errorf("welcome icon count = %d", count)
 	}
 	if strings.Contains(pageHTML, `class="brand-mark" aria-hidden="true">F<`) ||
@@ -54,6 +54,70 @@ func TestHandlerServesIconAndReferencesItFromPage(t *testing.T) {
 		} else if config.Width != expectedSize || config.Height != expectedSize {
 			t.Errorf("%s dimensions = %dx%d, want %dx%d", path, config.Width, config.Height, expectedSize, expectedSize)
 		}
+	}
+}
+
+func TestMessagesUseCompactUserBubbles(t *testing.T) {
+	handler := Handler()
+
+	app := httptest.NewRecorder()
+	handler.ServeHTTP(app, httptest.NewRequest(http.MethodGet, "/app.js", nil))
+	if app.Code != http.StatusOK {
+		t.Fatalf("app status = %d", app.Code)
+	}
+	javascript := app.Body.String()
+	for _, contract := range []string{
+		`body.className = "message-body"`,
+		`sourceIcon.className = "message-source-icon"`,
+		`article.append(body, head)`,
+	} {
+		if !strings.Contains(javascript, contract) {
+			t.Errorf("app.js does not contain bubble contract %q", contract)
+		}
+	}
+	if strings.Contains(javascript, `avatar.className = "avatar"`) {
+		t.Error("message renderer still creates the old avatar column")
+	}
+
+	stylesheet := httptest.NewRecorder()
+	handler.ServeHTTP(stylesheet, httptest.NewRequest(http.MethodGet, "/app.css", nil))
+	if stylesheet.Code != http.StatusOK {
+		t.Fatalf("stylesheet status = %d", stylesheet.Code)
+	}
+	css := stylesheet.Body.String()
+	for _, contract := range []string{
+		`.message { display: flex; flex-direction: column; align-items: flex-end; }`,
+		`.message-body { max-width: min(74%, 620px);`,
+		`.message-source-icon .device-icon { width: 13px;`,
+	} {
+		if !strings.Contains(css, contract) {
+			t.Errorf("stylesheet does not contain bubble contract %q", contract)
+		}
+	}
+	if strings.Contains(css, `grid-template-columns: 34px minmax(0, 1fr)`) {
+		t.Error("stylesheet still contains the old avatar-column layout")
+	}
+}
+
+func TestStatusAndSettingsButtonsKeepTruthfulStyling(t *testing.T) {
+	handler := Handler()
+	stylesheet := httptest.NewRecorder()
+	handler.ServeHTTP(stylesheet, httptest.NewRequest(http.MethodGet, "/app.css", nil))
+	if stylesheet.Code != http.StatusOK {
+		t.Fatalf("stylesheet status = %d", stylesheet.Code)
+	}
+
+	css := stylesheet.Body.String()
+	for _, contract := range []string{
+		`.connection::before { width: 6px; height: 6px; content: ""; border-radius: 50%; background: currentColor; }`,
+		`.secondary { background: var(--raised); border-color: var(--border); }`,
+	} {
+		if !strings.Contains(css, contract) {
+			t.Errorf("stylesheet does not contain truthful control contract %q", contract)
+		}
+	}
+	if strings.Contains(css, `.connection::before`) && strings.Contains(css, `background: #41a65a`) {
+		t.Error("connection indicator must not stay green while its text can say Offline")
 	}
 }
 
@@ -97,7 +161,6 @@ func TestCSSKeepsCompatibilityFallbacks(t *testing.T) {
 	}
 	for _, contract := range []string{
 		`.welcome:not([hidden]) ~ .composer-shell`,
-		`background: var(--soft); background: color-mix`,
 		`background: var(--raised); background: color-mix`,
 		`border: 1px solid #dcaaa6; border-color: color-mix`,
 	} {

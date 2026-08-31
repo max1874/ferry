@@ -40,8 +40,8 @@
 
     <main class="conversation" id="conversation" aria-live="polite" hidden>
       <section class="welcome" id="welcome">
-        <div class="welcome-brand"><img class="welcome-mark" src="/ferry-icon-256.png" alt=""><h1>Ferry</h1></div>
-        <p>Your things, ready on every device.</p>
+        <h1>What do you want to ferry?</h1>
+        <p>Share text and files with your devices.</p>
       </section>
       <div class="messages" id="messages"></div>
       <footer class="composer-shell" id="composer-shell" hidden>
@@ -50,6 +50,7 @@
             <span id="file-name"></span>
             <button type="button" id="remove-file" aria-label="Remove selected file">×</button>
           </div>
+          <textarea id="text" rows="1" placeholder="What do you want to ferry?" aria-label="Message"></textarea>
           <div class="composer-row">
             <div class="attachment-picker" id="attachment-picker">
               <button class="attach" id="attach" type="button" aria-label="Add an attachment" aria-expanded="false" aria-controls="attachment-menu">
@@ -72,7 +73,6 @@
               <input type="file" id="photo" accept="image/*,video/*" hidden>
               <input type="file" id="file" hidden>
             </div>
-            <textarea id="text" rows="1" placeholder="What do you want to ferry?" aria-label="Message"></textarea>
             <button class="send" id="send" type="submit" aria-label="Send" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 12 6-6 6 6M12 18V6"></path></svg></button>
           </div>
         </form>

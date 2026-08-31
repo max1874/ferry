@@ -227,14 +227,14 @@ function renderMessage(message) {
   article.className = "message";
   article.dataset.messageId = message.id;
 
-  const avatar = document.createElement("div");
-  avatar.className = "avatar";
-  avatar.append(createDeviceIcon(message.sender_kind));
-  avatar.setAttribute("aria-hidden", "true");
-
   const body = document.createElement("div");
+  body.className = "message-body";
   const head = document.createElement("div");
   head.className = "message-head";
+  const sourceIcon = document.createElement("span");
+  sourceIcon.className = "message-source-icon";
+  sourceIcon.append(createDeviceIcon(message.sender_kind));
+  sourceIcon.setAttribute("aria-hidden", "true");
   const sender = document.createElement("span");
   sender.className = "sender";
   sender.textContent = message.sender_name;
@@ -242,8 +242,7 @@ function renderMessage(message) {
   time.className = "time";
   time.dateTime = message.created_at;
   time.textContent = new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  head.append(sender, time);
-  body.append(head);
+  head.append(sourceIcon, sender, time);
 
   if (message.kind === "text") {
     const text = document.createElement("p");
@@ -276,7 +275,7 @@ function renderMessage(message) {
     return;
   }
 
-  article.append(avatar, body);
+  article.append(body, head);
   messagesElement.append(article);
 }
 
