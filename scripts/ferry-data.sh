@@ -89,9 +89,8 @@ archive_volume() {
     temporary_name=".$ARCHIVE_FILENAME.tmp.$$"
     PARTIAL_ARCHIVE="$ARCHIVE_DIRECTORY/$temporary_name"
     stop_for_snapshot
-    compose run --rm --no-deps -T --user 0:0 \
-        -v "$ARCHIVE_DIRECTORY:/backup" --entrypoint sh ferry \
-        -c 'umask 077; tar -C /data -czf "/backup/$1" .' sh "$temporary_name"
+    (umask 077; compose run --rm --no-deps -T --user 0:0 --entrypoint sh ferry \
+        -c 'tar -C /data -czf - .' >"$PARTIAL_ARCHIVE")
     validate_archive "$PARTIAL_ARCHIVE" || fail "created backup contains unsupported Ferry data"
     mv "$PARTIAL_ARCHIVE" "$destination_directory/$destination_filename"
     PARTIAL_ARCHIVE=
@@ -168,9 +167,8 @@ restore_volume() {
     temporary_safety=".$safety_filename.tmp.$$"
     PARTIAL_ARCHIVE="$safety_directory/$temporary_safety"
     stop_for_snapshot
-    compose run --rm --no-deps -T --user 0:0 \
-        -v "$safety_directory:/safety" --entrypoint sh ferry \
-        -c 'umask 077; tar -C /data -czf "/safety/$1" .' sh "$temporary_safety"
+    (umask 077; compose run --rm --no-deps -T --user 0:0 --entrypoint sh ferry \
+        -c 'tar -C /data -czf - .' >"$PARTIAL_ARCHIVE")
     validate_archive "$PARTIAL_ARCHIVE" || fail "safety backup contains unsupported Ferry data"
     mv "$PARTIAL_ARCHIVE" "$safety_directory/$safety_filename"
     PARTIAL_ARCHIVE=
