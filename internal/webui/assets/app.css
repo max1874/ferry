@@ -24,39 +24,46 @@ button { color: inherit; }
 button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-offset: 2px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
-.topbar {
+.sidebar {
   position: fixed;
-  inset: 0 0 auto;
+  inset: 0 auto 0 0;
   z-index: 10;
-  height: 72px;
+  width: 257px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: space-between;
-  padding: 0 20px;
-  pointer-events: none;
+  padding: 14px 12px 12px;
+  background: var(--base);
+  border-right: 1px solid var(--border);
 }
-.brand, .top-actions { display: flex; align-items: center; gap: 8px; pointer-events: auto; }
+.sidebar-brand { height: 42px; display: flex; align-items: center; gap: 11px; padding: 0 8px; }
+.sidebar-brand strong { font-size: 18px; letter-spacing: -.03em; }
 .brand-mark, .welcome-mark { display: block; object-fit: cover; }
-.brand-mark { width: 38px; height: 38px; border-radius: 12px; }
-.top-actions { margin-left: auto; }
-.connection { display: inline-flex; align-items: center; gap: 6px; padding: 7px 4px; color: var(--muted); font-size: 12px; }
+.brand-mark { width: 32px; height: 32px; border-radius: 10px; }
+.sidebar-nav { display: grid; gap: 4px; margin-top: 16px; }
+.sidebar-item { width: 100%; min-height: 40px; display: flex; align-items: center; gap: 11px; padding: 0 11px; color: inherit; background: transparent; border: 0; border-radius: 10px; font-size: 14px; font-weight: 550; text-align: left; }
+.sidebar-item.is-active, .sidebar-item:hover { background: var(--soft); }
+.sidebar-item svg { width: 19px; height: 19px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.sidebar-server { display: flex; align-items: center; gap: 10px; padding: 9px 8px; }
+.sidebar-server img { width: 30px; height: 30px; border-radius: 50%; }
+.sidebar-server div, .sidebar-server strong, .sidebar-server span { min-width: 0; display: block; }
+.sidebar-server strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.connection { display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; color: var(--muted); font-size: 11px; }
 .connection::before { width: 6px; height: 6px; content: ""; border-radius: 50%; background: currentColor; }
-.device-button, .secondary {
+.secondary {
   min-height: 38px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
   padding: 0 13px;
   color: inherit;
-  background: transparent;
-  border: 1px solid transparent;
+  background: var(--raised);
+  border: 1px solid var(--border);
   border-radius: 999px;
   cursor: pointer;
   backdrop-filter: blur(18px);
 }
-.device-button:hover, .secondary:hover { background: var(--soft); border-color: var(--border); }
-.secondary { background: var(--raised); border-color: var(--border); }
-.device-button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.secondary:hover { background: var(--soft); }
 
 .access { min-height: 100vh; display: grid; place-items: center; padding: 88px 20px 56px; }
 .access-card { width: min(390px, 100%); display: grid; gap: 15px; }
@@ -82,13 +89,14 @@ button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-off
 .primary:hover { opacity: .86; }
 .form-error { min-height: 18px; margin: -5px 0 !important; color: #c52c20 !important; font-size: 13px; }
 
-.conversation { width: min(860px, 100%); min-height: 100vh; margin: 0 auto; padding: 96px 34px 210px; }
-.welcome { position: fixed; inset: calc(50% - 116px) 20px auto; display: grid; justify-items: center; text-align: center; pointer-events: none; }
-.welcome h1 { margin: 0; font-size: clamp(28px, 3vw, 34px); font-weight: 650; letter-spacing: -.04em; }
-.welcome p { margin: 12px 0 0; color: var(--muted); font-size: 14px; }
-.messages { display: flex; flex-direction: column; gap: 28px; }
+.conversation { width: calc(100% - 257px); min-height: 100vh; margin-left: 257px; padding: 80px 24px 150px; }
+.welcome { position: fixed; inset: calc(50% - 177px) 0 auto 257px; display: grid; justify-items: center; pointer-events: none; }
+.welcome-brand { display: flex; align-items: center; gap: 13px; }
+.welcome-mark { width: 64px; height: 64px; border-radius: 20px; }
+.welcome h1 { margin: 0; font-size: 42px; font-weight: 650; letter-spacing: -.05em; }
+.messages { width: min(704px, 100%); margin: 0 auto; display: flex; flex-direction: column; gap: 30px; }
 .message { display: flex; flex-direction: column; align-items: flex-end; }
-.message-body { max-width: min(74%, 620px); padding: 11px 16px; background: var(--soft); border-radius: 24px; }
+.message-body { max-width: 90%; padding: 8px 16px; background: var(--soft); border: 1px solid var(--border); border-radius: 24px 24px 8px; }
 .device-icon { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .message-head { display: flex; align-items: center; gap: 5px; margin: 6px 9px 0; color: var(--faint); font-size: 11px; line-height: 1.2; }
 .message-source-icon { display: inline-flex; }
@@ -106,24 +114,24 @@ button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-off
 
 .composer-shell {
   position: fixed;
-  inset: auto 0 0;
+  inset: auto 0 0 257px;
   z-index: 8;
   padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
   background: linear-gradient(to top, var(--base) 64%, transparent);
   transition: top 180ms ease, bottom 180ms ease;
 }
-.composer { width: min(760px, 100%); margin: 0 auto; padding: 10px 11px 9px; background: var(--raised); border: 1px solid var(--border); border-radius: 28px; box-shadow: 0 8px 30px rgba(0, 0, 0, .06); }
+.composer { width: min(752px, 100%); min-height: 60px; margin: 0 auto; padding: 9px; background: var(--raised); border: 1px solid var(--border); border-radius: 999px; box-shadow: 0 8px 30px rgba(0, 0, 0, .06); }
 .composer:focus-within { border-color: var(--focus-border); }
-.composer-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.composer-row { display: flex; align-items: center; gap: 8px; }
 .attachment-picker { position: relative; flex: 0 0 auto; }
-.attach, .send { width: 38px; height: 38px; display: grid; place-items: center; flex: 0 0 auto; padding: 0; border: 0; border-radius: 50%; cursor: pointer; }
+.attach, .send { width: 40px; height: 40px; display: grid; place-items: center; flex: 0 0 auto; padding: 0; border: 0; border-radius: 50%; cursor: pointer; }
 .attach { background: var(--soft); }
 .attach:hover { background: var(--hover); }
 .attach[aria-expanded="true"] { transform: rotate(45deg); }
 .attach svg, .send svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .send { color: var(--on-contrast); background: var(--contrast); }
 .send:disabled { color: var(--faint); background: var(--soft); cursor: default; }
-textarea { min-height: 34px; max-height: 180px; width: 100%; resize: none; padding: 4px 8px 2px; color: inherit; background: transparent; border: 0; outline: 0; line-height: 1.45; }
+textarea { min-height: 40px; max-height: 180px; width: 100%; resize: none; padding: 9px 2px 7px; color: inherit; background: transparent; border: 0; outline: 0; font-size: 15px; line-height: 1.5; }
 textarea:focus-visible { outline: none; }
 textarea::placeholder { color: var(--faint); }
 textarea:disabled { color: var(--faint); }
@@ -163,18 +171,19 @@ textarea:disabled { color: var(--faint); }
 .access-settings output { min-height: 18px; }
 
 @media (min-width: 641px) {
-  .welcome:not([hidden]) ~ .composer-shell { inset: calc(50% - 38px) 0 auto; background: transparent; }
+  .welcome:not([hidden]) ~ .composer-shell { inset: calc(50% - 101px) 0 auto 257px; background: transparent; }
+  .welcome:not([hidden]) ~ .composer-shell .footnote { width: min(736px, 100%); min-height: 66px; display: grid; place-items: center; margin-top: 32px; color: var(--muted); background: var(--base); border: 1px solid var(--border); border-radius: 16px; font-size: 13px; }
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f2f2f2;
-    background: #131211;
-    --base: #131211;
-    --raised: #1f1e1c;
-    --soft: #262523;
-    --hover: #302f2c;
-    --border: #333230;
+    background: #050505;
+    --base: #050505;
+    --raised: #141414;
+    --soft: #141414;
+    --hover: #202020;
+    --border: #292929;
     --focus-border: #4a4a4a;
     --muted: #a3a3a3;
     --faint: #777777;
@@ -187,19 +196,19 @@ textarea:disabled { color: var(--faint); }
 }
 
 @media (max-width: 640px) {
-  .topbar { height: 64px; padding: 0 12px; }
-  .brand-mark { width: 36px; height: 36px; }
-  .connection { display: none; }
-  .device-button { width: 40px; min-height: 40px; justify-content: center; padding: 0; }
-  .device-button span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
-  .conversation { padding: 86px 16px 174px; }
-  .welcome { inset: calc(50% - 132px) 16px auto; }
-  .welcome h1 { font-size: 28px; }
-  .welcome p { margin-top: 12px; font-size: 14px; }
+  .sidebar { width: 56px; padding: 10px 7px; }
+  .sidebar-brand { padding: 0 5px; }
+  .sidebar-brand strong, .sidebar-item span, .sidebar-server div { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .sidebar-item { justify-content: center; padding: 0; }
+  .sidebar-server { justify-content: center; padding: 8px 0; }
+  .conversation { width: calc(100% - 56px); margin-left: 56px; padding: 72px 12px 132px; }
+  .welcome { inset: calc(50% - 140px) 0 auto 56px; }
+  .welcome-mark { width: 44px; height: 44px; border-radius: 14px; }
+  .welcome h1 { font-size: 32px; }
   .messages { gap: 24px; }
-  .message-body { max-width: 86%; }
-  .composer-shell { padding: 9px 8px calc(9px + env(safe-area-inset-bottom)); }
-  .composer { padding: 8px; border-radius: 26px; }
+  .message-body { max-width: 94%; }
+  .composer-shell { left: 56px; padding: 9px 8px calc(9px + env(safe-area-inset-bottom)); }
+  .composer { padding: 8px; }
   .attach, .send { width: 42px; height: 42px; }
   textarea { min-height: 42px; padding-top: 10px; }
   .footnote { margin-top: 5px; }

@@ -1,4 +1,5 @@
 const messagesElement = document.querySelector("#messages");
+const sidebar = document.querySelector("#sidebar");
 const welcome = document.querySelector("#welcome");
 const conversationElement = document.querySelector("#conversation");
 const composerShell = document.querySelector("#composer-shell");
@@ -155,6 +156,7 @@ function showAccess(message = "", clearCredential = true, passwordRequired = fal
     updateComposer();
   }
   accessElement.hidden = false;
+  sidebar.hidden = true;
   passwordField.hidden = !passwordRequired;
   conversationElement.hidden = true;
   composerShell.hidden = true;
@@ -173,6 +175,7 @@ function showApp(device) {
   activityStatus = "";
   connectionError = "";
   accessElement.hidden = true;
+  sidebar.hidden = false;
   conversationElement.hidden = false;
   composerShell.hidden = false;
   deviceButton.hidden = false;
@@ -667,6 +670,7 @@ removeFileButton.addEventListener("click", () => {
   updateComposer();
   textInput.focus();
 });
+window.addEventListener("resize", resizeComposer);
 
 updateComposer();
 resizeComposer();

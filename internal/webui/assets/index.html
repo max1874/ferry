@@ -11,19 +11,28 @@
     <script src="/app.js" defer></script>
   </head>
   <body>
-    <header class="topbar">
-      <div class="brand" aria-label="Ferry">
+    <aside class="sidebar" id="sidebar" aria-label="Ferry navigation" hidden>
+      <div>
+        <div class="sidebar-brand" aria-label="Ferry">
         <img class="brand-mark" src="/ferry-icon-64.png" alt="">
-        <span class="sr-only">Ferry</span>
-      </div>
-      <div class="top-actions">
-        <span class="connection" id="connection">Connecting</span>
-        <button class="device-button" id="device-button" type="button" hidden>
+          <strong>Ferry</strong>
+        </div>
+        <nav class="sidebar-nav">
+          <div class="sidebar-item is-active">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v12H8l-4 3z"></path></svg>
+            <span>Timeline</span>
+          </div>
+          <button class="sidebar-item device-button" id="device-button" type="button" hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"></rect><path d="M9 7h6M10 17h4"></path></svg>
-          <span>Devices</span>
-        </button>
+            <span>Devices</span>
+          </button>
+        </nav>
       </div>
-    </header>
+      <div class="sidebar-server">
+        <img src="/ferry-icon-64.png" alt="">
+        <div><strong>Ferry Server</strong><span class="connection" id="connection">Connecting</span></div>
+      </div>
+    </aside>
 
     <section class="access" id="access" hidden>
       <form class="access-card" id="access-form">
@@ -40,8 +49,7 @@
 
     <main class="conversation" id="conversation" aria-live="polite" hidden>
       <section class="welcome" id="welcome">
-        <h1>What do you want to ferry?</h1>
-        <p>Share text and files with your devices.</p>
+        <div class="welcome-brand"><img class="welcome-mark" src="/ferry-icon-256.png" alt=""><h1>Ferry</h1></div>
       </section>
       <div class="messages" id="messages"></div>
       <footer class="composer-shell" id="composer-shell" hidden>
@@ -50,7 +58,6 @@
             <span id="file-name"></span>
             <button type="button" id="remove-file" aria-label="Remove selected file">×</button>
           </div>
-          <textarea id="text" rows="1" placeholder="What do you want to ferry?" aria-label="Message"></textarea>
           <div class="composer-row">
             <div class="attachment-picker" id="attachment-picker">
               <button class="attach" id="attach" type="button" aria-label="Add an attachment" aria-expanded="false" aria-controls="attachment-menu">
@@ -73,6 +80,7 @@
               <input type="file" id="photo" accept="image/*,video/*" hidden>
               <input type="file" id="file" hidden>
             </div>
+            <textarea id="text" rows="1" placeholder="What's on your mind?" aria-label="Message"></textarea>
             <button class="send" id="send" type="submit" aria-label="Send" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 12 6-6 6 6M12 18V6"></path></svg></button>
           </div>
         </form>

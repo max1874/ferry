@@ -44,79 +44,9 @@ Frozen journeys:
 - Mobile 390×844: reload the populated timeline; top actions fit, message content does not clip horizontally, composer remains reachable above the bottom safe area.
 - Dark mode: replay the populated mobile page with `prefers-color-scheme: dark`; background, composer, menu/dialog and text remain legible.
 
-## S3 — Implementation and journey evidence
+## Superseded anonymous-reference delivery
 
-- Replaced only the Web presentation layer: `index.html` retains every JS-owned ID and adds accessible inline controls; `app.css` supplies the Grok-derived layout without dependencies or persistent state. The static-handler test now probes stable `<title>` plus composer identity instead of deleted display copy.
-- Final-HEAD desktop empty, 1383×997: browser reported page width 1383, centered composer `{x:311.5,y:469.5,w:760,h:66}`, welcome `{y:320.5,h:94.5}`, and overflow 0. Evidence: `/private/tmp/ferry-grok-final-desktop-empty.png`.
-- Final-HEAD desktop send replay: typed and submitted `final head journey`; rendered response body contained exactly that text, welcome became hidden, composer moved to `{y:893,bottom:959}`.
-- Desktop side doors: clicking `+` exposed `Photos` and `Files`; Devices showed `Current device: Mac Web`, one `Mac Web` device, and `Access password`. Evidence: `/private/tmp/ferry-grok-desktop-menu.png` and `/private/tmp/ferry-grok-desktop-devices.png`.
-- Final-HEAD mobile populated, 390×844: overflow 0, message `{x:16,w:358}`, composer `{x:8,y:755,w:374,bottom:815}`, device control `{x:338,w:40}`. Evidence: `/private/tmp/ferry-grok-final-mobile-light.png` and `/private/tmp/ferry-grok-final-mobile-dark.png`.
-- Mobile empty/dark on a second fresh Server: welcome visible `{y:272,h:76.5}`, composer `{y:757,bottom:815}`, overflow 0. Dark computed colors were body `rgb(5,5,5)`, composer `rgb(17,17,17)`, text `rgb(242,242,242)`. Evidence: `/private/tmp/ferry-grok-mobile-empty-dark.png` and `/private/tmp/ferry-grok-mobile-dark.png`.
-- Final trace: `ferry-grok-ui-final-head` (11 frames), after the compatibility repair, plus earlier empty/mobile traces under the browser-harness recording directory. Three invalid harness invocations occurred (stale current tab, wrong helper name, incorrect CDP argument form), exceeding the execution sub-budget by one; none exercised or invalidated product behavior.
-
-## S4 — Builder attack record
-
-Seven patterns:
-
-1. **Two judges** — Go asset/server tests and a real Chromium journey both saw the same retained IDs/icons; `go test ./...` passed and browser send/menu/dialog content matched the DOM contracts.
-2. **Extremes** — zero-message fresh Server and populated Server were both replayed; 390 px mobile and 1383 px desktop had zero horizontal overflow; existing `.message-text` uses `overflow-wrap:anywhere` and `.file-title` ellipsis.
-3. **Equivalent spellings** — N/A: no parser, protocol, or normalization rule changed; this diff changes presentation copy and CSS only.
-4. **Defaults** — system light and forced `prefers-color-scheme:dark` were both rendered; no manual theme state or omitted-field default was added.
-5. **Side doors** — access form, empty timeline, populated timeline, attachment menu, Devices dialog and mobile bottom sheet were inspected; no JS-owned route or ID was removed.
-6. **Policy gate** — icon/picker contracts are enforced by `internal/webui/web_test.go`; static shell and headers by `TestStaticWebAndSecurityHeadersShareHandler`; repo policy by `scripts/check-repo.sh`.
-7. **No self-certification** — the browser used a real Go Server and read the actual rendered message/device/password content; API/unit green was not used as the UI witness. Fresh-context verdict is recorded separately below.
-
-Author self-review, items 1–13:
-
-1. Coupled state: no timer/flag/cache/state field changed; grep shows existing `welcome.hidden` producers at app.js lines 121/224 and `composerShell.hidden` at 160/177; CSS consumes only those authoritative flags.
-2. Failure paths: no async/error path changed; existing visible `.footnote.error` and access error surfaces remain in full `app.js`; browser status remained readable.
-3. Unchanged consumers: full `app.js` and `web_test.go` read; all queried IDs/classes remain, proven by `node --check` and `go test ./...`.
-4. Contract surfaces: no API/schema/DB/env change; `git diff --name-only` contains only HTML, CSS, one static handler test, and this record.
-5. Original reproduction: old bordered/narrow layout was replaced; desktop and mobile screenshots show the requested borderless canvas, central/bottom pill composer and minimal controls.
-6. Current-HEAD journeys: no production edit occurred after the two recorded real-Server replays; actual text/menu/device/password content and computed rectangles are listed in S3.
-7. Mechanism discrimination: empty center placement activates only while `.welcome:not([hidden])`; the same journey hid welcome and moved composer from y=469.5 to y=893, excluding a permanently centered fallback.
-8. Regression scan: candidate was small-screen clipping; 390×844 probe returned `scrollWidth-innerWidth=0`, reachable 42 px controls, and a sheet entirely within the viewport.
-9. Scale/edge: empty and non-empty states passed; long messages/files remain guarded by existing wrapping/ellipsis; maximum payload behavior is unchanged and covered by Go tests.
-10. Contract attacks: all seven patterns above have concrete probes or scoped N/A.
-11. Predicate producers: all `hidden` producers for welcome/composer/device/menu and dialog open/close were grepped and reconciled with selectors; no synthetic producer exists.
-12. Reversed findings: initial Go failure identified a copy-pinned page probe and fresh review identified `color-mix()`/`:has()` compatibility gaps. The probe now uses title+composer; every color mix has a plain fallback; `:has()` count is zero; normal sibling selection owns centering; `TestCSSKeepsCompatibilityFallbacks` fossilizes both classes.
-13. Pass limit: this author pass is only a pre-filter; the finite checklist is S2 and final green requires the fresh-context verdict below.
-
-## S5 — Complete-file review and gates
-
-- Author pass 2 re-read the adversarial checklist after the repair, complete current `index.html`, `app.css`, `server_test.go`, coupled `app.js` and `web_test.go`, plus the base diff. Delta is 243 additions/235 deletions across two production assets and two test files; no new runtime mechanism or dependency.
-- Passed at repaired final tree: `GOCACHE=/private/tmp/ferry-go-cache go test ./...`, matching `go vet ./...`, `node --check internal/webui/assets/app.js`, `scripts/check-repo.sh`, and `git diff --check`. (`GOCACHE` avoided a sandbox-denied user cache, not a test failure.)
-- Plain brief: this touches only Ferry Web presentation and its static-page test. It gives the empty and active chat the Grok-derived spatial hierarchy while keeping Ferry functions and brand. If wrong, users would see clipped mobile controls, a composer over messages, or missing file/device/password paths—the frozen journeys explicitly test those failures.
-
-## S6 — Fresh-context verdict
-
-- Round 1: **NOT SHIP**. Independent review found missing plain fallbacks for `color-mix()`, a `:has()` dependency for empty-state centering, and no permanent regression gate.
-- Repair: added plain backgrounds/border before every enhancement, nested composer under the existing welcome/messages state so `.welcome:not([hidden]) ~ .composer-shell` needs no `:has()`, and added `TestCSSKeepsCompatibilityFallbacks`.
-- Round 2: **SHIP**. Independent full-file re-review verified every fallback, the sibling-state mechanism, unchanged JS contracts and the new regression test; its `go test`, `go vet`, JS parse and diff checks passed independently. Residual non-blocker: composer/status now live inside `main[aria-live=polite]`, so future screen-reader testing should watch announcement cadence.
-
-Status: `shipped-ready`; subject: working tree based on `24db715`; all S2 gates closed; author review round: 2; fresh review rounds: NOT SHIP → repair → SHIP; browser invalid invocations: 3 (one over execution sub-budget, disclosed above).
-
-## Post-deploy composer focus repair
-
-User screenshot on 2026-08-31 exposed a rectangular outline inside the rounded composer. Browser reproduction measured textarea `outline: rgb(119,119,119) solid 2px`; the global `textarea:focus-visible` selector had higher specificity than the later base `textarea { outline:0 }` declaration. The repair removes textarea from the global rule, explicitly suppresses its own outline, and keeps focus feedback on the rounded composer border. `TestComposerFocusStaysOnRoundedContainer` fossilizes the exact regression.
-
-Author review (pass 3, no subagent by user decision):
-
-1. Coupled state — no JS/runtime state changed; only CSS focus selectors and theme variables; `git diff` is the producer list.
-2. Failure paths — N/A: no I/O/async path; unsupported variables fall back only to the existing border color.
-3. Unchanged consumers — button/input focus rings remain; textarea focus is represented by `.composer:focus-within`; CSS asset test passed.
-4. Contract surfaces — no HTML/API/schema/env change; only CSS and its embedded-resource test.
-5. Original reproduction — before: `solid 2px`; after: `outlineStyle=none`, active element still `#text`, rounded composer border `rgb(189,189,189)`.
-6. Current-HEAD journey — fresh local Server, real browser focus at desktop and 390×844; both screenshots show no inner rectangle.
-7. Mechanism discrimination — `#text` remains focused while only its outline disappears, excluding loss-of-focus as a false pass.
-8. Regression scan — keyboard focus visibility could regress; computed composer border changes from base `#e4e4e4` to focus `#bdbdbd` and retains 32 px radius.
-9. Scale/edge — desktop and mobile focused states both have overflow 0; text sizing/upload limits are untouched.
-10. Contract attacks — dual judges are CSS test + rendered computed style; other protocol patterns are N/A because no protocol changed.
-11. Predicate producers — `focus-visible` and `focus-within` occurrences were fully inspected in `app.css`; no alternate textarea outline producer remains.
-12. Reversed finding — the prior generic accessibility rule was not universally safe; button/input rings remain while composer owns textarea focus.
-13. Pass limit — finite gates are the named regression test, full repo gates, and real-browser reproduction; no claim of reviewer silence.
-
-Evidence: `go test ./...`, `go vet ./...`, JS parse, repo policy and diff check passed; recording `ferry-composer-focus-fixed` (5 frames), screenshots `/private/tmp/ferry-focus-fixed.png` and `/private/tmp/ferry-focus-fixed-mobile.png`.
+The first delivery, its compatibility repair and the composer-focus repair remain in commits `3b59eee` and `24bc4a9`; their detailed evidence was compacted here after authenticated Grok evidence invalidated the page structure. The durable regressions remain enforced by `TestCSSKeepsCompatibilityFallbacks` and `TestComposerFocusStaysOnRoundedContainer`.
 
 ## Actual-chat redesign — S0 scope card
 
@@ -202,3 +132,38 @@ Builder seven-pattern record:
 - Deployed Devices showed 8 retained devices, `Current device: Mac browser`, and `No password is required.` Mobile 390×844 light/dark rendered the file bubble at `{x:66.13,w:307.88,right:374}`, composer `{x:8,w:374,bottom:815}`, overflow 0. Recording: `ferry-actual-chat-macmini` (10 frames).
 - Checklist closure: S2 items 1–4 have final-subject browser evidence plus permanent asset tests; item 5 has full gates, author fresh-pass provenance, push and live deployment. No contract-class S6 gate applies. Journey script: deleted, transcript above.
 - Final status: `shipped`; exact production subject `3b59eee`; review rounds 1 author fresh pass; semantic invalidations 0; planned/current production scope `3 files / -1 net line / 0 persistent mechanisms`.
+
+## Authenticated-reference correction
+
+Max identified that anonymous/login-wall evidence was insufficient and completed the Grok login handoff. Recording `grok-authenticated-study` (21 frames) replaces the earlier visual assumptions: desktop sidebar/main are 257/1126 px; empty composer is `{x:444,y:413.5,w:752,h:60,radius:160}`; promo row is `{x:452,y:505.5,w:736,h:66,radius:16}`; chat content is 704 px; a user bubble is `{w:633.59,h:63,radius:24px 24px 8px}`; body background is `#050505`.
+
+**S1 reopened — semantic invalidation 1.** The selected “no sidebar + two-row composer” design contradicts authenticated Grok and is removed. Replacement: a 257 px Ferry sidebar containing only real Ferry destinations (Timeline, Devices and current-server identity), a 704 px message column, the existing one-row 752×60 composer, and a meaningful empty-state server row. No fake search/history/model/AI functions.
+
+**S2 replacement checks**：desktop at 1383×997 must measure sidebar 257, composer 752×60 and message column 704; existing messages retain device provenance and file download; mobile uses a compact rail without overflow; attachment, Devices/password, focus, Offline/recovery and light/dark checks remain. Production budget remains 3 files / ≤350 net lines / 0 persistent mechanisms; user authorization is the original 1:1 request plus the completed authenticated-browser handoff.
+
+### Authenticated correction — S3/S4 evidence
+
+- Real empty Server at 1383×997 measured sidebar/main `257/1126`, welcome y `321.5`, composer `{x:444,y:413.5,w:752,h:60}`, info row `{x:452,y:505.5,w:736,h:66}`, focus outline `none`, and overflow 0. Screenshot: `/private/tmp/ferry-authenticated-grok-empty-final.png`.
+- Real populated Server measured message column `{x:468,w:704}`, right bubbles with device provenance and no avatar; Photos/Files and Devices/password side doors opened. Mobile 390×844 measured rail/main `56/334`, composer `{x:64,y:755,w:318,h:60}`, overflow 0.
+- Forced light/dark produced readable white/`#050505` canvases. Kill probe changed Local to visible Offline/`Failed to fetch`; restarting recovered Local and cleared the error.
+- Builder attack found viewport-state residue: mobile textarea height survived a desktop resize and made the composer 62 px. `resizeComposer` now runs on resize; the permanent test plus a mobile→desktop browser replay hold both states at 60 px.
+
+Author adversarial review, pass 4 (author fresh pass, not independent):
+
+1. Coupled state — new `sidebar.hidden` has only `showAccess/showApp` producers; the resize listener calls the existing idempotent height derivation; `rg` enumerated all producers.
+2. Failure paths — no fetch branch changed; real kill/recovery exposed Offline/error and returned to Local.
+3. Unchanged consumers — complete `index.html`, `app.css`, `app.js` and `web_test.go` reread; all JS-owned IDs and callers remain; JS parse and Go tests pass.
+4. Contract surfaces — no API/schema/DB/env/client contract changed; presentation and static tests only.
+5. Original reproduction — authenticated-reference rectangles now match exactly; the rectangular focus outline remains absent.
+6. Current-HEAD journey — empty, populated, menu/dialog, light/dark and mobile→desktop resize were replayed after the final JS repair.
+7. Mechanism discrimination — mobile first measured textarea 42/composer 60; desktop resize then measured textarea 40/composer 60, proving recalculation rather than min-height fallback.
+8. Regression scan — author found and fixed the 62 px resize regression; 390 px and 1383 px overflow remained 0.
+9. Scale/edge — zero and populated timelines passed; existing long-text wrapping/file ellipsis and payload behavior are unchanged.
+10. Contract attacks — dual judges are embedded-resource tests plus real Chromium; parser/normalization/policy attacks are N/A because those boundaries did not change.
+11. Predicate producers — `sidebar.hidden`, `welcome.hidden`, `composerShell.hidden`, connection text and status error producers were grepped before trusting CSS/visual state.
+12. Reversed findings — prior “no sidebar” and two-row conclusions were invalidated, but their fake-function, responsive and truthful-status questions were rechecked against the replacement.
+13. Pass limit — this is explicitly an author pre-filter; the finite gate is the replacement S2 checklist, complete-file read, machine gates and deployed browser replay.
+
+### Authenticated correction — S5/S6 status
+
+- **SHIP candidate, author fresh pass**: no known P0/P1/P2 after one repair round. `go test ./...`, `go vet ./...`, JS parse, repo policy and diff checks are required again at the final tree. No contract-class S6 gate applies.

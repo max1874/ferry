@@ -26,7 +26,7 @@ func TestHandlerServesIconAndReferencesItFromPage(t *testing.T) {
 	if count := strings.Count(pageHTML, `class="brand-mark" src="/ferry-icon-64.png"`); count != 1 {
 		t.Errorf("brand icon count = %d", count)
 	}
-	if count := strings.Count(pageHTML, `class="welcome-mark" src="/ferry-icon-256.png"`); count != 1 {
+	if count := strings.Count(pageHTML, `class="welcome-mark" src="/ferry-icon-256.png"`); count != 2 {
 		t.Errorf("welcome icon count = %d", count)
 	}
 	if strings.Contains(pageHTML, `class="brand-mark" aria-hidden="true">F<`) ||
@@ -87,7 +87,7 @@ func TestMessagesUseCompactUserBubbles(t *testing.T) {
 	css := stylesheet.Body.String()
 	for _, contract := range []string{
 		`.message { display: flex; flex-direction: column; align-items: flex-end; }`,
-		`.message-body { max-width: min(74%, 620px);`,
+		`.message-body { max-width: 90%;`,
 		`.message-source-icon .device-icon { width: 13px;`,
 	} {
 		if !strings.Contains(css, contract) {
@@ -96,6 +96,44 @@ func TestMessagesUseCompactUserBubbles(t *testing.T) {
 	}
 	if strings.Contains(css, `grid-template-columns: 34px minmax(0, 1fr)`) {
 		t.Error("stylesheet still contains the old avatar-column layout")
+	}
+}
+
+func TestAuthenticatedGrokGeometryOwnsThePageShell(t *testing.T) {
+	handler := Handler()
+	stylesheet := httptest.NewRecorder()
+	handler.ServeHTTP(stylesheet, httptest.NewRequest(http.MethodGet, "/app.css", nil))
+	if stylesheet.Code != http.StatusOK {
+		t.Fatalf("stylesheet status = %d", stylesheet.Code)
+	}
+
+	css := stylesheet.Body.String()
+	for _, contract := range []string{
+		`.sidebar {`,
+		`width: 257px;`,
+		`.conversation { width: calc(100% - 257px);`,
+		`.messages { width: min(704px, 100%);`,
+		`.composer { width: min(752px, 100%); min-height: 60px;`,
+		`border-radius: 999px;`,
+		`--base: #050505;`,
+	} {
+		if !strings.Contains(css, contract) {
+			t.Errorf("stylesheet does not contain authenticated Grok geometry %q", contract)
+		}
+	}
+
+	page := httptest.NewRecorder()
+	handler.ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/", nil))
+	html := page.Body.String()
+	for _, contract := range []string{`id="sidebar"`, `>Timeline<`, `>Devices<`, `>Ferry Server<`} {
+		if !strings.Contains(html, contract) {
+			t.Errorf("page does not contain real Ferry sidebar contract %q", contract)
+		}
+	}
+	row := strings.Index(html, `<div class="composer-row">`)
+	text := strings.Index(html, `<textarea id="text"`)
+	if row < 0 || text < row {
+		t.Error("composer is not the authenticated Grok-style single row")
 	}
 }
 
@@ -110,7 +148,9 @@ func TestStatusAndSettingsButtonsKeepTruthfulStyling(t *testing.T) {
 	css := stylesheet.Body.String()
 	for _, contract := range []string{
 		`.connection::before { width: 6px; height: 6px; content: ""; border-radius: 50%; background: currentColor; }`,
-		`.secondary { background: var(--raised); border-color: var(--border); }`,
+		`.secondary {`,
+		`background: var(--raised);`,
+		`border: 1px solid var(--border);`,
 	} {
 		if !strings.Contains(css, contract) {
 			t.Errorf("stylesheet does not contain truthful control contract %q", contract)
@@ -118,6 +158,9 @@ func TestStatusAndSettingsButtonsKeepTruthfulStyling(t *testing.T) {
 	}
 	if strings.Contains(css, `.connection::before`) && strings.Contains(css, `background: #41a65a`) {
 		t.Error("connection indicator must not stay green while its text can say Offline")
+	}
+	if strings.Contains(css, `.device-button, .secondary`) {
+		t.Error("settings button must not share the transparent sidebar-device styling")
 	}
 }
 
@@ -189,6 +232,18 @@ func TestComposerFocusStaysOnRoundedContainer(t *testing.T) {
 		if !strings.Contains(css, contract) {
 			t.Errorf("stylesheet does not contain composer focus contract %q", contract)
 		}
+	}
+}
+
+func TestComposerRecomputesTextHeightAfterViewportChanges(t *testing.T) {
+	handler := Handler()
+	app := httptest.NewRecorder()
+	handler.ServeHTTP(app, httptest.NewRequest(http.MethodGet, "/app.js", nil))
+	if app.Code != http.StatusOK {
+		t.Fatalf("app status = %d", app.Code)
+	}
+	if !strings.Contains(app.Body.String(), `window.addEventListener("resize", resizeComposer)`) {
+		t.Error("composer does not recompute textarea height after a viewport change")
 	}
 }
 
