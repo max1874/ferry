@@ -83,6 +83,30 @@ func TestPageOffersSeparatePhotoAndFilePickers(t *testing.T) {
 	}
 }
 
+func TestCSSKeepsCompatibilityFallbacks(t *testing.T) {
+	handler := Handler()
+	stylesheet := httptest.NewRecorder()
+	handler.ServeHTTP(stylesheet, httptest.NewRequest(http.MethodGet, "/app.css", nil))
+	if stylesheet.Code != http.StatusOK {
+		t.Fatalf("stylesheet status = %d", stylesheet.Code)
+	}
+
+	css := stylesheet.Body.String()
+	if strings.Contains(css, ":has(") {
+		t.Error("empty-timeline layout must not depend on :has() support")
+	}
+	for _, contract := range []string{
+		`.welcome:not([hidden]) ~ .composer-shell`,
+		`background: var(--soft); background: color-mix`,
+		`background: var(--raised); background: color-mix`,
+		`border: 1px solid #dcaaa6; border-color: color-mix`,
+	} {
+		if !strings.Contains(css, contract) {
+			t.Errorf("stylesheet does not contain compatibility contract %q", contract)
+		}
+	}
+}
+
 func TestWebUsesLicensedDeviceIconsInsteadOfInitials(t *testing.T) {
 	handler := Handler()
 	app := httptest.NewRecorder()

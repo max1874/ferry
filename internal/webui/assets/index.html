@@ -14,19 +14,22 @@
     <header class="topbar">
       <div class="brand" aria-label="Ferry">
         <img class="brand-mark" src="/ferry-icon-64.png" alt="">
-        <span>Ferry</span>
+        <span class="sr-only">Ferry</span>
       </div>
       <div class="top-actions">
-        <button class="device-button" id="device-button" type="button" hidden>Devices</button>
         <span class="connection" id="connection">Connecting</span>
+        <button class="device-button" id="device-button" type="button" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"></rect><path d="M9 7h6M10 17h4"></path></svg>
+          <span>Devices</span>
+        </button>
       </div>
     </header>
 
     <section class="access" id="access" hidden>
       <form class="access-card" id="access-form">
-        <img class="welcome-mark" src="/ferry-icon-256.png" alt="">
-        <h1>Connect to Ferry</h1>
-        <p>This Ferry is ready on your local network.</p>
+        <div class="access-brand"><img class="welcome-mark" src="/ferry-icon-256.png" alt=""><h1>Ferry</h1></div>
+        <h2>Connect to your Ferry</h2>
+        <p>Move text and files between your devices.</p>
         <label>Device name<input id="device-name" name="device_name" maxlength="64" autocomplete="nickname" required></label>
         <label id="password-field" hidden>Password<input id="access-password" name="password" type="password" maxlength="256" autocomplete="current-password"></label>
         <button class="primary" type="submit">Enter Ferry</button>
@@ -37,45 +40,45 @@
 
     <main class="conversation" id="conversation" aria-live="polite" hidden>
       <section class="welcome" id="welcome">
-        <img class="welcome-mark" src="/ferry-icon-256.png" alt="">
-        <h1>What should we ferry?</h1>
-        <p>Send text or a file to your other devices.</p>
+        <div class="welcome-brand"><img class="welcome-mark" src="/ferry-icon-256.png" alt=""><h1>Ferry</h1></div>
+        <p>Your things, ready on every device.</p>
       </section>
       <div class="messages" id="messages"></div>
-    </main>
-
-    <footer class="composer-shell" id="composer-shell" hidden>
-      <form class="composer" id="composer">
-        <div class="file-chip" id="file-chip" hidden>
-          <span id="file-name"></span>
-          <button type="button" id="remove-file" aria-label="Remove selected file">×</button>
-        </div>
-        <div class="composer-row">
-          <div class="attachment-picker" id="attachment-picker">
-            <button class="attach" id="attach" type="button" aria-label="Add an attachment" aria-expanded="false" aria-controls="attachment-menu">＋</button>
-            <div class="attachment-menu" id="attachment-menu" role="group" aria-label="Attachment type" hidden>
-              <button id="choose-photos" type="button">
-                <span class="attachment-menu-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"></rect><circle cx="9" cy="10" r="2"></circle><path d="m5.5 18 4.2-4.2 3.1 3.1 2.5-2.5 3.2 3.6"></path></svg>
-                </span>
-                <span><strong>Photos</strong><small>Choose from your library</small></span>
-              </button>
-              <button id="choose-files" type="button">
-                <span class="attachment-menu-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"></path></svg>
-                </span>
-                <span><strong>Files</strong><small>Choose any file</small></span>
-              </button>
-            </div>
-            <input type="file" id="photo" accept="image/*,video/*" hidden>
-            <input type="file" id="file" hidden>
+      <footer class="composer-shell" id="composer-shell" hidden>
+        <form class="composer" id="composer">
+          <div class="file-chip" id="file-chip" hidden>
+            <span id="file-name"></span>
+            <button type="button" id="remove-file" aria-label="Remove selected file">×</button>
           </div>
-          <textarea id="text" rows="1" placeholder="Message Ferry" aria-label="Message"></textarea>
-          <button class="send" id="send" type="submit" aria-label="Send" disabled>↑</button>
-        </div>
-      </form>
-      <p class="footnote" id="status">Your data stays on this Ferry server.</p>
-    </footer>
+          <div class="composer-row">
+            <div class="attachment-picker" id="attachment-picker">
+              <button class="attach" id="attach" type="button" aria-label="Add an attachment" aria-expanded="false" aria-controls="attachment-menu">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+              </button>
+              <div class="attachment-menu" id="attachment-menu" role="group" aria-label="Attachment type" hidden>
+                <button id="choose-photos" type="button">
+                  <span class="attachment-menu-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"></rect><circle cx="9" cy="10" r="2"></circle><path d="m5.5 18 4.2-4.2 3.1 3.1 2.5-2.5 3.2 3.6"></path></svg>
+                  </span>
+                  <span><strong>Photos</strong><small>Choose from your library</small></span>
+                </button>
+                <button id="choose-files" type="button">
+                  <span class="attachment-menu-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"></path></svg>
+                  </span>
+                  <span><strong>Files</strong><small>Choose any file</small></span>
+                </button>
+              </div>
+              <input type="file" id="photo" accept="image/*,video/*" hidden>
+              <input type="file" id="file" hidden>
+            </div>
+            <textarea id="text" rows="1" placeholder="What do you want to ferry?" aria-label="Message"></textarea>
+            <button class="send" id="send" type="submit" aria-label="Send" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 12 6-6 6 6M12 18V6"></path></svg></button>
+          </div>
+        </form>
+        <p class="footnote" id="status">Your data stays on this Ferry server.</p>
+      </footer>
+    </main>
 
     <dialog class="devices-dialog" id="devices-dialog">
       <div class="dialog-head"><div><h2>Devices</h2><p id="current-device"></p></div><button id="close-devices" type="button" aria-label="Close">×</button></div>

@@ -230,7 +230,8 @@ func TestHTTPRejectsFileOverMaximumWithoutCreatingMessage(t *testing.T) {
 func TestStaticWebAndSecurityHeadersShareHandler(t *testing.T) {
 	handler := newTestHandler(t)
 	response := requestJSON(t, handler, http.MethodGet, "/", "")
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "What should we ferry?") {
+	body := response.Body.String()
+	if response.Code != http.StatusOK || !strings.Contains(body, "<title>Ferry</title>") || !strings.Contains(body, `id="composer"`) {
 		t.Fatalf("web response status = %d, body = %s", response.Code, response.Body.String())
 	}
 	if response.Header().Get("Content-Security-Policy") == "" || response.Header().Get("X-Content-Type-Options") != "nosniff" {
