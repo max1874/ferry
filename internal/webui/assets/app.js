@@ -48,6 +48,7 @@ let storageError = "";
 let pastedAttachment = null;
 let previewAttachment = null;
 let previewURL = "";
+let previewFailed = false;
 let activeView = "timeline";
 const rendered = new Set();
 
@@ -240,13 +241,14 @@ function updateComposer() {
     if (previewURL) URL.revokeObjectURL(previewURL);
     previewAttachment = selected;
     previewURL = selected?.type.startsWith("image/") ? URL.createObjectURL(selected) : "";
+    previewFailed = false;
   }
-  const isImage = Boolean(previewURL);
+  const isImage = Boolean(previewURL) && !previewFailed;
   fileChip.hidden = !selected;
   fileChip.classList.toggle("is-image", isImage);
   fileChip.setAttribute("aria-label", selected ? `Selected attachment: ${selected.name}` : "");
   filePreview.hidden = !isImage;
-  if (previewURL) filePreview.src = previewURL;
+  if (isImage) filePreview.src = previewURL;
   else filePreview.removeAttribute("src");
   fileName.textContent = selected?.name || "";
   textInput.disabled = Boolean(selected);
@@ -730,6 +732,11 @@ removeFileButton.addEventListener("click", () => {
   clearAttachment();
   updateComposer();
   textInput.focus();
+});
+filePreview.addEventListener("error", () => {
+  if (!previewURL || filePreview.currentSrc !== previewURL) return;
+  previewFailed = true;
+  updateComposer();
 });
 window.addEventListener("resize", resizeComposer);
 

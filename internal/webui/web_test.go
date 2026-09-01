@@ -269,7 +269,7 @@ func TestComposerAcceptsPastedImagesWithoutInterceptingText(t *testing.T) {
 	}
 }
 
-func TestComposerUsesCompactImageAndFileAttachmentChips(t *testing.T) {
+func TestComposerUsesReadableImagePreviewAndCompactFileChip(t *testing.T) {
 	handler := Handler()
 	page := httptest.NewRecorder()
 	handler.ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -281,7 +281,7 @@ func TestComposerUsesCompactImageAndFileAttachmentChips(t *testing.T) {
 
 	app := httptest.NewRecorder()
 	handler.ServeHTTP(app, httptest.NewRequest(http.MethodGet, "/app.js", nil))
-	for _, contract := range []string{`URL.revokeObjectURL(previewURL)`, `URL.createObjectURL(selected)`, `fileChip.classList.toggle("is-image", isImage)`} {
+	for _, contract := range []string{`URL.revokeObjectURL(previewURL)`, `URL.createObjectURL(selected)`, `const isImage = Boolean(previewURL) && !previewFailed`, `fileChip.classList.toggle("is-image", isImage)`, `filePreview.addEventListener("error"`, `filePreview.currentSrc !== previewURL`} {
 		if !strings.Contains(app.Body.String(), contract) {
 			t.Errorf("app.js does not contain attachment-preview contract %q", contract)
 		}
@@ -289,7 +289,7 @@ func TestComposerUsesCompactImageAndFileAttachmentChips(t *testing.T) {
 
 	stylesheet := httptest.NewRecorder()
 	handler.ServeHTTP(stylesheet, httptest.NewRequest(http.MethodGet, "/app.css", nil))
-	for _, contract := range []string{`.file-chip { position: relative; width: fit-content;`, `.file-preview { display: none; width: 34px; height: 34px;`, `.file-chip.is-image { width: 40px; padding: 2px;`, `.file-chip.is-image:hover button`} {
+	for _, contract := range []string{`.file-chip { position: relative; width: fit-content;`, `.file-preview { display: none; width: auto; height: auto; max-width: 220px; max-height: 96px; object-fit: contain;`, `.file-chip.is-image { width: fit-content; height: auto; min-height: 40px; padding: 3px;`, `.file-chip.is-image:hover button`} {
 		if !strings.Contains(stylesheet.Body.String(), contract) {
 			t.Errorf("stylesheet does not contain attachment-chip contract %q", contract)
 		}

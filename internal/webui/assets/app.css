@@ -143,13 +143,12 @@ textarea:disabled { color: var(--faint); }
 .file-chip #file-name { max-width: min(250px, calc(100vw - 190px)); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-chip button { width: 24px; height: 24px; padding: 4px; display: grid; place-items: center; flex: 0 0 auto; color: var(--muted); background: transparent; border: 0; border-radius: 50%; cursor: pointer; }
 .file-chip button:hover, .file-chip button:focus-visible { color: inherit; background: var(--hover); outline: none; }
-.file-preview { display: none; width: 34px; height: 34px; object-fit: cover; border-radius: 9px; }
-.file-chip.is-image { width: 40px; padding: 2px; gap: 0; }
+.file-preview { display: none; width: auto; height: auto; max-width: 220px; max-height: 96px; object-fit: contain; border-radius: 10px; }
+.file-chip.is-image { width: fit-content; height: auto; min-height: 40px; padding: 3px; gap: 0; }
 .file-chip.is-image .file-kind-icon, .file-chip.is-image #file-name { display: none; }
 .file-chip.is-image .file-preview { display: block; }
-.file-chip.is-image button { position: absolute; top: -7px; right: -7px; color: inherit; background: var(--raised); border: 1px solid var(--border); opacity: 0; transform: scale(.5); transition: opacity .12s ease, transform .12s ease; }
-.file-chip.is-image:hover button, .file-chip.is-image:focus-within button { opacity: 1; transform: scale(1); }
-@media (hover: none) { .file-chip.is-image button { opacity: 1; transform: scale(.8); } }
+.file-chip.is-image button { position: absolute; top: -7px; right: -7px; color: inherit; background: var(--raised); border: 1px solid var(--border); opacity: 1; transform: scale(.8); transition: transform .12s ease; }
+.file-chip.is-image:hover button, .file-chip.is-image:focus-within button { transform: scale(1); }
 .footnote { min-height: 15px; margin: 7px auto 0; color: var(--faint); text-align: center; font-size: 11px; }
 .footnote.error { color: #c52c20; }
 

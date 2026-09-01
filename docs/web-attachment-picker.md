@@ -81,3 +81,33 @@ Conclusion: **ship candidate after independent review and deployment proof**. Pa
 - Local final-tree journey: image `{chip:40×40,preview:34×34,natural:1794×364,composer:752×111}`; ordinary file `{chip:248.45×40,remove:24×24,composer:752×111}`; 390 px file view stayed inside composer x=64…382 with overflow 0. Record: `ferry-grok-attachment-style-local` (8 frames).
 - Frozen closure: image and file selection, pasted image, remove, successful send cleanup, desktop/mobile geometry, CSP exact test, full repository gates, push and Mac mini replay. Author review only and no subagent per Max's standing decision.
 - Shipped: source `c186afc`; Mac mini image `sha256:ae5f4d37183971f9a7fd93bc1c48d86d88e5c27a0d85a28ca5556b913aae416b` runs with retained `ferry_ferry-data:/data`, exact CSP and `/healthz` 200. Live image measured `40×40`/preview `34×34` and live file `248.45×40`/remove `24×24`; both made the 752 px composer 111 px high with overflow 0, then were removed without sending. Recording: `ferry-grok-attachment-style-macmini` (6 frames).
+
+## Readable image preview correction — 2026-09-01
+
+- Requested after real-use feedback: attachment work must be exercised visually; the 40×40 square must not turn a wide screenshot into an unreadable white speck.
+- Root cause: the Grok-derived fixed square uses `object-fit: cover`, so extreme aspect ratios discard nearly all useful pixels. The same 1658×350 screenshot was pasted into authenticated Grok and the deployed Ferry before changing the rule.
+- Decision: image previews preserve their full aspect ratio and fit within 220×96; the image chip sizes to the actual preview, while ordinary file chips and the upload/API path remain unchanged.
+- Failure behavior: if a file claims an image media type but cannot render, the pending attachment falls back to the ordinary filename chip instead of collapsing into an empty image box; changing the attachment resets that fallback.
+- Frozen journey: paste the reported screenshot, inspect preview geometry/content, remove it, paste again, send it, inspect the resulting timeline item, and repeat the pending state at 390×844 without overflow.
+
+### Final-tree evidence and adversarial review
+
+- Authenticated Grok reference: the exact reported PNG was uploaded and rendered in Grok's 40×40 attachment slot. Recording: `ferry-attachment-grok-reference` (3 frames).
+- Original Ferry reproduction: the exact PNG rendered as a 34×34 square inside a 40×40 chip; the 752 px composer became 111 px high. Recording: `ferry-attachment-bug-repro` (3 frames).
+- Current candidate: the 1730×382 browser-decoded image renders at 220×48.57, its chip is 228×56.57, the close control is visible, and the 752 px composer is 127.57 px high. At 390×844 the same chip stays within the 318 px composer with overflow 0. Delete restores empty text mode; a second paste sends successfully and produces the expected 50.5 KB timeline item. Recording: `ferry-readable-image-preview-final-subject` (8 frames).
+
+1. Coupled state — `previewAttachment`, `previewURL` and `previewFailed` are all owned by `updateComposer`; `rg` found no other producer except the image error listener, which compares `currentSrc` with the current object URL so a stale error from a replaced image cannot poison the new preview.
+2. Failure paths — a deliberately corrupt `.png` fell back to `file-chip` with its filename visible and Send enabled; remove then cleared it. Upload/send failures still retain the selected attachment through the unchanged catch path.
+3. Unchanged consumers — `selectedAttachment`, access reset, successful submit, picker change and remove callers were reread; CSS does not alter their state transitions.
+4. Contract surfaces — `git diff --stat` changes only embedded Web CSS/JS, its static test and this document; API, database, CSP, auth and native clients are unchanged.
+5. Original reproduction — the same user-provided wide PNG was replayed before and after the change; the unreadable square became a full-aspect 220 px preview.
+6. Current-HEAD journey — `ferry-readable-image-preview-final-subject` ran after the final stale-error guard and observed corrupt fallback, rendered geometry, delete, repaste, send completion and the actual timeline title/size/status.
+7. Mechanism discrimination — the rendered width changed from fixed 34 to 220 while natural aspect `1730/382` matched rendered aspect `220/48.57`; a corrupt image took the non-image fallback instead of satisfying the preview check.
+8. Regression scan — an ordinary `README.md` selection remained a 154.02×40 filename chip with a 24×24 remove control and overflow 0. Recording: `ferry-readable-image-file-regression-final` (4 frames).
+9. Scale/edge — the reported extreme-wide screenshot and corrupt-image case were exercised; the 390 px viewport retained 77…305 chip bounds inside composer 64…382 with overflow 0.
+10. Contract-level attacks — N/A: no external protocol, persistence, authorization or universal boundary changed.
+11. Predicate producers — `rg -n 'previewAttachment|previewURL|previewFailed|fileChip|filePreview' internal/webui/assets/app.js` enumerates selection-change reset, error producer, rendering consumers and cleanup.
+12. Reversed findings — enlarging the preview raised corrupt-image collapse as a new question; it now falls back to the existing ordinary-file presentation, and ordinary files were separately replayed.
+13. Pass limit — author full pass only; no subagent per Max's standing decision. Closure still requires final-image Mac mini deployment and live browser replay.
+
+Status: local candidate; machine gates and final-tree browser journeys passed.
