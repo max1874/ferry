@@ -108,6 +108,12 @@ Conclusion: **ship candidate after independent review and deployment proof**. Pa
 10. Contract-level attacks — N/A: no external protocol, persistence, authorization or universal boundary changed.
 11. Predicate producers — `rg -n 'previewAttachment|previewURL|previewFailed|fileChip|filePreview' internal/webui/assets/app.js` enumerates selection-change reset, error producer, rendering consumers and cleanup.
 12. Reversed findings — enlarging the preview raised corrupt-image collapse as a new question; it now falls back to the existing ordinary-file presentation, and ordinary files were separately replayed.
-13. Pass limit — author full pass only; no subagent per Max's standing decision. Closure still requires final-image Mac mini deployment and live browser replay.
+13. Pass limit — author full pass only; no subagent per Max's standing decision. Mac mini deployment and live browser replay provide the required user-surface closure.
 
-Status: local candidate; machine gates and final-tree browser journeys passed.
+### Deployment closure
+
+- Source `571df86` was pushed to `origin/main`; Mac mini runs retained-volume image `sha256:a484a4401d5e9404f0341df60f15d1f2ebf1162136f534d8c7923cba0922455f`, and `/healthz` returned `{"status":"ok"}`.
+- On `http://10.0.0.2:42817`, the exact reported PNG again measured preview 220×48.57, chip 228×56.57, visible remove control and desktop overflow 0. Removing it restored text focus and disabled Send.
+- At deployed 390×844, the chip stayed x=77…305 inside composer x=64…382 with overflow 0. Re-pasting and sending created one real 50.5 KB timeline item with the exact filename, cleared the pending chip and returned the normal privacy status. Recording: `ferry-readable-image-preview-macmini-final` (6 frames).
+
+Status: shipped and visually exercised on the deployed Mac mini instance.
