@@ -29,10 +29,18 @@ Local final-tree evidence at base `e13b71a`: desktop sidebar ended x=257 and Dev
 6. Current-HEAD journey — desktop/mobile screenshots and clicks followed the final compact desktop button repair.
 7. Mechanism discrimination — both content visibility and `aria-current` reverse when only the clicked navigation button changes.
 8. Regression scan — composer accidentally remaining visible was the primary candidate; it is hidden on Devices and restored on Timeline.
-9. Scale/edge — mobile rows and card fit; the existing deployed multi-device list is reserved for the final Mac mini replay.
+9. Scale/edge — the deployed eight-device list, mobile rows, revoke controls and password card all fit without horizontal overflow.
 10. Contract attacks — N/A; no external protocol, auth policy, persistence, or universal boundary changed.
 11. Predicate producers — every `conversationElement.hidden`, `devicesPage.hidden`, `composerShell.hidden`, active class and `aria-current` writer was enumerated.
 12. Reversed findings — the former dialog location is rejected; device loading/error/password questions were rechecked on the main page.
 13. Pass limit — author full pass only; no subagent per Max's standing decision, with real browser click-through and machine gates retained as closure evidence.
 
-Status: local candidate.
+## Shipped evidence
+
+- Source commit: `6dd8416` (`fix: make Devices a main navigation view`).
+- Mac mini image: `sha256:fa26f3aa4cf616adcdbd4abe1fe3f5d869f282c1552c703ae2d361d11a74b186`; container `ferry` is running and `/healthz` returned `{"status":"ok"}`.
+- Desktop 1383×997: the Devices page starts at x=257 immediately after the sidebar, its 760 px content column is centered, all eight retained devices render, there is one `This device`, no dialog exists, and horizontal overflow is 0.
+- Mobile 390×844: the page is x=56…390, content and every row are x=72…374, the password card follows the list, and horizontal overflow is 0. Returning to Timeline restores the message list and composer, puts focus on Timeline, and resets scroll to the top.
+- Deployed interaction recording: `ferry-devices-page-macmini` (10 frames). Final screenshots: `/private/tmp/ferry-devices-page-macmini-desktop.png`, `/private/tmp/ferry-devices-page-macmini-mobile.png`, and `/private/tmp/ferry-devices-page-macmini-mobile-return-timeline.png`.
+
+Status: shipped and visually exercised on the deployed Mac mini instance.
