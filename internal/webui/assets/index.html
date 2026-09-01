@@ -55,8 +55,12 @@
       <footer class="composer-shell" id="composer-shell" hidden>
         <form class="composer" id="composer">
           <div class="file-chip" id="file-chip" hidden>
+            <img class="file-preview" id="file-preview" alt="">
+            <span class="file-kind-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v5h5M9 13h6M9 17h6"></path></svg>
+            </span>
             <span id="file-name"></span>
-            <button type="button" id="remove-file" aria-label="Remove selected file">×</button>
+            <button type="button" id="remove-file" aria-label="Remove selected file"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
           </div>
           <div class="composer-row">
             <div class="attachment-picker" id="attachment-picker">

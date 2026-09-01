@@ -14,6 +14,7 @@ const choosePhotosButton = document.querySelector("#choose-photos");
 const chooseFilesButton = document.querySelector("#choose-files");
 const sendButton = document.querySelector("#send");
 const fileChip = document.querySelector("#file-chip");
+const filePreview = document.querySelector("#file-preview");
 const fileName = document.querySelector("#file-name");
 const removeFileButton = document.querySelector("#remove-file");
 const statusElement = document.querySelector("#status");
@@ -45,6 +46,8 @@ let connectionError = "";
 let sendError = "";
 let storageError = "";
 let pastedAttachment = null;
+let previewAttachment = null;
+let previewURL = "";
 const rendered = new Set();
 
 const DEVICE_ICON_PATHS = Object.freeze({
@@ -216,7 +219,18 @@ function renderStatus() {
 
 function updateComposer() {
   const selected = selectedAttachment();
+  if (selected !== previewAttachment) {
+    if (previewURL) URL.revokeObjectURL(previewURL);
+    previewAttachment = selected;
+    previewURL = selected?.type.startsWith("image/") ? URL.createObjectURL(selected) : "";
+  }
+  const isImage = Boolean(previewURL);
   fileChip.hidden = !selected;
+  fileChip.classList.toggle("is-image", isImage);
+  fileChip.setAttribute("aria-label", selected ? `Selected attachment: ${selected.name}` : "");
+  filePreview.hidden = !isImage;
+  if (previewURL) filePreview.src = previewURL;
+  else filePreview.removeAttribute("src");
   fileName.textContent = selected?.name || "";
   textInput.disabled = Boolean(selected);
   sendButton.disabled = selected ? false : textInput.value.trim().length === 0;

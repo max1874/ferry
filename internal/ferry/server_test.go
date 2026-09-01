@@ -234,7 +234,8 @@ func TestStaticWebAndSecurityHeadersShareHandler(t *testing.T) {
 	if response.Code != http.StatusOK || !strings.Contains(body, "<title>Ferry</title>") || !strings.Contains(body, `id="composer"`) {
 		t.Fatalf("web response status = %d, body = %s", response.Code, response.Body.String())
 	}
-	if response.Header().Get("Content-Security-Policy") == "" || response.Header().Get("X-Content-Type-Options") != "nosniff" {
+	expectedPolicy := "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+	if response.Header().Get("Content-Security-Policy") != expectedPolicy || response.Header().Get("X-Content-Type-Options") != "nosniff" {
 		t.Fatalf("security headers = %v", response.Header())
 	}
 }
