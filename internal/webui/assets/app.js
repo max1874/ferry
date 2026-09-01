@@ -25,9 +25,9 @@ const accessError = document.querySelector("#access-error");
 const passwordField = document.querySelector("#password-field");
 const accessPasswordInput = document.querySelector("#access-password");
 const deviceNameInput = document.querySelector("#device-name");
+const timelineButton = document.querySelector("#timeline-button");
 const deviceButton = document.querySelector("#device-button");
-const devicesDialog = document.querySelector("#devices-dialog");
-const closeDevicesButton = document.querySelector("#close-devices");
+const devicesPage = document.querySelector("#devices-page");
 const currentDeviceElement = document.querySelector("#current-device");
 const deviceList = document.querySelector("#device-list");
 const settingsPasswordInput = document.querySelector("#settings-password");
@@ -48,6 +48,7 @@ let storageError = "";
 let pastedAttachment = null;
 let previewAttachment = null;
 let previewURL = "";
+let activeView = "timeline";
 const rendered = new Set();
 
 const DEVICE_ICON_PATHS = Object.freeze({
@@ -159,6 +160,7 @@ function showAccess(message = "", clearCredential = true, passwordRequired = fal
   currentDevice = null;
   setAttachmentMenuOpen(false);
   if (clearCredential) {
+    activeView = "timeline";
     deviceToken = "";
     // localStorage is shared by every same-origin tab. A stale tab must not
     // delete a newer token written by another tab; a successful join replaces it.
@@ -174,12 +176,28 @@ function showAccess(message = "", clearCredential = true, passwordRequired = fal
   sidebar.hidden = true;
   passwordField.hidden = !passwordRequired;
   conversationElement.hidden = true;
+  devicesPage.hidden = true;
   composerShell.hidden = true;
   deviceButton.hidden = true;
   connectionElement.textContent = passwordRequired ? "Password required" : "Connect";
   accessError.textContent = message;
   connectionError = "";
-  if (devicesDialog.open) devicesDialog.close();
+}
+
+function selectView(view) {
+  activeView = view;
+  const connected = Boolean(currentDevice);
+  const timelineActive = connected && view === "timeline";
+  const devicesActive = connected && view === "devices";
+  conversationElement.hidden = !timelineActive;
+  composerShell.hidden = !timelineActive;
+  devicesPage.hidden = !devicesActive;
+  timelineButton.classList.toggle("is-active", timelineActive);
+  deviceButton.classList.toggle("is-active", devicesActive);
+  if (timelineActive) timelineButton.setAttribute("aria-current", "page");
+  else timelineButton.removeAttribute("aria-current");
+  if (devicesActive) deviceButton.setAttribute("aria-current", "page");
+  else deviceButton.removeAttribute("aria-current");
 }
 
 function showApp(device) {
@@ -191,12 +209,11 @@ function showApp(device) {
   connectionError = "";
   accessElement.hidden = true;
   sidebar.hidden = false;
-  conversationElement.hidden = false;
-  composerShell.hidden = false;
   deviceButton.hidden = false;
   currentDeviceElement.textContent = `Current device: ${device.name}`;
   connectionElement.textContent = "Local";
   accessError.textContent = "";
+  selectView(activeView);
   updateComposer();
   renderStatus();
 }
@@ -568,10 +585,12 @@ async function loadDevices() {
   }
 }
 
+timelineButton.addEventListener("click", () => selectView("timeline"));
+
 deviceButton.addEventListener("click", async () => {
+  selectView("devices");
   accessSettingsStatus.textContent = "";
   settingsPasswordInput.value = "";
-  devicesDialog.showModal();
   try {
     const [, response] = await Promise.all([
       loadDevices(),
@@ -589,8 +608,6 @@ deviceButton.addEventListener("click", async () => {
     accessSettingsStatus.textContent = error.message;
   }
 });
-
-closeDevicesButton.addEventListener("click", () => devicesDialog.close());
 
 saveAccessButton.addEventListener("click", async () => {
   saveAccessButton.disabled = true;

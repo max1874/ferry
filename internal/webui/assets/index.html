@@ -18,10 +18,10 @@
           <strong>Ferry</strong>
         </div>
         <nav class="sidebar-nav">
-          <div class="sidebar-item is-active">
+          <button class="sidebar-item is-active" id="timeline-button" type="button" aria-current="page">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v12H8l-4 3z"></path></svg>
             <span>Timeline</span>
-          </div>
+          </button>
           <button class="sidebar-item device-button" id="device-button" type="button" hidden>
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"></rect><path d="M9 7h6M10 17h4"></path></svg>
             <span>Devices</span>
@@ -92,16 +92,27 @@
       </footer>
     </main>
 
-    <dialog class="devices-dialog" id="devices-dialog">
-      <div class="dialog-head"><div><h2>Devices</h2><p id="current-device"></p></div><button id="close-devices" type="button" aria-label="Close">×</button></div>
-      <div class="device-list" id="device-list"></div>
-      <div class="access-settings">
-        <h3>Access password</h3>
-        <p>Leave empty to let new devices join without a password.</p>
-        <label>Password<input id="settings-password" type="password" maxlength="256" autocomplete="new-password"></label>
-        <button class="secondary" id="save-access" type="button">Save access setting</button>
-        <output id="access-settings-status" aria-live="polite"></output>
+    <main class="devices-page" id="devices-page" hidden>
+      <div class="devices-content">
+        <header class="devices-head">
+          <p>Ferry settings</p>
+          <h1>Devices</h1>
+          <p id="current-device"></p>
+        </header>
+        <section class="devices-section" aria-labelledby="connected-devices-title">
+          <h2 id="connected-devices-title">Connected devices</h2>
+          <div class="device-list" id="device-list" aria-live="polite"></div>
+        </section>
+        <section class="access-settings" aria-labelledby="access-password-title">
+          <div>
+            <h2 id="access-password-title">Access password</h2>
+            <p>Leave empty to let new devices join without a password.</p>
+          </div>
+          <label>Password<input id="settings-password" type="password" maxlength="256" autocomplete="new-password"></label>
+          <button class="secondary" id="save-access" type="button">Save access setting</button>
+          <output id="access-settings-status" aria-live="polite"></output>
+        </section>
       </div>
-    </dialog>
+    </main>
   </body>
 </html>

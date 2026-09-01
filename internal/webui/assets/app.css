@@ -162,24 +162,28 @@ textarea:disabled { color: var(--faint); }
 .attachment-menu strong { font-size: 14px; }
 .attachment-menu small { margin-top: 2px; color: var(--muted); font-size: 11px; }
 
-.devices-dialog { width: min(430px, calc(100% - 28px)); margin: 76px 18px auto auto; padding: 0; color: inherit; background: var(--raised); background: color-mix(in srgb, var(--raised) 94%, transparent); border: 1px solid var(--border); border-radius: 22px; box-shadow: 0 24px 80px rgba(0, 0, 0, .18); backdrop-filter: blur(22px); }
-.devices-dialog::backdrop { background: rgba(0, 0, 0, .18); backdrop-filter: blur(2px); }
-.dialog-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 20px 12px; }
-.dialog-head h2 { margin: 0; font-size: 20px; letter-spacing: -.025em; }
-.dialog-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
-.dialog-head button { padding: 0; color: var(--muted); background: transparent; border: 0; cursor: pointer; font-size: 24px; }
-.device-list { display: grid; gap: 1px; padding: 4px 12px 12px; }
-.device-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 8px; border-radius: 12px; }
+.devices-page { width: calc(100% - 257px); min-height: 100vh; margin-left: 257px; padding: 72px 24px 96px; }
+.devices-content { width: min(760px, 100%); margin: 0 auto; }
+.devices-head { margin-bottom: 36px; }
+.devices-head h1, .devices-head p, .devices-section h2 { margin: 0; }
+.devices-head > p:first-child { margin-bottom: 8px; color: var(--faint); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+.devices-head h1 { font-size: 34px; letter-spacing: -.045em; }
+.devices-head #current-device { margin-top: 8px; color: var(--muted); font-size: 13px; }
+.devices-section h2, .access-settings h2 { margin: 0; font-size: 17px; letter-spacing: -.02em; }
+.device-list { display: grid; margin-top: 12px; border-top: 1px solid var(--border); }
+.device-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 68px; padding: 10px 4px; border-bottom: 1px solid var(--border); }
 .device-row:hover { background: var(--soft); }
 .device-identity { min-width: 0; display: flex; align-items: center; gap: 10px; }
 .device-list-icon { width: 36px; height: 36px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 11px; color: inherit; background: var(--soft); }
 .device-name { font-weight: 600; }
 .device-meta { margin-top: 2px; color: var(--muted); font-size: 12px; }
 .revoke { padding: 7px 10px; color: #c52c20; background: transparent; border: 1px solid #dcaaa6; border-color: color-mix(in srgb, #c52c20 35%, var(--border)); border-radius: 999px; cursor: pointer; }
-.access-settings { display: grid; gap: 10px; padding: 16px 20px 20px; border-top: 1px solid var(--border); }
-.access-settings h3, .access-settings p { margin: 0; }
+.access-settings { display: grid; gap: 14px; margin-top: 36px; padding: 22px; background: var(--soft); border: 1px solid var(--border); border-radius: 22px; }
+.access-settings h2, .access-settings p { margin: 0; }
 .access-settings p, .access-settings output { color: var(--muted); font-size: 13px; line-height: 1.4; }
+.access-settings p { margin-top: 5px; }
 .access-settings label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.access-settings .secondary { justify-self: start; }
 .access-settings output { min-height: 18px; }
 
 @media (min-width: 641px) {
@@ -203,7 +207,6 @@ textarea:disabled { color: var(--faint); }
     --on-contrast: #080808;
   }
   .composer { box-shadow: 0 8px 32px rgba(0, 0, 0, .35); }
-  .devices-dialog::backdrop { background: rgba(0, 0, 0, .48); }
   .form-error, .footnote.error { color: #ff7167 !important; }
 }
 
@@ -214,6 +217,11 @@ textarea:disabled { color: var(--faint); }
   .sidebar-item { justify-content: center; padding: 0; }
   .sidebar-server { justify-content: center; padding: 8px 0; }
   .conversation { width: calc(100% - 56px); margin-left: 56px; padding: 72px 12px 132px; }
+  .devices-page { width: calc(100% - 56px); margin-left: 56px; padding: 40px 16px 64px; }
+  .devices-head { margin-bottom: 28px; }
+  .devices-head h1 { font-size: 30px; }
+  .access-settings { margin-top: 28px; padding: 18px; }
+  .access-settings .secondary { justify-self: stretch; }
   .welcome { inset: calc(50% - 140px) 0 auto 56px; }
   .welcome-mark { width: 44px; height: 44px; border-radius: 14px; }
   .welcome h1 { font-size: 32px; }
@@ -224,7 +232,6 @@ textarea:disabled { color: var(--faint); }
   .attach, .send { width: 42px; height: 42px; }
   textarea { min-height: 42px; padding-top: 10px; }
   .footnote { margin-top: 5px; }
-  .devices-dialog { width: 100%; max-width: none; margin: auto 0 0; border-width: 1px 0 0; border-radius: 24px 24px 0 0; padding-bottom: env(safe-area-inset-bottom); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -141,6 +141,42 @@ func TestAuthenticatedGrokGeometryOwnsThePageShell(t *testing.T) {
 	}
 }
 
+func TestDevicesSidebarItemNavigatesMainContentInsteadOfOpeningDialog(t *testing.T) {
+	handler := Handler()
+	page := httptest.NewRecorder()
+	handler.ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/", nil))
+	html := page.Body.String()
+	for _, contract := range []string{`id="timeline-button"`, `id="device-button"`, `class="devices-page" id="devices-page" hidden`, `class="devices-content"`} {
+		if !strings.Contains(html, contract) {
+			t.Errorf("page does not contain Devices navigation contract %q", contract)
+		}
+	}
+	if strings.Contains(html, `<dialog`) || strings.Contains(html, `id="close-devices"`) {
+		t.Error("Devices remains implemented as a disconnected modal surface")
+	}
+
+	app := httptest.NewRecorder()
+	handler.ServeHTTP(app, httptest.NewRequest(http.MethodGet, "/app.js", nil))
+	javascript := app.Body.String()
+	for _, contract := range []string{`function selectView(view)`, `timelineButton.addEventListener("click", () => selectView("timeline"))`, `selectView("devices")`, `devicesPage.hidden = !devicesActive`} {
+		if !strings.Contains(javascript, contract) {
+			t.Errorf("app.js does not contain Devices navigation contract %q", contract)
+		}
+	}
+	if strings.Contains(javascript, `.showModal()`) {
+		t.Error("Devices navigation still opens a modal")
+	}
+
+	stylesheet := httptest.NewRecorder()
+	handler.ServeHTTP(stylesheet, httptest.NewRequest(http.MethodGet, "/app.css", nil))
+	css := stylesheet.Body.String()
+	for _, contract := range []string{`.devices-page { width: calc(100% - 257px);`, `.devices-content { width: min(760px, 100%);`, `.devices-page { width: calc(100% - 56px);`} {
+		if !strings.Contains(css, contract) {
+			t.Errorf("stylesheet does not contain Devices page contract %q", contract)
+		}
+	}
+}
+
 func TestStatusAndSettingsButtonsKeepTruthfulStyling(t *testing.T) {
 	handler := Handler()
 	stylesheet := httptest.NewRecorder()
