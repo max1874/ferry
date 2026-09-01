@@ -143,6 +143,12 @@ Status: shipped and visually exercised on the deployed Mac mini instance.
 10. Contract-level attacks — N/A: no boundary contract changed.
 11. Predicate producers — `rg -n 'has-attachment|updateComposer\\('` found the sole class producer and every recomputation caller.
 12. Reversed findings — preview size remained valid; the missed question was the parent silhouette, now checked independently from child bounds.
-13. Pass limit — author full pass only; no subagent per Max's standing decision. Final Mac mini replay remains required before closure.
+13. Pass limit — author full pass only; no subagent per Max's standing decision. Final Mac mini replay supplies user-surface closure.
 
-Status: local candidate.
+### Deployment closure
+
+- Source `040c300` was pushed to `origin/main`; Mac mini runs retained-volume image `sha256:0c5183aa08ff1f832231b47da74d031f3ca8b42a65041868cbf9f0c7ccb101ce`, and `/healthz` returned `{"status":"ok"}`.
+- Deployed desktop and 390×844 screenshots were visually inspected with the exact reported PNG. Attachment state measured radius 32 px; mobile panel was `318×132.19` with overflow 0.
+- Remove restored class `composer`, height 60, radius 999 px and text focus. Re-paste used 32 px, a real 64.2 KB message sent successfully, and completion restored the normal pill/status. Recording: `ferry-attachment-radius-macmini-final` (6 frames).
+
+Status: shipped and visually exercised on the deployed Mac mini instance.
