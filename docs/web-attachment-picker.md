@@ -117,3 +117,32 @@ Conclusion: **ship candidate after independent review and deployment proof**. Pa
 - At deployed 390×844, the chip stayed x=77…305 inside composer x=64…382 with overflow 0. Re-pasting and sending created one real 50.5 KB timeline item with the exact filename, cleared the pending chip and returned the normal privacy status. Recording: `ferry-readable-image-preview-macmini-final` (6 frames).
 
 Status: shipped and visually exercised on the deployed Mac mini instance.
+
+## Attachment composer radius correction — 2026-09-01
+
+- Requested after final screenshot review: a taller attachment composer must not retain the text-only `999px` capsule radius and balloon into a large empty pill.
+- Root cause: the preview size fix changed composer height from about 60 to 132 px, but the unconditional radius stayed at `999px`; overflow checks passed while the silhouette was still visually wrong.
+- Decision: text-only composer remains a pill; any selected attachment derives a `has-attachment` class and uses a 32 px panel radius. Clearing or sending the attachment removes the class through the same `updateComposer` state derivation.
+- Frozen journey: paste the reported screenshot on desktop and mobile, inspect radius and silhouette, remove it and prove the pill returns, then re-paste and send successfully on the deployed Mac mini.
+
+### Local candidate evidence and adversarial review
+
+- Original deployed reproduction with the reported PNG measured composer `752×132.19`, radius `999px`; recording `ferry-attachment-radius-bug-repro` (3 frames).
+- Final local desktop measured the same height with radius `32px`; at 390×844 the panel was `318×132.19`, the preview stayed inside it and overflow was 0. The resulting screenshots were visually inspected, not accepted from geometry alone. Recording: `ferry-attachment-radius-local-final` (4 frames).
+- Removing the attachment produced class `composer`, height 60 and radius `999px`; repasting used `32px`, sending succeeded, created the expected timeline item, then restored the 60 px pill and normal status. Recording: `ferry-attachment-radius-local-send` (4 frames).
+
+1. Coupled state — `has-attachment` is derived only in `updateComposer` from `selectedAttachment`; no second attachment flag exists.
+2. Failure paths — send failure retains the selected attachment and therefore the panel radius; remove/success/access reset clear selection and re-derive the pill.
+3. Unchanged consumers — every `updateComposer` caller was enumerated; none bypasses selection derivation.
+4. Contract surfaces — CSS class only; no API, storage, auth, CSP or native-client change.
+5. Original reproduction — same reported PNG changed from a 999 px stadium silhouette to a 32 px panel.
+6. Current-HEAD journey — desktop/mobile paste, visual screenshot, remove, repaste and send all ran after the final class/test edit.
+7. Mechanism discrimination — attachment present yielded `has-attachment/32px`; the same page after clear yielded no class/999px.
+8. Regression scan — text-only composer returned to exactly 60 px and its existing pill radius after both remove and send.
+9. Scale/edge — 390 px viewport kept the 318 px panel inside x=64…382 with horizontal overflow 0.
+10. Contract-level attacks — N/A: no boundary contract changed.
+11. Predicate producers — `rg -n 'has-attachment|updateComposer\\('` found the sole class producer and every recomputation caller.
+12. Reversed findings — preview size remained valid; the missed question was the parent silhouette, now checked independently from child bounds.
+13. Pass limit — author full pass only; no subagent per Max's standing decision. Final Mac mini replay remains required before closure.
+
+Status: local candidate.

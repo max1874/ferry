@@ -245,6 +245,7 @@ function updateComposer() {
   }
   const isImage = Boolean(previewURL) && !previewFailed;
   fileChip.hidden = !selected;
+  composer.classList.toggle("has-attachment", Boolean(selected));
   fileChip.classList.toggle("is-image", isImage);
   fileChip.setAttribute("aria-label", selected ? `Selected attachment: ${selected.name}` : "");
   filePreview.hidden = !isImage;

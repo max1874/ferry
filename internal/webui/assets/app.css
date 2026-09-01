@@ -123,6 +123,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-off
   transition: top 180ms ease, bottom 180ms ease;
 }
 .composer { width: min(752px, 100%); min-height: 60px; margin: 0 auto; padding: 9px; background: var(--raised); border: 1px solid var(--border); border-radius: 999px; box-shadow: 0 8px 30px rgba(0, 0, 0, .06); }
+.composer.has-attachment { border-radius: 32px; }
 .composer:focus-within { border-color: var(--focus-border); }
 .composer-row { display: flex; align-items: center; gap: 8px; }
 .attachment-picker { position: relative; flex: 0 0 auto; }
