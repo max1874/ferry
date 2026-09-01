@@ -44,6 +44,7 @@ let activityStatus = "";
 let connectionError = "";
 let sendError = "";
 let storageError = "";
+let pastedAttachment = null;
 const rendered = new Set();
 
 const DEVICE_ICON_PATHS = Object.freeze({
@@ -123,12 +124,23 @@ function resetTimeline() {
 }
 
 function selectedAttachment() {
-  return photoInput.files[0] || fileInput.files[0] || null;
+  return pastedAttachment || photoInput.files[0] || fileInput.files[0] || null;
 }
 
 function clearAttachment() {
+  pastedAttachment = null;
   photoInput.value = "";
   fileInput.value = "";
+}
+
+function pastedImage(event) {
+  const files = Array.from(event.clipboardData?.files || []);
+  const directImage = files.find((file) => file.type.startsWith("image/"));
+  if (directImage) return directImage;
+  for (const item of Array.from(event.clipboardData?.items || [])) {
+    if (item.kind === "file" && item.type.startsWith("image/")) return item.getAsFile();
+  }
+  return null;
 }
 
 function setAttachmentMenuOpen(open) {
@@ -631,6 +643,17 @@ textInput.addEventListener("input", () => {
   resizeComposer();
 });
 
+textInput.addEventListener("paste", (event) => {
+  const image = pastedImage(event);
+  if (!image) return;
+  event.preventDefault();
+  pastedAttachment = image;
+  photoInput.value = "";
+  fileInput.value = "";
+  setAttachmentMenuOpen(false);
+  updateComposer();
+});
+
 textInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
     event.preventDefault();
@@ -650,11 +673,17 @@ chooseFilesButton.addEventListener("click", () => {
   fileInput.click();
 });
 photoInput.addEventListener("change", () => {
-  if (photoInput.files.length > 0) fileInput.value = "";
+  if (photoInput.files.length > 0) {
+    pastedAttachment = null;
+    fileInput.value = "";
+  }
   updateComposer();
 });
 fileInput.addEventListener("change", () => {
-  if (fileInput.files.length > 0) photoInput.value = "";
+  if (fileInput.files.length > 0) {
+    pastedAttachment = null;
+    photoInput.value = "";
+  }
   updateComposer();
 });
 document.addEventListener("click", (event) => {

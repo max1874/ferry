@@ -62,3 +62,12 @@ Conclusion: **ship candidate after independent review and deployment proof**. Pa
 - Direct LAN checks returned `{"status":"ok"}` and served HTML containing the Photos button and `accept="image/*,video/*"` contract.
 - Live 390×844 browser replay observed two inline SVG icons, Photos-only then Files-only routing `{photo:1,file:1}`, focus restored to `attach` after both choices, and no cross-trigger. Recording: `/Users/max/.config/browser-harness/agent-workspace/recordings/ferry-web-attachment-picker-macmini` (6 frames, repository-external).
 - Known verification boundary: mobile Chromium emulation proves Ferry's responsive UI, DOM contract and routing; the actual iOS system photo-library sheet still requires the user's physical-iPhone tap test.
+
+## Clipboard image paste — 2026-09-01
+
+- Requested: “输入框不支持直接粘贴图片？” Done is image clipboard data becoming the existing single attachment chip and using the existing file-send path; ordinary pasted text remains text. Native apps, multi-image paste, and a new upload mechanism are excluded.
+- Focused design: one nullable in-memory `pastedAttachment` joins the two existing picker inputs at `selectedAttachment`; every existing clear/success path clears it, and choosing a picker file replaces it. Only an actual `image/*` file prevents the browser's default paste.
+- Frozen checks: native Cmd-V image shows `image.png`, disables text mode and enables Send; sending produces a file message and clears the chip; native Cmd-V text inserts exact text without a chip; existing Photos/Files replacement and remove behavior remain.
+- Local final-tree Chromium used the real system clipboard and native Paste command: a PNG produced `{chip:true,name:image.png,textDisabled:true,sendDisabled:false}`, sent as a visible `image.png` file message, then plain text produced `{chip:false,text:"plain clipboard text"}`. Recording: `ferry-paste-image-local` (9 frames).
+- Author adversarial pass: all attachment producers were enumerated; cancellation preserves the prior attachment, picker selection replaces paste, remove/success clear it, non-image paste returns before `preventDefault`, first image only matches Ferry's existing single-file contract, and Server limits/errors remain shared. No protocol/schema/auth change; no subagent per Max's standing decision.
+- Status: local candidate pending full gates, push, Mac mini rebuild, and deployed browser replay.

@@ -194,6 +194,45 @@ func TestPageOffersSeparatePhotoAndFilePickers(t *testing.T) {
 	}
 }
 
+func TestComposerAcceptsPastedImagesWithoutInterceptingText(t *testing.T) {
+	handler := Handler()
+	app := httptest.NewRecorder()
+	handler.ServeHTTP(app, httptest.NewRequest(http.MethodGet, "/app.js", nil))
+	if app.Code != http.StatusOK {
+		t.Fatalf("app status = %d", app.Code)
+	}
+
+	javascript := app.Body.String()
+	for _, contract := range []string{
+		`let pastedAttachment = null`,
+		`return pastedAttachment || photoInput.files[0] || fileInput.files[0] || null`,
+		"function clearAttachment() {\n  pastedAttachment = null;",
+		`textInput.addEventListener("paste", (event) => {`,
+		`const image = pastedImage(event)`,
+		`if (!image) return`,
+		`event.preventDefault()`,
+		`pastedAttachment = image`,
+	} {
+		if !strings.Contains(javascript, contract) {
+			t.Errorf("app.js does not contain pasted-image contract %q", contract)
+		}
+	}
+	pasteStart := strings.Index(javascript, `textInput.addEventListener("paste", (event) => {`)
+	if pasteStart < 0 {
+		t.Fatal("paste handler start is missing")
+	}
+	pasteEnd := strings.Index(javascript[pasteStart:], `textInput.addEventListener("keydown"`)
+	if pasteEnd < 0 {
+		t.Fatal("paste handler end is missing")
+	}
+	pasteHandler := javascript[pasteStart : pasteStart+pasteEnd]
+	ignored := strings.Index(pasteHandler, `if (!image) return;`)
+	intercepted := strings.Index(pasteHandler, `event.preventDefault();`)
+	if ignored < 0 || intercepted < 0 || ignored > intercepted {
+		t.Error("non-image clipboard data is intercepted before it can use normal text paste")
+	}
+}
+
 func TestCSSKeepsCompatibilityFallbacks(t *testing.T) {
 	handler := Handler()
 	stylesheet := httptest.NewRecorder()
