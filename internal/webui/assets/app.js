@@ -279,7 +279,7 @@ function renderMessage(message) {
     return;
   }
 
-  article.append(body, head);
+  article.append(head, body);
   messagesElement.append(article);
 }
 

@@ -100,7 +100,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-off
 .message-body { max-width: 90%; padding: 8px 16px; background: var(--soft); border: 1px solid var(--border); border-radius: 24px 24px 24px 8px; }
 .message.is-current-device .message-body { border-radius: 24px 24px 8px; }
 .device-icon { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.message-head { display: flex; align-items: center; gap: 5px; margin: 6px 9px 0; color: var(--faint); font-size: 11px; line-height: 1.2; }
+.message-head { display: flex; align-items: center; gap: 5px; margin: 0 9px 6px; color: var(--faint); font-size: 11px; line-height: 1.2; }
 .message-source-icon { display: inline-flex; }
 .message-source-icon .device-icon { width: 13px; height: 13px; stroke-width: 1.7; }
 .sender { font-weight: 500; }
