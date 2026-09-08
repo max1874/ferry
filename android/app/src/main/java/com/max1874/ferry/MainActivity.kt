@@ -25,6 +25,7 @@ class MainActivity : ComponentActivity() {
                     settings = AndroidSettingsStore(applicationContext),
                     contentStore = content,
                     defaultDeviceName = deviceName,
+                    clipboard = AndroidClipboardWriter(applicationContext),
                 ) as T
             }
         }

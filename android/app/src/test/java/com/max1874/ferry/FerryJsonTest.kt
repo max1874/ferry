@@ -30,6 +30,27 @@ class FerryJsonTest {
         assertEquals(2, page.nextCursor)
     }
 
+    // Clipboard sync leaves this device's own sends alone, so the flag has to
+    // survive decoding, and a server that omits it must not make every message
+    // look like this device's own.
+    @Test fun decodesWhichMessagesThisDeviceSent() {
+        val page = FerryJson.messages(
+            """{"messages":[
+              {"id":"$id1","sequence":1,"sender_name":"Pixel","sender_kind":"android","created_at":"2026-08-30T10:00:00Z","kind":"text","text":"mine","is_current_device":true},
+              {"id":"$id2","sequence":2,"sender_name":"Mac","sender_kind":"mac","created_at":"2026-08-30T10:00:01Z","kind":"text","text":"theirs","is_current_device":false}
+            ],"next_cursor":2}""".toByteArray(),
+        )
+        assertEquals(true, page.messages[0].isCurrentDevice)
+        assertEquals(false, page.messages[1].isCurrentDevice)
+
+        val withoutFlag = FerryJson.messages(
+            """{"messages":[
+              {"id":"$id1","sequence":1,"sender_name":"Mac","sender_kind":"mac","created_at":"2026-08-30T10:00:00Z","kind":"text","text":"theirs"}
+            ],"next_cursor":1}""".toByteArray(),
+        )
+        assertEquals(false, withoutFlag.messages[0].isCurrentDevice)
+    }
+
     @Test fun rejectsPayloadConfusionAndUntrustedDownloadPaths() {
         val confused = """{"id":"$id1","sequence":1,"sender_name":"x","sender_kind":"android","created_at":"2026-08-30T10:00:00Z","kind":"text","text":"x","file":{}}"""
         assertThrows(FerryProtocolException::class.java) { FerryJson.message(confused.toByteArray()) }

@@ -34,6 +34,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Switch
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -222,7 +223,23 @@ private fun TimelineScreen(
             Spacer(Modifier.weight(1f))
             Text(state.currentDevice?.name ?: "Android", style = MaterialTheme.typography.labelMedium)
             Spacer(Modifier.width(8.dp))
-            OutlinedButton(onClick = model::disconnect) { Text("Change") }
+            Box {
+                var settingsOpen by remember { mutableStateOf(false) }
+                OutlinedButton(onClick = { settingsOpen = true }) { Text("Settings") }
+                DropdownMenu(expanded = settingsOpen, onDismissRequest = { settingsOpen = false }) {
+                    DropdownMenuItem(
+                        text = { Text(if (state.clipboardSyncEnabled) "Clipboard sync on" else "Clipboard sync off") },
+                        onClick = { model.setClipboardSync(!state.clipboardSyncEnabled) },
+                        trailingIcon = {
+                            Switch(checked = state.clipboardSyncEnabled, onCheckedChange = { model.setClipboardSync(it) })
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Change server") },
+                        onClick = { settingsOpen = false; model.disconnect() },
+                    )
+                }
+            }
         }
         if (state.messages.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -304,7 +321,12 @@ private fun CopyableText(value: String) {
 @Composable
 private fun Composer(state: FerryUiState, model: FerryViewModel, onPickPhoto: () -> Unit, onPickFile: () -> Unit) {
     var menuOpen by remember { mutableStateOf(false) }
+    val clipboard = LocalClipboardManager.current
     Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp)) {
+        state.clipboardStatus?.let {
+            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                 modifier = Modifier.padding(top = 8.dp))
+        }
         state.credentialWarning?.let { ErrorText(it) }
         state.statusMessage?.let {
             Text(it, color = if (state.phase == ConnectionPhase.OFFLINE) Color(0xFFFFA726) else MaterialTheme.colorScheme.primary)
@@ -328,6 +350,14 @@ private fun Composer(state: FerryUiState, model: FerryViewModel, onPickPhoto: ()
                         DropdownMenuItem(text = { Text("Files") }, onClick = { menuOpen = false; onPickFile() })
                     }
                 }
+                // Android only lets the focused app read the clipboard, and from
+                // Android 12 tells the user when it does, so this reads on the
+                // press and never on a timer.
+                TextButton(
+                    onClick = { model.sendClipboard(clipboard.getText()?.text) },
+                    enabled = !state.isSending,
+                    modifier = Modifier.size(48.dp),
+                ) { Text("⎘", fontSize = 20.sp) }
                 OutlinedTextField(
                     value = state.draft,
                     onValueChange = model::updateDraft,

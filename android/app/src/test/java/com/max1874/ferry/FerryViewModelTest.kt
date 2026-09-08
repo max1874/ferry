@@ -225,6 +225,137 @@ class FerryViewModelTest {
         model.disconnect()
     }
 
+    @Test fun clipboardSyncStaysOffUntilTheUserTurnsItOn() = runTest {
+        val service = PagedService(listOf(emptyList(), listOf(textMessage(2, "from the study Mac"))))
+        val clipboard = RecordingClipboard()
+        connected(service, this, clipboard, syncEnabled = false)
+        advanceTimeBy(2_100)
+        runCurrent()
+
+        assertEquals(emptyList<String>(), clipboard.writes)
+    }
+
+    // Connecting replays everything from before the app was running. Writing it
+    // would replace what the user was carrying with an entry they never asked for.
+    @Test fun connectingDoesNotReplaceTheClipboardWithTheBacklog() = runTest {
+        val service = PagedService(listOf(listOf(textMessage(1, "older"), textMessage(2, "newer"))))
+        val clipboard = RecordingClipboard()
+        connected(service, this, clipboard)
+        advanceTimeBy(2_100)
+        runCurrent()
+
+        assertEquals(emptyList<String>(), clipboard.writes)
+    }
+
+    @Test fun onlyTheNewestMessageFromAnotherDeviceReachesTheClipboard() = runTest {
+        val service = PagedService(
+            listOf(emptyList(), listOf(textMessage(4, "older"), textMessage(7, "newest"), textMessage(6, "middle"))),
+        )
+        val clipboard = RecordingClipboard()
+        connected(service, this, clipboard)
+        advanceTimeBy(2_100)
+        runCurrent()
+
+        assertEquals(listOf("newest"), clipboard.writes)
+    }
+
+    @Test fun thisDevicesOwnMessagesNeverReachTheClipboard() = runTest {
+        val service = PagedService(listOf(emptyList(), listOf(textMessage(3, "sent from here", isCurrentDevice = true))))
+        val clipboard = RecordingClipboard()
+        connected(service, this, clipboard)
+        advanceTimeBy(2_100)
+        runCurrent()
+
+        assertEquals(emptyList<String>(), clipboard.writes)
+    }
+
+    // Two devices syncing to each other must not hand the same string back and
+    // forth for as long as both are open.
+    @Test fun textAlreadyOnTheClipboardIsNotWrittenTwice() = runTest {
+        val service = PagedService(
+            listOf(emptyList(), listOf(textMessage(2, "same")), listOf(textMessage(3, "same"))),
+        )
+        val clipboard = RecordingClipboard()
+        connected(service, this, clipboard)
+        advanceTimeBy(4_200)
+        runCurrent()
+
+        assertEquals(listOf("same"), clipboard.writes)
+    }
+
+    // An image cannot be handed to the Android clipboard without a content
+    // provider, so Ferry must leave file messages alone rather than half-do it.
+    @Test fun fileMessagesAreLeftOffTheClipboard() = runTest {
+        val service = PagedService(listOf(emptyList(), listOf(fileMessage(5, "shot.png", "image/png"))))
+        val clipboard = RecordingClipboard()
+        connected(service, this, clipboard)
+        advanceTimeBy(2_100)
+        runCurrent()
+
+        assertEquals(emptyList<String>(), clipboard.writes)
+    }
+
+    @Test fun sendingAnEmptyClipboardSendsNothingAndSaysSo() = runTest {
+        val service = PagedService(listOf(emptyList()))
+        val model = connected(service, this, RecordingClipboard())
+        model.sendClipboard("   ")
+        runCurrent()
+
+        assertEquals("The clipboard has nothing Ferry can send.", model.state.value.clipboardStatus)
+        assertEquals(emptyList<String>(), service.sentTexts)
+    }
+
+    @Test fun sendingTheClipboardPostsItsText() = runTest {
+        val service = PagedService(listOf(emptyList()))
+        val model = connected(service, this, RecordingClipboard())
+        model.sendClipboard("carried across")
+        runCurrent()
+
+        assertEquals(listOf("carried across"), service.sentTexts)
+    }
+
+    @Test fun clipboardPreferenceOutlivesTheSession() = runTest {
+        val settings = MemorySettings()
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val first = FerryViewModel(PagedService(emptyList()), MemoryCredentials(), settings,
+                                   MemoryContentStore(), "Android", this, dispatcher)
+        assertEquals(false, first.state.value.clipboardSyncEnabled)
+        first.setClipboardSync(true)
+
+        val second = FerryViewModel(PagedService(emptyList()), MemoryCredentials(), settings,
+                                    MemoryContentStore(), "Android", this, dispatcher)
+        assertEquals(true, second.state.value.clipboardSyncEnabled)
+    }
+
+    private fun connected(
+        service: FerryService,
+        scope: TestScope,
+        clipboard: ClipboardWriter,
+        syncEnabled: Boolean = true,
+    ): FerryViewModel {
+        val dispatcher = StandardTestDispatcher(scope.testScheduler)
+        val model = FerryViewModel(
+            service, MemoryCredentials(), MemorySettings(), MemoryContentStore(), "Android", scope, dispatcher,
+            clipboard,
+        )
+        model.setClipboardSync(syncEnabled)
+        model.updateServerAddress("http://10.0.0.2:42817")
+        model.updateDeviceName("Pixel")
+        model.connect()
+        scope.testScheduler.runCurrent()
+        return model
+    }
+
+    private fun messageId(marker: Char) = marker.toString().repeat(32)
+
+    private fun textMessage(sequence: Long, text: String, isCurrentDevice: Boolean = false) =
+        FerryMessage.Text(messageId('a'), sequence, "Study Mac", DeviceKind.MAC,
+                          "2026-09-08T00:00:00Z", text, isCurrentDevice)
+
+    private fun fileMessage(sequence: Long, name: String, mediaType: String) =
+        FerryMessage.File(messageId('b'), sequence, "Study Mac", DeviceKind.MAC, "2026-09-08T00:00:00Z",
+                          FerryFile(name, mediaType, 11, "/api/v1/files/${messageId('b')}"))
+
     private fun model(
         service: FerryService,
         scope: TestScope,
@@ -258,6 +389,31 @@ class FerryViewModelTest {
             downloadResult()
     }
 
+    /** Serves one scripted page per refresh, then nothing, so a test advances
+     *  the timeline by letting the poll interval elapse. */
+    private class PagedService(pages: List<List<FerryMessage>>) : FerryService {
+        private val remaining = pages.toMutableList()
+        val sentTexts = mutableListOf<String>()
+        private val device = FerryDevice("d".repeat(32), "Pixel", DeviceKind.ANDROID, "2026-09-08T00:00:00Z")
+
+        override suspend fun join(endpoint: ServerEndpoint, deviceName: String, password: String) =
+            AccessClaim(device, "clipboard-token")
+        override suspend fun session(endpoint: ServerEndpoint, token: String) = device
+        override suspend fun messages(endpoint: ServerEndpoint, token: String, after: Long): MessagesPage {
+            if (remaining.isEmpty()) return MessagesPage(emptyList(), after)
+            val page = remaining.removeAt(0)
+            return MessagesPage(page, page.maxOfOrNull { it.sequence } ?: after)
+        }
+        override suspend fun sendText(endpoint: ServerEndpoint, token: String, text: String): FerryMessage {
+            sentTexts += text
+            return FerryMessage.Text("c".repeat(32), 99, "Pixel", DeviceKind.ANDROID,
+                                     "2026-09-08T00:00:00Z", text, true)
+        }
+        override suspend fun sendFile(endpoint: ServerEndpoint, token: String, file: SelectedContent): FerryMessage =
+            error("unexpected")
+        override suspend fun download(endpoint: ServerEndpoint, token: String, file: FerryFile, destinationUri: String) = Unit
+    }
+
     private class MemoryCredentials : CredentialStore {
         val values = mutableMapOf<String, String>()
         var removeError: Exception? = null
@@ -272,7 +428,13 @@ class FerryViewModelTest {
     private class MemorySettings(
         override var origin: String? = null,
         override var deviceName: String? = null,
+        override var clipboardSync: Boolean = false,
     ) : SettingsStore
+
+    private class RecordingClipboard : ClipboardWriter {
+        val writes = mutableListOf<String>()
+        override fun write(label: String, text: String) { writes += text }
+    }
 
     private class MemoryContentStore : ContentStore {
         val deleted = mutableListOf<String>()
