@@ -10,7 +10,7 @@ protocol FerryServicing {
     func sendFile(endpoint: ServerEndpoint, token: String, file: SelectedFile) async throws -> MessagePayload
 }
 
-struct FerryClient: FerryServicing {
+struct FerryClient: FerryServicing, AttachmentLoading {
     enum ClientError: LocalizedError, Equatable {
         case unauthorized
         case rejected(String)
@@ -78,6 +78,19 @@ struct FerryClient: FerryServicing {
         body.append(Data("\r\n--\(boundary)--\r\n".utf8))
         return try await json(endpoint: endpoint, path: "/api/v1/messages/file", method: "POST", token: token,
                               body: body, contentType: "multipart/form-data; boundary=\(boundary)")
+    }
+
+    func attachment(endpoint: ServerEndpoint, token: String, path: String) async throws -> Data {
+        var request = URLRequest(url: endpoint.url(path: path, queryItems: []))
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await session.data(for: request)
+        guard let response = response as? HTTPURLResponse else { throw ClientError.invalidResponse }
+        guard (200..<300).contains(response.statusCode) else {
+            if response.statusCode == 401 { throw ClientError.unauthorized }
+            throw ClientError.invalidResponse
+        }
+        return data
     }
 
     private func json<T: Decodable>(endpoint: ServerEndpoint, path: String, method: String = "GET", token: String?,

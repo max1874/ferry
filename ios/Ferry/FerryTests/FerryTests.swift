@@ -373,6 +373,167 @@ final class FerryTests: XCTestCase {
         return value
     }
 
+    // MARK: Clipboard sync
+
+    func testClipboardSyncIsOffUntilTheUserTurnsItOn() async throws {
+        let (model, _, pasteboard, _) = try await connectedClipboardModel(pages: [
+            [],
+            [clipboardMessage(sequence: 2, text: "from the study Mac")],
+        ], enableSync: false)
+        await pumpPoll(model)
+        await waitUntil { pasteboard.writes.count > 0 }
+        XCTAssertEqual(pasteboard.writes, [], "clipboard sync wrote without being turned on")
+    }
+
+    // Connecting replays everything that happened before the app was running.
+    // Writing that would replace what the user was carrying with an entry they
+    // never asked for.
+    func testConnectingDoesNotReplaceTheClipboardWithTheBacklog() async throws {
+        let (model, _, pasteboard, _) = try await connectedClipboardModel(pages: [
+            [clipboardMessage(sequence: 1, text: "older"), clipboardMessage(sequence: 2, text: "newer")],
+        ])
+        await waitUntil { pasteboard.writes.count > 0 }
+        XCTAssertEqual(pasteboard.writes, [], "the first page after connecting reached the clipboard")
+        _ = model
+    }
+
+    func testOnlyTheNewestMessageFromAnotherDeviceReachesTheClipboard() async throws {
+        let (model, _, pasteboard, _) = try await connectedClipboardModel(pages: [
+            [],
+            [clipboardMessage(sequence: 4, text: "older"),
+             clipboardMessage(sequence: 7, text: "newest"),
+             clipboardMessage(sequence: 6, text: "middle")],
+        ])
+        await pumpPoll(model)
+        await waitUntil { !pasteboard.writes.isEmpty }
+        XCTAssertEqual(pasteboard.writes, [.text("newest")], "a backlog wrote more than one clipboard entry")
+    }
+
+    func testThisDevicesOwnMessagesNeverReachTheClipboard() async throws {
+        let (model, _, pasteboard, _) = try await connectedClipboardModel(pages: [
+            [],
+            [clipboardMessage(sequence: 3, text: "sent from here", isCurrentDevice: true)],
+        ])
+        await pumpPoll(model)
+        await waitUntil { !pasteboard.writes.isEmpty }
+        XCTAssertEqual(pasteboard.writes, [], "Ferry copied this device's own message back to itself")
+    }
+
+    // Two devices syncing to each other must not hand the same string back and
+    // forth for as long as both are open.
+    func testTextAlreadyOnTheClipboardIsNotWrittenTwice() async throws {
+        let (model, _, pasteboard, _) = try await connectedClipboardModel(pages: [
+            [],
+            [clipboardMessage(sequence: 2, text: "same")],
+            [clipboardMessage(sequence: 3, text: "same")],
+        ])
+        await pumpPoll(model)
+        await waitUntil { !pasteboard.writes.isEmpty }
+        await pumpPoll(model)
+        await waitUntil { pasteboard.writes.count > 1 }
+        XCTAssertEqual(pasteboard.writes, [.text("same")], "the same text was written to the clipboard twice")
+    }
+
+    func testIncomingImageIsDownloadedAndOtherFilesAreLeftAlone() async throws {
+        let png = Data("pretend png".utf8)
+        let (model, _, pasteboard, attachments) = try await connectedClipboardModel(pages: [
+            [],
+            [clipboardMessage(sequence: 5, file: ("shot.png", "image/png", "/api/v1/files/f9"))],
+            [clipboardMessage(sequence: 6, file: ("notes.txt", "text/plain", "/api/v1/files/f10"))],
+        ], attachment: png)
+        await pumpPoll(model)
+        await waitUntil { !pasteboard.writes.isEmpty }
+        XCTAssertEqual(pasteboard.writes, [.image(png)])
+        XCTAssertEqual(attachments.requestedPaths, ["/api/v1/files/f9"])
+
+        await pumpPoll(model)
+        await waitUntil { pasteboard.writes.count > 1 }
+        XCTAssertEqual(pasteboard.writes, [.image(png)], "a file that is not an image was copied to the clipboard")
+        XCTAssertEqual(attachments.requestedPaths, ["/api/v1/files/f9"], "Ferry downloaded a file it cannot paste")
+    }
+
+    // A refresh already in flight when Ferry leaves the foreground still
+    // returns. Replacing the clipboard of whatever app the user switched to is
+    // not Ferry's to do.
+    func testRefreshLandingAfterFerryLeavesTheForegroundLeavesTheClipboardAlone() async throws {
+        let service = SuspendingClipboardService(
+            page: [clipboardMessage(sequence: 2, text: "landed too late")])
+        let pasteboard = RecordingPasteboard()
+        let suite = "FerryTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let model = AppModel(client: service, credentials: MemoryCredentials(), defaults: defaults,
+                             pasteboard: pasteboard, attachments: StubAttachments())
+        model.serverAddress = "http://127.0.0.1:8080"
+        model.clipboardSyncEnabled = true
+
+        service.release()           // let the backfill during connect through
+        await model.connect()
+        // Polling starts at the end of connect and its first refresh is the one
+        // held open here, so no second refresh is ever in flight at once.
+        await waitUntil { service.isWaiting }
+        XCTAssertTrue(service.isWaiting, "the refresh under test never reached the server")
+
+        model.setActive(false)      // the user switches to another app
+        service.release()           // and only then does the response arrive
+        await waitUntil { !pasteboard.writes.isEmpty }
+        XCTAssertEqual(pasteboard.writes, [], "a refresh that landed after Ferry left the foreground wrote the clipboard")
+    }
+
+    func testClipboardPreferenceOutlivesTheSession() async throws {
+        let suite = "FerryTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let first = AppModel(client: ClipboardService(pages: []), credentials: MemoryCredentials(), defaults: defaults,
+                             pasteboard: RecordingPasteboard(), attachments: StubAttachments())
+        XCTAssertFalse(first.clipboardSyncEnabled, "clipboard sync defaulted to on")
+        first.clipboardSyncEnabled = true
+
+        let second = AppModel(client: ClipboardService(pages: []), credentials: MemoryCredentials(), defaults: defaults,
+                              pasteboard: RecordingPasteboard(), attachments: StubAttachments())
+        XCTAssertTrue(second.clipboardSyncEnabled, "the clipboard preference was forgotten between sessions")
+    }
+
+    private func connectedClipboardModel(
+        pages: [[String]], enableSync: Bool = true, attachment: Data = Data()
+    ) async throws -> (AppModel, ClipboardService, RecordingPasteboard, StubAttachments) {
+        let service = ClipboardService(pages: pages)
+        let pasteboard = RecordingPasteboard()
+        let attachments = StubAttachments(payload: attachment)
+        let suite = "FerryTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let model = AppModel(client: service, credentials: MemoryCredentials(), defaults: defaults,
+                             pasteboard: pasteboard, attachments: attachments)
+        model.serverAddress = "http://127.0.0.1:8080"
+        model.deviceName = "Test iPhone"
+        model.clipboardSyncEnabled = enableSync
+        await model.connect()
+        return (model, service, pasteboard, attachments)
+    }
+
+    /// Leaving and re-entering the foreground restarts polling, which refreshes
+    /// at once. It is the deterministic way to advance to the next page instead
+    /// of waiting out the poll interval.
+    private func pumpPoll(_ model: AppModel) async {
+        model.setActive(false)
+        model.setActive(true)
+    }
+
+    private func clipboardMessage(sequence: Int64, text: String? = nil,
+                                  file: (name: String, mediaType: String, url: String)? = nil,
+                                  isCurrentDevice: Bool = false) -> String {
+        let body: String
+        if let file {
+            body = "\"kind\":\"file\",\"file\":{\"name\":\"\(file.name)\",\"media_type\":\"\(file.mediaType)\",\"size\":11,\"download_url\":\"\(file.url)\"}"
+        } else {
+            body = "\"kind\":\"text\",\"text\":\"\(text ?? "")\""
+        }
+        return """
+        {"id":"m\(sequence)","sequence":\(sequence),"sender_name":"Study Mac","created_at":"2026-09-08T00:00:00Z","is_current_device":\(isCurrentDevice),\(body)}
+        """
+    }
+
     private func makeModel(client: any FerryServicing, credentials: MemoryCredentials) -> AppModel {
         let suite = "FerryTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -637,6 +798,97 @@ private final class MemoryCredentials: CredentialStoring {
         self.token = token
     }
     func removeToken(for origin: String) throws { token = nil }
+}
+
+/// Serves one scripted page per refresh, then keeps returning nothing, so a
+/// test advances the timeline by pumping the poll rather than by waiting.
+@MainActor
+private final class ClipboardService: FerryServicing {
+    private var pages: [[String]]
+    private let device = Device(id: "ios", name: "Test iPhone", createdAt: "2026-09-08T00:00:00Z")
+
+    init(pages: [[String]]) { self.pages = pages }
+
+    func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim {
+        AccessClaim(device: device, token: "clipboard-token")
+    }
+    func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
+    func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
+        guard !pages.isEmpty else { return MessagesPage(messages: [], nextCursor: after) }
+        let page = pages.removeFirst()
+        let decoder = JSONDecoder()
+        let messages = try page.map { try decoder.decode(MessagePayload.self, from: Data($0.utf8)) }
+        return MessagesPage(messages: messages, nextCursor: messages.map(\.sequence).max() ?? after)
+    }
+    func sendText(endpoint: ServerEndpoint, token: String, text: String) async throws -> MessagePayload { fatalError() }
+    func sendFile(endpoint: ServerEndpoint, token: String, file: SelectedFile) async throws -> MessagePayload { fatalError() }
+}
+
+/// Holds each `messages` call open until the test releases it, so a response
+/// can be made to land at a chosen moment — such as after Ferry has left the
+/// foreground.
+@MainActor
+private final class SuspendingClipboardService: FerryServicing {
+    private(set) var isWaiting = false
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var pending = 0
+    private let page: [String]
+    private let device = Device(id: "ios", name: "Test iPhone", createdAt: "2026-09-08T00:00:00Z")
+
+    init(page: [String]) { self.page = page }
+
+    func release() {
+        if let continuation {
+            self.continuation = nil
+            isWaiting = false
+            continuation.resume()
+        } else {
+            pending += 1
+        }
+    }
+
+    func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim {
+        AccessClaim(device: device, token: "clipboard-token")
+    }
+    func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
+    func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
+        if pending > 0 {
+            pending -= 1
+            return MessagesPage(messages: [], nextCursor: after)
+        }
+        isWaiting = true
+        await withCheckedContinuation { continuation = $0 }
+        let decoder = JSONDecoder()
+        let messages = try page.map { try decoder.decode(MessagePayload.self, from: Data($0.utf8)) }
+        return MessagesPage(messages: messages, nextCursor: messages.map(\.sequence).max() ?? after)
+    }
+    func sendText(endpoint: ServerEndpoint, token: String, text: String) async throws -> MessagePayload { fatalError() }
+    func sendFile(endpoint: ServerEndpoint, token: String, file: SelectedFile) async throws -> MessagePayload { fatalError() }
+}
+
+@MainActor
+private final class RecordingPasteboard: PasteboardWriting {
+    enum Write: Equatable { case text(String); case image(Data) }
+    private(set) var writes: [Write] = []
+
+    func write(text: String) { writes.append(.text(text)) }
+    func write(imageData: Data) -> Bool {
+        writes.append(.image(imageData))
+        return true
+    }
+}
+
+@MainActor
+private final class StubAttachments: AttachmentLoading {
+    private(set) var requestedPaths: [String] = []
+    private let payload: Data
+
+    init(payload: Data = Data()) { self.payload = payload }
+
+    func attachment(endpoint: ServerEndpoint, token: String, path: String) async throws -> Data {
+        requestedPaths.append(path)
+        return payload
+    }
 }
 
 private enum TestError: LocalizedError {
