@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -116,12 +117,16 @@ func caCertificate(material *lantls.Material) []byte {
 // virtual-machine subnets to everyone who opens the page.
 func certificateHosts(value config, bound net.IP) []string {
 	hosts := []string{"localhost", "127.0.0.1", "::1"}
+	add := func(host string) {
+		if host == "" || slices.Contains(hosts, host) {
+			return
+		}
+		hosts = append(hosts, host)
+	}
 	if bound != nil && !bound.IsUnspecified() {
-		hosts = append(hosts, bound.String())
+		add(bound.String())
 	}
-	if value.publishedHost != "" {
-		hosts = append(hosts, value.publishedHost)
-	}
+	add(value.publishedHost)
 	return hosts
 }
 

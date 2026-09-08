@@ -172,14 +172,18 @@ func writeCA(dir string, now time.Time) (*authority, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Backdate slightly so a device whose clock trails the server still accepts
+	// the certificate, and derive the expiry from that start so the validity
+	// span is exactly caValidity rather than caValidity plus the backdating.
+	notBefore := now.Add(-time.Hour)
 	template := &x509.Certificate{
 		SerialNumber: serial,
 		Subject: pkix.Name{
 			Organization: []string{"Ferry"},
 			CommonName:   "Ferry local CA",
 		},
-		NotBefore:             now.Add(-time.Hour),
-		NotAfter:              now.Add(caValidity),
+		NotBefore:             notBefore,
+		NotAfter:              notBefore.Add(caValidity),
 		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
@@ -259,14 +263,18 @@ func writeLeaf(dir string, ca *authority, dnsNames []string, ips []net.IP, now t
 	if err != nil {
 		return nil, err
 	}
+	// The span must stay at or under leafValidity: Apple rejects TLS server
+	// certificates that live longer than 398 days, and backdating the start
+	// without moving the expiry would push it an hour past the ceiling.
+	notBefore := now.Add(-time.Hour)
 	template := &x509.Certificate{
 		SerialNumber: serial,
 		Subject: pkix.Name{
 			Organization: []string{"Ferry"},
 			CommonName:   "Ferry",
 		},
-		NotBefore:             now.Add(-time.Hour),
-		NotAfter:              now.Add(leafValidity),
+		NotBefore:             notBefore,
+		NotAfter:              notBefore.Add(leafValidity),
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
