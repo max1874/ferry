@@ -278,6 +278,10 @@ class FerryViewModel(
             FerryUiState(
                 serverAddress = it.serverAddress,
                 deviceName = it.deviceName,
+                // Disconnecting drops the session, not the user's settings. A
+                // stored preference the UI reports as off is a lie about what
+                // the next connection will do.
+                clipboardSyncEnabled = it.clipboardSyncEnabled,
                 statusMessage = removalError?.let {
                     "Disconnected for now, but the saved credential could not be removed: ${readable(it)}"
                 },

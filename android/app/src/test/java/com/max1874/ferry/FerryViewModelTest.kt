@@ -228,11 +228,12 @@ class FerryViewModelTest {
     @Test fun clipboardSyncStaysOffUntilTheUserTurnsItOn() = runTest {
         val service = PagedService(listOf(emptyList(), listOf(textMessage(2, "from the study Mac"))))
         val clipboard = RecordingClipboard()
-        connected(service, this, clipboard, syncEnabled = false)
+        val model = connected(service, this, clipboard, syncEnabled = false)
         advanceTimeBy(2_100)
         runCurrent()
 
         assertEquals(emptyList<String>(), clipboard.writes)
+        model.disconnect()
     }
 
     // Connecting replays everything from before the app was running. Writing it
@@ -240,11 +241,12 @@ class FerryViewModelTest {
     @Test fun connectingDoesNotReplaceTheClipboardWithTheBacklog() = runTest {
         val service = PagedService(listOf(listOf(textMessage(1, "older"), textMessage(2, "newer"))))
         val clipboard = RecordingClipboard()
-        connected(service, this, clipboard)
+        val model = connected(service, this, clipboard)
         advanceTimeBy(2_100)
         runCurrent()
 
         assertEquals(emptyList<String>(), clipboard.writes)
+        model.disconnect()
     }
 
     @Test fun onlyTheNewestMessageFromAnotherDeviceReachesTheClipboard() = runTest {
@@ -252,21 +254,23 @@ class FerryViewModelTest {
             listOf(emptyList(), listOf(textMessage(4, "older"), textMessage(7, "newest"), textMessage(6, "middle"))),
         )
         val clipboard = RecordingClipboard()
-        connected(service, this, clipboard)
+        val model = connected(service, this, clipboard)
         advanceTimeBy(2_100)
         runCurrent()
 
         assertEquals(listOf("newest"), clipboard.writes)
+        model.disconnect()
     }
 
     @Test fun thisDevicesOwnMessagesNeverReachTheClipboard() = runTest {
         val service = PagedService(listOf(emptyList(), listOf(textMessage(3, "sent from here", isCurrentDevice = true))))
         val clipboard = RecordingClipboard()
-        connected(service, this, clipboard)
+        val model = connected(service, this, clipboard)
         advanceTimeBy(2_100)
         runCurrent()
 
         assertEquals(emptyList<String>(), clipboard.writes)
+        model.disconnect()
     }
 
     // Two devices syncing to each other must not hand the same string back and
@@ -276,11 +280,12 @@ class FerryViewModelTest {
             listOf(emptyList(), listOf(textMessage(2, "same")), listOf(textMessage(3, "same"))),
         )
         val clipboard = RecordingClipboard()
-        connected(service, this, clipboard)
+        val model = connected(service, this, clipboard)
         advanceTimeBy(4_200)
         runCurrent()
 
         assertEquals(listOf("same"), clipboard.writes)
+        model.disconnect()
     }
 
     // An image cannot be handed to the Android clipboard without a content
@@ -288,11 +293,12 @@ class FerryViewModelTest {
     @Test fun fileMessagesAreLeftOffTheClipboard() = runTest {
         val service = PagedService(listOf(emptyList(), listOf(fileMessage(5, "shot.png", "image/png"))))
         val clipboard = RecordingClipboard()
-        connected(service, this, clipboard)
+        val model = connected(service, this, clipboard)
         advanceTimeBy(2_100)
         runCurrent()
 
         assertEquals(emptyList<String>(), clipboard.writes)
+        model.disconnect()
     }
 
     @Test fun sendingAnEmptyClipboardSendsNothingAndSaysSo() = runTest {
@@ -303,6 +309,7 @@ class FerryViewModelTest {
 
         assertEquals("The clipboard has nothing Ferry can send.", model.state.value.clipboardStatus)
         assertEquals(emptyList<String>(), service.sentTexts)
+        model.disconnect()
     }
 
     @Test fun sendingTheClipboardPostsItsText() = runTest {
@@ -312,6 +319,20 @@ class FerryViewModelTest {
         runCurrent()
 
         assertEquals(listOf("carried across"), service.sentTexts)
+        model.disconnect()
+    }
+
+    // Disconnecting drops the session, not the user's settings. Reporting the
+    // switch as off while the stored preference says on is a lie about what the
+    // next connection will do.
+    @Test fun disconnectingKeepsTheClipboardPreference() = runTest {
+        val model = connected(PagedService(listOf(emptyList())), this, RecordingClipboard())
+        assertEquals(true, model.state.value.clipboardSyncEnabled)
+
+        model.disconnect()
+        runCurrent()
+
+        assertEquals(true, model.state.value.clipboardSyncEnabled)
     }
 
     @Test fun clipboardPreferenceOutlivesTheSession() = runTest {
