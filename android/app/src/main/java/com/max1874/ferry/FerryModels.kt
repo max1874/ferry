@@ -30,13 +30,6 @@ sealed interface FerryMessage {
     val senderKind: DeviceKind
     val createdAt: String
 
-    /**
-     * Whether this device sent the message. Clipboard sync uses it to leave its
-     * own sends alone; comparing sender names would confuse two devices that
-     * happen to share one.
-     */
-    val isCurrentDevice: Boolean
-
     data class Text(
         override val id: String,
         override val sequence: Long,
@@ -44,7 +37,6 @@ sealed interface FerryMessage {
         override val senderKind: DeviceKind,
         override val createdAt: String,
         val text: String,
-        override val isCurrentDevice: Boolean = false,
     ) : FerryMessage
 
     data class File(
@@ -54,7 +46,6 @@ sealed interface FerryMessage {
         override val senderKind: DeviceKind,
         override val createdAt: String,
         val file: FerryFile,
-        override val isCurrentDevice: Boolean = false,
     ) : FerryMessage
 }
 
@@ -128,11 +119,10 @@ object FerryJson {
         requireTimestamp(createdAt)
         val hasText = value.has("text") && !value.isNull("text")
         val hasFile = value.has("file") && !value.isNull("file")
-        val isCurrentDevice = value.optBoolean("is_current_device", false)
         return when (requiredString(value, "kind")) {
             "text" -> {
                 if (!hasText || hasFile) throw FerryProtocolException("Text message payload does not match kind")
-                FerryMessage.Text(id, sequence, sender, senderKind, createdAt, requiredString(value, "text"), isCurrentDevice)
+                FerryMessage.Text(id, sequence, sender, senderKind, createdAt, requiredString(value, "text"))
             }
             "file" -> {
                 if (hasText || !hasFile) throw FerryProtocolException("File message payload does not match kind")
@@ -144,7 +134,6 @@ object FerryJson {
                 FerryMessage.File(
                     id, sequence, sender, senderKind, createdAt,
                     FerryFile(requiredString(file, "name"), requiredString(file, "media_type"), size, downloadUrl),
-                    isCurrentDevice,
                 )
             }
             else -> throw FerryProtocolException("Unknown message kind")

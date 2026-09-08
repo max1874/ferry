@@ -80,7 +80,6 @@ object FerryCipher {
 interface SettingsStore {
     var origin: String?
     var deviceName: String?
-    var clipboardSync: Boolean
 }
 
 class AndroidSettingsStore(context: Context) : SettingsStore {
@@ -91,7 +90,4 @@ class AndroidSettingsStore(context: Context) : SettingsStore {
     override var deviceName: String?
         get() = preferences.getString("device_name", null)
         set(value) { preferences.edit().putString("device_name", value).apply() }
-    override var clipboardSync: Boolean
-        get() = preferences.getBoolean("clipboard_sync", false)
-        set(value) { preferences.edit().putBoolean("clipboard_sync", value).apply() }
 }

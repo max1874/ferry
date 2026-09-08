@@ -33,10 +33,6 @@ const deviceList = document.querySelector("#device-list");
 const settingsPasswordInput = document.querySelector("#settings-password");
 const saveAccessButton = document.querySelector("#save-access");
 const accessSettingsStatus = document.querySelector("#access-settings-status");
-const clipboardSendButton = document.querySelector("#clipboard-send");
-const clipboardSyncToggle = document.querySelector("#clipboard-sync");
-const clipboardSyncStatus = document.querySelector("#clipboard-sync-status");
-const transportNote = document.querySelector("#transport-note");
 
 let cursor = 0;
 let loading = false;
@@ -54,17 +50,6 @@ let previewAttachment = null;
 let previewURL = "";
 let previewFailed = false;
 let activeView = "timeline";
-let clipboardSyncEnabled = false;
-// What Ferry last put on this clipboard or last read off it. Incoming messages
-// that already match it are not written again, which is what stops two devices
-// from handing the same text back and forth.
-let clipboardEcho = null;
-// The first page of messages is everything that happened before this tab
-// existed. Writing it to the clipboard would replace whatever the user was
-// carrying with an entry they never asked for, so the first page only sets the
-// baseline and the sync starts from the next one.
-let clipboardPrimed = false;
-let clipboardBusy = false;
 const rendered = new Set();
 
 const DEVICE_ICON_PATHS = Object.freeze({
@@ -141,8 +126,6 @@ function resetTimeline() {
   rendered.clear();
   messagesElement.replaceChildren();
   welcome.hidden = false;
-  // The next load is a full backfill again, so it must not reach the clipboard.
-  clipboardPrimed = false;
 }
 
 function selectedAttachment() {
@@ -415,7 +398,6 @@ async function loadMessages() {
     connectionError = "";
     renderStatus();
     if (nearBottom && payload.messages.length > 0) window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-    await syncIncomingToClipboard(payload.messages);
   } catch (error) {
     if (generation !== authGeneration || error.name === "AbortError") return;
     connectionElement.textContent = "Offline";
@@ -524,180 +506,6 @@ async function joinAccess(password) {
   storageError = storeToken(payload.token) ? "" : "Browser storage is unavailable. Keep this tab open until you reconnect.";
   showApp(payload.device);
   await loadMessages();
-}
-
-const CLIPBOARD_SYNC_KEY = "ferry_clipboard_sync";
-
-// Browsers hand out the clipboard API only to secure contexts. On a LAN address
-// that means the Ferry server has to be running with -tls; over plain HTTP the
-// API is not merely restricted, it is absent.
-function clipboardAvailable() {
-  return window.isSecureContext && !!navigator.clipboard;
-}
-
-function readClipboardPreference() {
-  try {
-    return localStorage.getItem(CLIPBOARD_SYNC_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function storeClipboardPreference(enabled) {
-  try {
-    localStorage.setItem(CLIPBOARD_SYNC_KEY, enabled ? "1" : "0");
-  } catch {
-    // A browser with storage disabled still syncs for the life of this tab.
-  }
-}
-
-// Clipboard writes never resolve while another application owns the system
-// focus, so every call is raced against a deadline. Without it one blocked
-// write would leave clipboardBusy set and stop the feature for the session.
-function withDeadline(work, milliseconds) {
-  return Promise.race([
-    work,
-    new Promise((_, reject) => window.setTimeout(() => reject(new Error("the clipboard did not respond")), milliseconds)),
-  ]);
-}
-
-function initialiseClipboard() {
-  transportNote.hidden = window.location.protocol === "https:";
-  clipboardSyncEnabled = clipboardAvailable() && readClipboardPreference();
-  clipboardSyncToggle.checked = clipboardSyncEnabled;
-  clipboardSyncToggle.disabled = !clipboardAvailable();
-  clipboardSendButton.hidden = !clipboardAvailable();
-  renderClipboardStatus();
-}
-
-function renderClipboardStatus(message) {
-  if (message) {
-    clipboardSyncStatus.textContent = message;
-    return;
-  }
-  if (!clipboardAvailable()) {
-    clipboardSyncStatus.textContent =
-      "This browser only allows clipboard access over HTTPS. Start the Ferry server with -tls and trust its certificate on this device.";
-    return;
-  }
-  clipboardSyncStatus.textContent = clipboardSyncEnabled
-    ? "Ferry replaces this clipboard when another device sends text or an image while this page is in front."
-    : "Ferry never touches this clipboard on its own.";
-}
-
-function latestFromAnotherDevice(messages) {
-  let latest = null;
-  for (const message of messages) {
-    if (message.is_current_device) continue;
-    if (!latest || message.sequence > latest.sequence) latest = message;
-  }
-  return latest;
-}
-
-// Only the newest message is worth writing. Coming back to a page that missed
-// twenty messages must leave one clipboard entry, not replay twenty.
-async function syncIncomingToClipboard(messages) {
-  if (!clipboardSyncEnabled || !clipboardAvailable() || clipboardBusy) return;
-  if (!clipboardPrimed) {
-    clipboardPrimed = true;
-    return;
-  }
-  if (document.visibilityState !== "visible" || !document.hasFocus()) return;
-  const latest = latestFromAnotherDevice(messages);
-  if (!latest) return;
-  clipboardBusy = true;
-  try {
-    if (latest.kind === "text") await writeTextToClipboard(latest.text);
-    else if (isSyncableImage(latest.file)) await writeImageToClipboard(latest.file);
-  } catch (error) {
-    renderClipboardStatus(`Ferry could not reach this clipboard: ${error.message}`);
-  } finally {
-    clipboardBusy = false;
-  }
-}
-
-function isSyncableImage(file) {
-  return !!file && typeof file.media_type === "string" && file.media_type.startsWith("image/");
-}
-
-async function writeTextToClipboard(text) {
-  if (typeof text !== "string" || text === clipboardEcho) return;
-  await withDeadline(navigator.clipboard.writeText(text), 3000);
-  clipboardEcho = text;
-  renderClipboardStatus("Copied the newest message to this clipboard.");
-}
-
-// Chromium only writes image/png, so anything else is redrawn through a canvas
-// first. The alternative is a silent failure on every JPEG.
-async function writeImageToClipboard(file) {
-  const response = await authenticatedFetch(file.download_url, { cache: "no-store" });
-  if (!response.ok) throw new Error(await readError(response));
-  let blob = await response.blob();
-  if (blob.type !== "image/png") blob = await encodePNG(blob);
-  await withDeadline(navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]), 3000);
-  clipboardEcho = null;
-  renderClipboardStatus(`Copied ${file.name} to this clipboard.`);
-}
-
-async function encodePNG(blob) {
-  const bitmap = await createImageBitmap(blob);
-  try {
-    const canvas = document.createElement("canvas");
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    canvas.getContext("2d").drawImage(bitmap, 0, 0);
-    const encoded = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-    if (!encoded) throw new Error("this image could not be converted to PNG");
-    return encoded;
-  } finally {
-    bitmap.close();
-  }
-}
-
-// Reading is a deliberate act: the browser asks the user for permission the
-// first time, and Ferry never reads without this button being pressed.
-async function sendClipboard() {
-  if (!clipboardAvailable() || !currentDevice) return;
-  clipboardSendButton.disabled = true;
-  try {
-    const items = await withDeadline(navigator.clipboard.read(), 15000);
-    const image = await firstClipboardImage(items);
-    if (image) {
-      await sendFile(new File([image], clipboardFileName(image.type), { type: image.type }));
-      clipboardEcho = null;
-      return;
-    }
-    const text = await withDeadline(navigator.clipboard.readText(), 15000);
-    if (!text.trim()) {
-      renderClipboardStatus("This clipboard has nothing Ferry can send.");
-      return;
-    }
-    if (text === clipboardEcho) {
-      renderClipboardStatus("This clipboard already holds the newest message.");
-      return;
-    }
-    await sendText(text);
-    clipboardEcho = text;
-  } catch (error) {
-    sendError = error.message;
-    renderStatus();
-  } finally {
-    clipboardSendButton.disabled = false;
-    await loadMessages();
-  }
-}
-
-async function firstClipboardImage(items) {
-  for (const item of items) {
-    const type = item.types.find((candidate) => candidate.startsWith("image/"));
-    if (type) return await item.getType(type);
-  }
-  return null;
-}
-
-function clipboardFileName(mediaType) {
-  const extension = mediaType === "image/png" ? "png" : mediaType.split("/")[1] || "bin";
-  return `clipboard-${new Date().toISOString().replaceAll(":", "-").slice(0, 19)}.${extension}`;
 }
 
 function pollServer() {
@@ -933,16 +741,7 @@ filePreview.addEventListener("error", () => {
 });
 window.addEventListener("resize", resizeComposer);
 
-clipboardSyncToggle.addEventListener("change", () => {
-  clipboardSyncEnabled = clipboardSyncToggle.checked;
-  storeClipboardPreference(clipboardSyncEnabled);
-  renderClipboardStatus();
-});
-
-clipboardSendButton.addEventListener("click", sendClipboard);
-
 updateComposer();
 resizeComposer();
-initialiseClipboard();
 loadSession();
 window.setInterval(pollServer, 1500);

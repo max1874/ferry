@@ -31,16 +31,11 @@ struct MessagePayload: Codable, Equatable, Identifiable, Sendable {
     let createdAt: String
     let text: String?
     let file: FileInfo?
-    /// Whether this device sent the message. Clipboard sync uses it to leave
-    /// its own sends alone; comparing sender names would confuse two devices
-    /// that happen to share one.
-    let isCurrentDevice: Bool
 
     enum CodingKeys: String, CodingKey {
         case id, sequence, kind, text, file
         case senderName = "sender_name"
         case createdAt = "created_at"
-        case isCurrentDevice = "is_current_device"
     }
 
     init(from decoder: Decoder) throws {
@@ -52,7 +47,6 @@ struct MessagePayload: Codable, Equatable, Identifiable, Sendable {
         createdAt = try values.decode(String.self, forKey: .createdAt)
         text = try values.decodeIfPresent(String.self, forKey: .text)
         file = try values.decodeIfPresent(FileInfo.self, forKey: .file)
-        isCurrentDevice = try values.decodeIfPresent(Bool.self, forKey: .isCurrentDevice) ?? false
         guard kind == .text ? text != nil && file == nil : file != nil && text == nil else {
             throw DecodingError.dataCorrupted(.init(codingPath: values.codingPath, debugDescription: "Message payload does not match kind"))
         }

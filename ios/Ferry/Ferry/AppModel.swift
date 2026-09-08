@@ -25,14 +25,6 @@ final class AppModel {
     var deviceName: String
     var accessPassword = ""
     var draft = "" { didSet { draftRevision &+= 1 } }
-    var clipboardSyncEnabled: Bool {
-        didSet {
-            guard clipboardSyncEnabled != oldValue else { return }
-            defaults.set(clipboardSyncEnabled, forKey: Self.clipboardSyncKey)
-            clipboardStatus = nil
-        }
-    }
-    private(set) var clipboardStatus: String?
     private(set) var phase: Phase = .setup
     private(set) var currentDevice: Device?
     private(set) var messages: [MessagePayload] = []
@@ -45,16 +37,6 @@ final class AppModel {
     private let client: any FerryServicing
     private let credentials: CredentialStoring
     private let defaults: UserDefaults
-    private let pasteboard: any PasteboardWriting
-    private let attachments: any AttachmentLoading
-    // What Ferry last put on this pasteboard. An incoming message that already
-    // matches it is not written again, which is what stops two devices from
-    // handing the same text back and forth.
-    private var clipboardEcho: String?
-    // The first page after connecting is everything that happened before the
-    // app was running. Writing it would replace what the user was carrying with
-    // an entry they never asked for, so it only sets the baseline.
-    private var clipboardPrimed = false
     private var endpoint: ServerEndpoint?
     private var token: String?
     private var cursor: Int64 = 0
@@ -65,19 +47,14 @@ final class AppModel {
     private var fileRevision: UInt64 = 0
     private var isActive = true
     private static let serverKey = "ferry.server.origin"
-    private static let clipboardSyncKey = "ferry.clipboard.sync"
 
     init(client: any FerryServicing = FerryClient(), credentials: CredentialStoring = KeychainCredentialStore(),
-         defaults: UserDefaults = .standard, pasteboard: any PasteboardWriting = SystemPasteboard(),
-         attachments: any AttachmentLoading = FerryClient()) {
+         defaults: UserDefaults = .standard) {
         self.client = client
         self.credentials = credentials
         self.defaults = defaults
-        self.pasteboard = pasteboard
-        self.attachments = attachments
         serverAddress = defaults.string(forKey: Self.serverKey) ?? "http://127.0.0.1:8080"
         deviceName = UIDevice.current.name
-        clipboardSyncEnabled = defaults.bool(forKey: Self.clipboardSyncKey)
     }
 
     var canSend: Bool {
@@ -223,11 +200,6 @@ final class AppModel {
         setSelectedFile(nil)
         sendError = nil
         credentialWarning = nil
-        // The next page is a full backfill again, so it must not reach the
-        // pasteboard, and a new session's echo is nobody's.
-        clipboardPrimed = false
-        clipboardEcho = nil
-        clipboardStatus = nil
         return generation
     }
 
@@ -268,93 +240,11 @@ final class AppModel {
             cursor = page.nextCursor
             phase = .connected
             statusMessage = nil
-            await syncClipboard(from: page.messages, generation: current)
         } catch is CancellationError {
             return
         } catch let error as URLError where error.code == .cancelled {
             return
         } catch { handle(error, generation: current) }
-    }
-
-    /// Writes the newest message another device sent onto this pasteboard.
-    ///
-    /// Only the newest one: coming back to an app that missed twenty messages
-    /// must leave one pasteboard entry, not replay twenty. Only in the
-    /// foreground, because replacing the pasteboard of an app the user is
-    /// actually working in is not Ferry's to do.
-    private func syncClipboard(from page: [MessagePayload], generation current: UUID) async {
-        guard clipboardSyncEnabled, isActive, current == generation else { return }
-        guard clipboardPrimed else {
-            clipboardPrimed = true
-            return
-        }
-        guard let latest = page.filter({ !$0.isCurrentDevice }).max(by: { $0.sequence < $1.sequence }) else { return }
-        switch latest.kind {
-        case .text:
-            guard let text = latest.text, text != clipboardEcho else { return }
-            pasteboard.write(text: text)
-            clipboardEcho = text
-            clipboardStatus = "Copied the newest message."
-        case .file:
-            await syncImage(latest, generation: current)
-        }
-    }
-
-    private func syncImage(_ message: MessagePayload, generation current: UUID) async {
-        guard let file = message.file, file.mediaType.hasPrefix("image/"),
-              let endpoint, let token else { return }
-        do {
-            let data = try await attachments.attachment(endpoint: endpoint, token: token, path: file.downloadURL)
-            // The download outlives nothing: a revoked session or a backgrounded
-            // app must not have its pasteboard written by a reply that arrived late.
-            guard current == generation, isActive, clipboardSyncEnabled else { return }
-            guard pasteboard.write(imageData: data) else {
-                clipboardStatus = "\(file.name) is not an image this device can paste."
-                return
-            }
-            clipboardEcho = nil
-            clipboardStatus = "Copied \(file.name)."
-        } catch is CancellationError {
-            return
-        } catch let error as URLError where error.code == .cancelled {
-            return
-        } catch {
-            guard current == generation else { return }
-            clipboardStatus = "Could not copy \(file.name): \(error.localizedDescription)"
-        }
-    }
-
-    /// Sends what a system paste control handed over. iOS never lets Ferry read
-    /// the pasteboard on its own, so this only ever runs from the user's tap.
-    func sendPasted(text: String) async {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            clipboardStatus = "That paste had no text to send."
-            return
-        }
-        clipboardStatus = nil
-        clearSelectedFile()
-        draft = text
-        await send()
-        clipboardEcho = text
-    }
-
-    func sendPasted(imageData: Data, name: String) async {
-        clipboardStatus = nil
-        do {
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
-            try imageData.write(to: url, options: .atomic)
-            defer { try? FileManager.default.removeItem(at: url) }
-            // Reuse the ordinary attachment path so the pasted image inherits
-            // the same size limit, cancellation and failure reporting.
-            selectFile(url)
-            // selectFile reports its own refusal through sendError. Sending
-            // anyway would quietly post the text draft in the image's place.
-            guard selectedFile != nil else { return }
-            await send()
-            clipboardEcho = nil
-        } catch {
-            clipboardStatus = "Could not send the pasted image: \(error.localizedDescription)"
-        }
     }
 
     private func append(_ message: MessagePayload) {

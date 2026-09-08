@@ -34,8 +34,6 @@ data class FerryUiState(
     val statusMessage: String? = null,
     val sendError: String? = null,
     val credentialWarning: String? = null,
-    val clipboardSyncEnabled: Boolean = false,
-    val clipboardStatus: String? = null,
 ) {
     val canSend: Boolean
         get() = !isSending && phase != ConnectionPhase.SETUP &&
@@ -50,13 +48,11 @@ class FerryViewModel(
     defaultDeviceName: String,
     private val externalScope: CoroutineScope? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val clipboard: ClipboardWriter = ClipboardWriter.None,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(
         FerryUiState(
             serverAddress = settings.origin.orEmpty(),
             deviceName = settings.deviceName?.takeIf { it.isNotBlank() } ?: defaultDeviceName,
-            clipboardSyncEnabled = settings.clipboardSync,
         ),
     )
     val state: StateFlow<FerryUiState> = mutableState.asStateFlow()
@@ -75,16 +71,6 @@ class FerryViewModel(
     private var downloadJob: Job? = null
     private var active = true
     private var started = false
-
-    // What Ferry last put on this clipboard. An incoming message that already
-    // matches it is not written again, which stops two synced devices from
-    // handing the same text back and forth.
-    private var clipboardEcho: String? = null
-
-    // The page that arrives on connecting is everything from before the app was
-    // running. Writing it would replace what the user was carrying with an entry
-    // they never asked for, so it only sets the baseline.
-    private var clipboardPrimed = false
 
     fun start() {
         if (started) return
@@ -278,10 +264,6 @@ class FerryViewModel(
             FerryUiState(
                 serverAddress = it.serverAddress,
                 deviceName = it.deviceName,
-                // Disconnecting drops the session, not the user's settings. A
-                // stored preference the UI reports as off is a lie about what
-                // the next connection will do.
-                clipboardSyncEnabled = it.clipboardSyncEnabled,
                 statusMessage = removalError?.let {
                     "Disconnected for now, but the saved credential could not be removed: ${readable(it)}"
                 },
@@ -331,10 +313,6 @@ class FerryViewModel(
         endpoint = null
         token = null
         cursor = 0
-        // The next page is a full backfill again, so it must not reach the
-        // clipboard, and a new session's echo is nobody's.
-        clipboardPrimed = false
-        clipboardEcho = null
     }
 
     private fun startPolling() {
@@ -388,7 +366,6 @@ class FerryViewModel(
             page.messages.forEach(::append)
             cursor = maxOf(cursor, page.nextCursor)
             mutableState.update { it.copy(phase = ConnectionPhase.CONNECTED, statusMessage = null) }
-            syncClipboard(page.messages, current)
             return page.messages.size == FerryJson.MESSAGE_PAGE_LIMIT && cursor > previousCursor
         } catch (_: CancellationException) {
             return false
@@ -396,60 +373,6 @@ class FerryViewModel(
             handle(error, current, authenticated = true)
             return false
         }
-    }
-
-    fun setClipboardSync(enabled: Boolean) {
-        settings.clipboardSync = enabled
-        mutableState.update { it.copy(clipboardSyncEnabled = enabled, clipboardStatus = null) }
-    }
-
-    /**
-     * Puts the newest message another device sent on this clipboard.
-     *
-     * Only the newest one: returning to an app that missed twenty messages must
-     * leave one clipboard entry, not replay twenty. Only in the foreground,
-     * because replacing the clipboard of the app the user is working in is not
-     * Ferry's to do — and since Android 10 a background app cannot read the
-     * clipboard anyway, so nothing here can be made to work from behind.
-     *
-     * Images are left alone. Handing an image to the Android clipboard means
-     * publishing it through a content provider and trusting the system to pass
-     * a read grant to whichever app pastes it; that has not been proven on a
-     * real device, so Ferry does not claim it.
-     */
-    private fun syncClipboard(messages: List<FerryMessage>, current: Long) {
-        if (!state.value.clipboardSyncEnabled || !active || current != generation) return
-        if (!clipboardPrimed) {
-            clipboardPrimed = true
-            return
-        }
-        val latest = messages.filterNot { it.isCurrentDevice }.maxByOrNull { it.sequence } ?: return
-        if (latest !is FerryMessage.Text) return
-        if (latest.text == clipboardEcho) return
-        clipboard.write("Ferry", latest.text)
-        clipboardEcho = latest.text
-        mutableState.update { it.copy(clipboardStatus = "Copied the newest message.") }
-    }
-
-    /**
-     * Sends what the user handed over from the clipboard. Android only lets the
-     * focused app read the clipboard and tells the user when it does, so this
-     * runs from a button press and never on a timer.
-     */
-    fun sendClipboard(text: String?) {
-        val content = text?.trim()
-        if (content.isNullOrEmpty()) {
-            mutableState.update { it.copy(clipboardStatus = "The clipboard has nothing Ferry can send.") }
-            return
-        }
-        clearSelectedFile()
-        updateDraft(text)
-        mutableState.update { it.copy(clipboardStatus = null) }
-        // The text is on this device's clipboard either way, so recording it now
-        // is right whether or not the send succeeds: it must not be written back
-        // when the same string returns from another device.
-        clipboardEcho = text
-        send()
     }
 
     private fun append(message: FerryMessage) {

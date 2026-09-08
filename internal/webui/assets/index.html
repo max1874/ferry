@@ -43,7 +43,7 @@
         <label id="password-field" hidden>Password<input id="access-password" name="password" type="password" maxlength="256" autocomplete="current-password"></label>
         <button class="primary" type="submit">Enter Ferry</button>
         <p class="form-error" id="access-error" role="alert"></p>
-        <small id="transport-note" hidden>Ferry is using unencrypted HTTP. Connect only on a trusted network.</small>
+        <small>Ferry currently uses unencrypted HTTP. Connect only on a trusted network.</small>
       </form>
     </section>
 
@@ -84,9 +84,6 @@
               <input type="file" id="photo" accept="image/*,video/*" hidden>
               <input type="file" id="file" hidden>
             </div>
-            <button class="clipboard-send" id="clipboard-send" type="button" aria-label="Send what is on this clipboard" hidden>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2"></rect><path d="M9 4V3h6v1M9 11h6M9 15h4"></path></svg>
-            </button>
             <textarea id="text" rows="1" placeholder="What's on your mind?" aria-label="Message"></textarea>
             <button class="send" id="send" type="submit" aria-label="Send" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 12 6-6 6 6M12 18V6"></path></svg></button>
           </div>
@@ -105,14 +102,6 @@
         <section class="devices-section" aria-labelledby="connected-devices-title">
           <h2 id="connected-devices-title">Connected devices</h2>
           <div class="device-list" id="device-list" aria-live="polite"></div>
-        </section>
-        <section class="access-settings" aria-labelledby="clipboard-sync-title">
-          <div>
-            <h2 id="clipboard-sync-title">Clipboard sync</h2>
-            <p>Put text and images other devices send straight onto this clipboard, so you can paste them without opening Ferry.</p>
-          </div>
-          <label class="setting-toggle"><input id="clipboard-sync" type="checkbox"><span>Sync incoming messages to this clipboard</span></label>
-          <output id="clipboard-sync-status" aria-live="polite"></output>
         </section>
         <section class="access-settings" aria-labelledby="access-password-title">
           <div>
