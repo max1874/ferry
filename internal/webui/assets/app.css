@@ -127,11 +127,14 @@ button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-off
 .composer:focus-within { border-color: var(--focus-border); }
 .composer-row { display: flex; align-items: center; gap: 8px; }
 .attachment-picker { position: relative; flex: 0 0 auto; }
-.attach, .send { width: 40px; height: 40px; display: grid; place-items: center; flex: 0 0 auto; padding: 0; border: 0; border-radius: 50%; cursor: pointer; }
-.attach { background: var(--soft); }
-.attach:hover { background: var(--hover); }
+.attach, .send, .clipboard-send { width: 40px; height: 40px; display: grid; place-items: center; flex: 0 0 auto; padding: 0; border: 0; border-radius: 50%; cursor: pointer; }
+.attach, .clipboard-send { background: var(--soft); }
+.attach:hover, .clipboard-send:hover { background: var(--hover); }
 .attach[aria-expanded="true"] { transform: rotate(45deg); }
-.attach svg, .send svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.clipboard-send { color: var(--muted); }
+.clipboard-send:hover, .clipboard-send:focus-visible { color: inherit; }
+.clipboard-send:disabled { color: var(--faint); background: var(--soft); cursor: default; }
+.attach svg, .send svg, .clipboard-send svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .send { color: var(--on-contrast); background: var(--contrast); }
 .send:disabled { color: var(--faint); background: var(--soft); cursor: default; }
 textarea { min-height: 40px; max-height: 180px; width: 100%; resize: none; padding: 9px 2px 7px; color: inherit; background: transparent; border: 0; outline: 0; font-size: 15px; line-height: 1.5; }
@@ -185,6 +188,10 @@ textarea:disabled { color: var(--faint); }
 .access-settings label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
 .access-settings .secondary { justify-self: start; }
 .access-settings output { min-height: 18px; }
+.access-settings .setting-toggle { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.access-settings .setting-toggle input { width: 18px; height: 18px; min-height: 0; flex: 0 0 auto; margin: 0; padding: 0; background: none; border: 0; border-radius: 0; accent-color: var(--contrast); cursor: pointer; }
+.access-settings .setting-toggle input:disabled { cursor: default; }
+.access-settings .setting-toggle input:disabled + span { color: var(--faint); }
 
 @media (min-width: 641px) {
   .welcome:not([hidden]) ~ .composer-shell { inset: calc(50% - 101px) 0 auto 257px; background: transparent; }
