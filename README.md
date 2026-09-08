@@ -6,7 +6,7 @@ One Go process serves the Web app and API, stores messages and device identities
 
 ## Project status
 
-Ferry is under active development in a private repository and will be made public after the remaining physical-device journey is complete.
+Ferry is under active development and has no tagged release. The remaining gate is the cross-device journey on real hardware — Web, iOS and Android against one Server on a home LAN. Unit and simulator tests do not substitute for it, so treat the components below as working but not yet accepted end to end.
 
 | Component | Current state |
 | --- | --- |
@@ -14,7 +14,9 @@ Ferry is under active development in a private repository and will be made publi
 | iOS App | Native SwiftUI MVP for iOS 26 |
 | Android App | Native Compose MVP for Android 8+; real-device install and launch confirmed |
 
-Automatic discovery, automatic clipboard capture, background transfer, TLS/public-Internet exposure and store publication are not part of the current milestone.
+Opt-in clipboard sync is available on all three clients: a message from another device is written to the local clipboard automatically, and sending the local clipboard takes one tap. It is off by default and works only while Ferry is in the foreground, because no platform permits background clipboard reads. The web UI additionally needs HTTPS, since browsers expose the clipboard API only to secure contexts. Web and iOS receive text and images; Android receives text only. See [docs/clipboard-sync.md](docs/clipboard-sync.md) for the per-platform boundary.
+
+Automatic discovery, background clipboard reads, background transfer, public-Internet exposure and store publication are not part of the current milestone.
 
 ## Docker quick start
 
@@ -27,7 +29,9 @@ FERRY_HOST_IP=192.168.1.20 FERRY_PORT=42817 docker compose up --build -d
 docker compose logs ferry
 ```
 
-Open `http://192.168.1.20:42817`. Compose defaults to `127.0.0.1:42817` unless `FERRY_HOST_IP` is supplied. Ferry rejects wildcard, hostname and public-IP publication; do not expose this HTTP milestone to the public Internet.
+Open `http://192.168.1.20:42817`. Compose defaults to `127.0.0.1:42817` unless `FERRY_HOST_IP` is supplied. Ferry rejects wildcard, hostname and public-IP publication; keep it on a trusted private network and do not expose it to the public Internet.
+
+This Compose file serves plain HTTP. The entrypoint forwards its own arguments to Ferry, so adding `command: ["-tls"]` to the service turns on LAN HTTPS with the certificate authority stored in the `ferry-data` volume; read [docs/tls-lan.md](docs/tls-lan.md) first, because every device has to trust that authority once.
 
 The first browser or App joins directly when no access password is configured. Any connected Web device can enable, change or disable the shared password in **Devices → Access password**. The password setting lives in Ferry's SQLite database, not deployment configuration.
 
@@ -123,7 +127,7 @@ GitHub Actions runs these Server/Web, Android and iOS gates. See [CONTRIBUTING.m
 
 ## Security
 
-Ferry uses unencrypted HTTP on a trusted LAN. Every content/settings/device endpoint requires a revocable device Bearer token; the optional shared password gates only new devices. Read [SECURITY.md](SECURITY.md) before deployment or vulnerability reporting.
+Ferry is designed for a trusted LAN. Transport is unencrypted HTTP unless you start it with `-tls`, which serves HTTPS from a local certificate authority that each device trusts once. Every content/settings/device endpoint requires a revocable device Bearer token; the optional shared password gates only new devices. Read [SECURITY.md](SECURITY.md) before deployment or vulnerability reporting.
 
 ## License
 
