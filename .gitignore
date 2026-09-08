@@ -33,6 +33,9 @@ artifacts/
 # Default local server data
 /ferry-data/
 
+# Go build output; `go build ./cmd/ferry` drops the binary here
+/ferry
+
 # Android local configuration and build output
 /android/.gradle/
 /android/.gradle-home/

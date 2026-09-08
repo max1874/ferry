@@ -25,26 +25,21 @@ const (
 )
 
 type server struct {
-	store         *Store
-	logger        *log.Logger
-	caCertificate []byte
-	accessMu      sync.Mutex
+	store    *Store
+	logger   *log.Logger
+	accessMu sync.Mutex
 }
 
 type HandlerOptions struct {
 	AllowLANHosts bool
 	Logger        *log.Logger
-	// CACertificate is the PEM certificate of the local CA that signed this
-	// server's TLS certificate, served so a device can trust it. Empty when the
-	// server runs without TLS or with an operator-supplied certificate.
-	CACertificate []byte
 }
 
 func NewHandler(store *Store, options HandlerOptions) http.Handler {
 	if options.Logger == nil {
 		options.Logger = log.Default()
 	}
-	s := &server{store: store, logger: options.Logger, caCertificate: options.CACertificate}
+	s := &server{store: store, logger: options.Logger}
 	api := http.NewServeMux()
 	api.HandleFunc("GET /api/v1/session", s.session)
 	api.HandleFunc("GET /api/v1/messages", s.listMessages)
@@ -58,7 +53,6 @@ func NewHandler(store *Store, options HandlerOptions) http.Handler {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
-	mux.HandleFunc("GET /ferry-ca.crt", s.caCertificateFile)
 	mux.HandleFunc("GET /api/v1/access", s.accessStatus)
 	mux.HandleFunc("POST /api/v1/access/join", s.join)
 	mux.Handle("/api/v1/", s.requireDevice(api))
@@ -123,21 +117,6 @@ func securityHeaders(next http.Handler) http.Handler {
 
 func (s *server) health(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-}
-
-// caCertificateFile serves the local CA certificate. It is deliberately outside
-// the device session: a device has to trust the certificate before it can
-// complete a TLS handshake cleanly enough to join. Only the public certificate
-// is ever served; the CA private key stays in the data directory.
-func (s *server) caCertificateFile(w http.ResponseWriter, _ *http.Request) {
-	if len(s.caCertificate) == 0 {
-		writeError(w, http.StatusNotFound, "not_found", "this server does not manage a local certificate authority")
-		return
-	}
-	w.Header().Set("Content-Type", "application/x-x509-ca-cert")
-	w.Header().Set("Content-Disposition", `attachment; filename="ferry-ca.crt"`)
-	w.Header().Set("Cache-Control", "no-store")
-	w.Write(s.caCertificate)
 }
 
 type deviceContextKey struct{}

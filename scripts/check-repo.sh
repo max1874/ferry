@@ -22,6 +22,14 @@ tracked_forbidden=$(git ls-files | awk '
 ')
 [ -z "$tracked_forbidden" ] || fail "tracked local data or signing material:\n$tracked_forbidden"
 
+# Compiled output is never a source file. The largest legitimate asset is a
+# 1024px app icon at about 2 MiB, so anything past 3 MiB is a build artifact
+# that slipped past .gitignore and would stay in history once pushed.
+oversized=$(git ls-files -z \
+    | xargs -0 -n1 -I{} sh -c 'set -- $(wc -c < "{}"); [ "$1" -gt 3145728 ] && echo "{} ($1 bytes)"' \
+    | sort)
+[ -z "$oversized" ] || fail "tracked file is larger than 3 MiB:\n$oversized"
+
 grep -Fq 'Android App' README.md || fail "README must describe Android"
 grep -Fq 'Superseded on 2026-08-30' docs/four-digit-pairing.md || fail "pairing document must stay historical"
 grep -Fq 'Apache License 2.0' README.md || fail "README license statement is missing"

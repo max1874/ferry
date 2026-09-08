@@ -14,9 +14,9 @@ Ferry is under active development and has no tagged release. The remaining gate 
 | iOS App | Native SwiftUI MVP for iOS 26 |
 | Android App | Native Compose MVP for Android 8+; real-device install and launch confirmed |
 
-Opt-in clipboard sync is available on all three clients: a message from another device is written to the local clipboard automatically, and sending the local clipboard takes one tap. It is off by default and works only while Ferry is in the foreground, because no platform permits background clipboard reads. The web UI additionally needs HTTPS, since browsers expose the clipboard API only to secure contexts. Web and iOS receive text and images; Android receives text only. See [docs/clipboard-sync.md](docs/clipboard-sync.md) for the per-platform boundary.
+Ferry never reads or writes a device's clipboard on its own. You put content in with the system's own paste shortcut and take it out with a copy control on the message; nothing is synchronised in the background.
 
-Automatic discovery, background clipboard reads, background transfer, public-Internet exposure and store publication are not part of the current milestone.
+Automatic discovery, clipboard synchronisation, background transfer, TLS/public-Internet exposure and store publication are not part of the current milestone.
 
 ## Docker quick start
 
@@ -30,8 +30,6 @@ docker compose logs ferry
 ```
 
 Open `http://192.168.1.20:42817`. Compose defaults to `127.0.0.1:42817` unless `FERRY_HOST_IP` is supplied. Ferry rejects wildcard, hostname and public-IP publication; keep it on a trusted private network and do not expose it to the public Internet.
-
-This Compose file serves plain HTTP. The entrypoint forwards its own arguments to Ferry, so adding `command: ["-tls"]` to the service turns on LAN HTTPS with the certificate authority stored in the `ferry-data` volume; read [docs/tls-lan.md](docs/tls-lan.md) first, because every device has to trust that authority once.
 
 The first browser or App joins directly when no access password is configured. Any connected Web device can enable, change or disable the shared password in **Devices → Access password**. The password setting lives in Ferry's SQLite database, not deployment configuration.
 
@@ -70,14 +68,6 @@ go run ./cmd/ferry -lan -listen 192.168.1.20:42817
 ```
 
 By default local state is written to the ignored `./ferry-data` directory. Use `-data-dir` to choose another location.
-
-For HTTPS on the LAN, add `-tls`. Ferry keeps a local certificate authority under `<data-dir>/tls`, signs a certificate for the address it binds, and serves the CA certificate at `/ferry-ca.crt` for each device to trust once. Browsers expose the clipboard API only to secure contexts, so clipboard sync through the web UI needs this. See [docs/tls-lan.md](docs/tls-lan.md) for the trust steps on each platform and the security boundary.
-
-```bash
-go run ./cmd/ferry -lan -tls -listen 192.168.1.20:42817
-```
-
-To serve a certificate you already own, pass `-tls-cert` and `-tls-key` instead; Ferry then leaves renewal to you.
 
 ## Native apps
 
@@ -127,7 +117,7 @@ GitHub Actions runs these Server/Web, Android and iOS gates. See [CONTRIBUTING.m
 
 ## Security
 
-Ferry is designed for a trusted LAN. Transport is unencrypted HTTP unless you start it with `-tls`, which serves HTTPS from a local certificate authority that each device trusts once. Every content/settings/device endpoint requires a revocable device Bearer token; the optional shared password gates only new devices. Read [SECURITY.md](SECURITY.md) before deployment or vulnerability reporting.
+Ferry uses unencrypted HTTP on a trusted LAN. Every content/settings/device endpoint requires a revocable device Bearer token; the optional shared password gates only new devices. Read [SECURITY.md](SECURITY.md) before deployment or vulnerability reporting.
 
 ## License
 
