@@ -240,6 +240,34 @@ func TestStaticWebAndSecurityHeadersShareHandler(t *testing.T) {
 	}
 }
 
+// A device has to trust the certificate before it can join, so the CA file is
+// served outside the device session — but only the public certificate, and only
+// when this server actually manages a CA.
+func TestCACertificateIsServedWithoutASession(t *testing.T) {
+	store := openTestStore(t)
+	certificate := []byte("-----BEGIN CERTIFICATE-----\nferry\n-----END CERTIFICATE-----\n")
+	handler := NewHandler(store, HandlerOptions{Logger: log.New(io.Discard, "", 0), CACertificate: certificate})
+
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "http://localhost/ferry-ca.crt", nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if response.Body.String() != string(certificate) {
+		t.Fatalf("body = %q", response.Body.String())
+	}
+	if contentType := response.Header().Get("Content-Type"); contentType != "application/x-x509-ca-cert" {
+		t.Fatalf("content type = %q", contentType)
+	}
+
+	withoutCA := NewHandler(openTestStore(t), HandlerOptions{Logger: log.New(io.Discard, "", 0)})
+	response = httptest.NewRecorder()
+	withoutCA.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "http://localhost/ferry-ca.crt", nil))
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("status without a managed CA = %d, body = %s", response.Code, response.Body.String())
+	}
+}
+
 func newTestHandler(t *testing.T) http.Handler {
 	t.Helper()
 	store := openTestStore(t)

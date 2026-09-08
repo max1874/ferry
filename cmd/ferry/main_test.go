@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"net"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -87,6 +89,60 @@ func TestConfigAcceptsOnlyLoopbackListeners(t *testing.T) {
 				t.Fatalf("parseConfig(%q) error = %v", address, err)
 			}
 		})
+	}
+}
+
+func TestConfigPairsTLSCertificateAndKey(t *testing.T) {
+	value, err := parseConfig(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value.tls {
+		t.Fatal("TLS was enabled by default")
+	}
+	for _, arguments := range [][]string{
+		{"-tls-cert", "cert.pem"},
+		{"-tls-key", "key.pem"},
+	} {
+		if _, err := parseConfig(arguments); err == nil {
+			t.Fatalf("parseConfig(%v) accepted a half-configured certificate", arguments)
+		}
+	}
+	value, err = parseConfig([]string{"-tls-cert", "cert.pem", "-tls-key", "key.pem"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !value.tls {
+		t.Fatal("an operator-supplied certificate did not enable TLS")
+	}
+}
+
+func TestCertificateHostsCoverEveryReachableAddress(t *testing.T) {
+	loopback := config{listen: "127.0.0.1:8080", dataDir: "."}
+	hosts := certificateHosts(loopback, net.ParseIP("127.0.0.1"))
+	for _, want := range []string{"localhost", "127.0.0.1", "::1"} {
+		if !slices.Contains(hosts, want) {
+			t.Fatalf("hosts = %v, missing %q", hosts, want)
+		}
+	}
+	// Without LAN mode the certificate must not claim addresses the listener
+	// refuses to bind, so the set stays exactly the loopback identities.
+	if len(hosts) != 3 {
+		t.Fatalf("loopback hosts = %v, expected only loopback identities", hosts)
+	}
+
+	published := config{listen: "10.0.0.13:42817", dataDir: ".", lan: true, publishedHost: "192.168.1.20"}
+	hosts = certificateHosts(published, net.ParseIP("10.0.0.13"))
+	for _, want := range []string{"localhost", "127.0.0.1", "::1", "10.0.0.13", "192.168.1.20"} {
+		if !slices.Contains(hosts, want) {
+			t.Fatalf("hosts = %v, missing %q", hosts, want)
+		}
+	}
+	// The certificate is public to everyone who opens the page. A listener
+	// binds one address, so enumerating the machine's other interfaces would
+	// publish its VPN, container and virtual-machine subnets for nothing.
+	if len(hosts) != 5 {
+		t.Fatalf("hosts = %v, expected only the reachable addresses", hosts)
 	}
 }
 

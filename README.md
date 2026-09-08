@@ -67,6 +67,14 @@ go run ./cmd/ferry -lan -listen 192.168.1.20:42817
 
 By default local state is written to the ignored `./ferry-data` directory. Use `-data-dir` to choose another location.
 
+For HTTPS on the LAN, add `-tls`. Ferry keeps a local certificate authority under `<data-dir>/tls`, signs a certificate for the address it binds, and serves the CA certificate at `/ferry-ca.crt` for each device to trust once. Browsers expose the clipboard API only to secure contexts, so clipboard sync through the web UI needs this. See [docs/tls-lan.md](docs/tls-lan.md) for the trust steps on each platform and the security boundary.
+
+```bash
+go run ./cmd/ferry -lan -tls -listen 192.168.1.20:42817
+```
+
+To serve a certificate you already own, pass `-tls-cert` and `-tls-key` instead; Ferry then leaves renewal to you.
+
 ## Native apps
 
 ### iOS
