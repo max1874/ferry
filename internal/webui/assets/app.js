@@ -34,6 +34,18 @@ const settingsPasswordInput = document.querySelector("#settings-password");
 const saveAccessButton = document.querySelector("#save-access");
 const accessSettingsStatus = document.querySelector("#access-settings-status");
 
+const messageImages = new Map();
+const pendingImages = new WeakMap();
+// Loading every image the moment it renders would fetch a whole backlog at
+// once; the margin still starts the fetch before the image is on screen.
+const imageObserver = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    if (!entry.isIntersecting) continue;
+    imageObserver.unobserve(entry.target);
+    loadMessageImage(entry.target);
+  }
+}, { rootMargin: "400px" });
+
 let cursor = 0;
 let loading = false;
 let sessionLoading = false;
@@ -124,6 +136,8 @@ function storeToken(token) {
 function resetTimeline() {
   cursor = 0;
   rendered.clear();
+  for (const objectURL of messageImages.values()) URL.revokeObjectURL(objectURL);
+  messageImages.clear();
   messagesElement.replaceChildren();
   welcome.hidden = false;
 }
@@ -301,33 +315,98 @@ function renderMessage(message) {
     body.append(text);
     head.append(copyControl(message.text));
   } else if (message.kind === "file") {
-    const link = document.createElement("button");
-    link.className = "file-card";
-    link.type = "button";
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      downloadMessageFile(message);
-    });
-    const icon = document.createElement("span");
-    icon.className = "file-icon";
-    icon.textContent = "FILE";
-    const copy = document.createElement("span");
-    copy.className = "file-copy";
-    const title = document.createElement("div");
-    title.className = "file-title";
-    title.textContent = message.file.name;
-    const meta = document.createElement("div");
-    meta.className = "file-meta";
-    meta.textContent = formatSize(message.file.size);
-    copy.append(title, meta);
-    link.append(icon, copy);
-    body.append(link);
+    body.append(isImageFile(message.file) ? imageAttachment(message) : fileCard(message));
   } else {
     return;
   }
 
   article.append(head, body);
   messagesElement.append(article);
+}
+
+function isImageFile(file) {
+  return typeof file.media_type === "string" && file.media_type.startsWith("image/");
+}
+
+function fileCard(message) {
+  const link = document.createElement("button");
+  link.className = "file-card";
+  link.type = "button";
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    downloadMessageFile(message);
+  });
+  const icon = document.createElement("span");
+  icon.className = "file-icon";
+  icon.textContent = "FILE";
+  const copy = document.createElement("span");
+  copy.className = "file-copy";
+  const title = document.createElement("div");
+  title.className = "file-title";
+  title.textContent = message.file.name;
+  const meta = document.createElement("div");
+  meta.className = "file-meta";
+  meta.textContent = formatSize(message.file.size);
+  copy.append(title, meta);
+  link.append(icon, copy);
+  return link;
+}
+
+// The bytes need the device token, so an <img src> pointing at the download URL
+// would come back 401. Every image is fetched, turned into an object URL and
+// revoked when the timeline resets.
+function imageAttachment(message) {
+  const figure = document.createElement("figure");
+  figure.className = "message-image is-loading";
+  const image = document.createElement("img");
+  image.alt = message.file.name;
+  image.decoding = "async";
+  figure.append(image);
+  pendingImages.set(figure, message);
+  imageObserver.observe(figure);
+  return figure;
+}
+
+async function loadMessageImage(figure) {
+  const message = pendingImages.get(figure);
+  if (!message) return;
+  const generation = authGeneration;
+  try {
+    const response = await authenticatedFetch(message.file.download_url, { cache: "no-store", signal: authController.signal });
+    if (generation !== authGeneration) return;
+    if (!response.ok) throw new Error(await readError(response));
+    const blob = await response.blob();
+    if (generation !== authGeneration) return;
+    const objectURL = URL.createObjectURL(blob);
+    messageImages.set(message.id, objectURL);
+    const image = figure.querySelector("img");
+    image.addEventListener("load", () => figure.classList.remove("is-loading"), { once: true });
+    image.addEventListener("error", () => figure.replaceWith(fileCard(message)), { once: true });
+    image.addEventListener("click", () => openViewer(objectURL, message.file.name));
+    image.src = objectURL;
+  } catch (error) {
+    if (generation !== authGeneration || error.name === "AbortError") return;
+    figure.replaceWith(fileCard(message));
+  }
+}
+
+function openViewer(source, name) {
+  const overlay = document.createElement("div");
+  overlay.className = "viewer";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-label", name);
+  const image = document.createElement("img");
+  image.src = source;
+  image.alt = name;
+  overlay.append(image);
+  const dismiss = (event) => {
+    if (event.type === "keydown" && event.key !== "Escape") return;
+    overlay.remove();
+    document.removeEventListener("keydown", dismiss);
+  };
+  overlay.addEventListener("click", dismiss);
+  document.addEventListener("keydown", dismiss);
+  document.body.append(overlay);
 }
 
 function copyControl(text) {
