@@ -414,6 +414,35 @@ final class FerryTests: XCTestCase {
         XCTAssertTrue(model.images.isEmpty)
     }
 
+    func testAFailedSaveIsReportedInsteadOfSilentlyDoingNothing() async throws {
+        let service = AttachmentService(data: nil)
+        let model = makeModel(client: service, credentials: MemoryCredentials())
+        await model.connect()
+        let message = try decodeImageMessage()
+
+        let data = await model.fileData(for: message)
+
+        XCTAssertNil(data)
+        XCTAssertEqual(model.sendError, FerryClient.ClientError.invalidResponse.errorDescription)
+        model.setActive(false)
+    }
+
+    func testASaveFailingAfterDisconnectDoesNotSurfaceOnTheNewScreen() async throws {
+        let service = SuspendingAttachmentService(data: nil)
+        let model = makeModel(client: service, credentials: MemoryCredentials())
+        await model.connect()
+        let message = try decodeImageMessage()
+
+        let save = Task { await model.fileData(for: message) }
+        await waitUntil { service.isLoading }
+        model.disconnect()
+        service.release()
+
+        let data = await save.value
+        XCTAssertNil(data)
+        XCTAssertNil(model.sendError)
+    }
+
     /// A file message carries no text at all; the decoder rejects a payload
     /// that has both, so this cannot go through `decodeMessage`.
     private func decodeImageMessage() throws -> MessagePayload {
@@ -512,10 +541,10 @@ private final class AttachmentService: BaseService {
 @MainActor
 private final class SuspendingAttachmentService: BaseService {
     private(set) var isLoading = false
-    private let data: Data
+    private let data: Data?
     private var waiter: CheckedContinuation<Void, Never>?
 
-    init(data: Data) { self.data = data }
+    init(data: Data?) { self.data = data }
 
     func release() {
         waiter?.resume()
@@ -525,6 +554,7 @@ private final class SuspendingAttachmentService: BaseService {
     override func attachment(endpoint: ServerEndpoint, token: String, path: String) async throws -> Data {
         isLoading = true
         await withCheckedContinuation { waiter = $0 }
+        guard let data else { throw FerryClient.ClientError.invalidResponse }
         return data
     }
 }

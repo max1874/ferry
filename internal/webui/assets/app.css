@@ -116,6 +116,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-off
 .message-image img { display: block; width: auto; height: auto; max-width: min(320px, 100%); max-height: 360px; object-fit: contain; cursor: zoom-in; }
 .viewer { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: rgba(0, 0, 0, .82); cursor: zoom-out; }
 .viewer img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
+.viewer-save { position: absolute; top: 20px; right: 20px; padding: 8px 16px; color: #fff; text-decoration: none; background: rgba(255, 255, 255, .18); border-radius: 999px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.viewer-save:hover, .viewer-save:focus-visible { background: rgba(255, 255, 255, .3); }
 
 .file-card { width: min(330px, 100%); display: flex; align-items: center; gap: 11px; padding: 2px 0; color: inherit; text-align: left; background: transparent; cursor: pointer; border: 0; border-radius: 12px; }
 .file-card:hover .file-title { text-decoration: underline; }

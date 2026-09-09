@@ -17,7 +17,8 @@ struct TimelineView: View {
                         }
                         ForEach(model.messages) { message in
                             MessageRow(message: message, image: model.images[message.id],
-                                       loadImage: { await model.loadImage(for: message) })
+                                       loadImage: { await model.loadImage(for: message) },
+                                       loadFile: { await model.fileData(for: message) })
                                 .id(message.id)
                         }
                     }.padding(.horizontal, 18).padding(.vertical, 20)

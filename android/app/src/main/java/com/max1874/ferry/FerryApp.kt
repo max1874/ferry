@@ -332,12 +332,20 @@ private fun ImageAttachment(message: FerryMessage.File, bitmap: Bitmap?, resolve
             )
             if (viewing) {
                 Dialog(onDismissRequest = { viewing = false }) {
-                    Image(
-                        bitmap.asImageBitmap(),
-                        contentDescription = message.file.name,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxWidth().clickable { viewing = false },
-                    )
+                    Column(horizontalAlignment = Alignment.End) {
+                        Image(
+                            bitmap.asImageBitmap(),
+                            contentDescription = message.file.name,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxWidth().clickable { viewing = false },
+                        )
+                        // Rendering the image inline replaced the file card, which
+                        // was the only way to save it; the viewer carries that back.
+                        TextButton(
+                            onClick = { viewing = false; onDownload(message.id, message.file) },
+                            enabled = !downloadBusy,
+                        ) { Text(if (downloading) "Saving…" else "Save") }
+                    }
                 }
             }
         }

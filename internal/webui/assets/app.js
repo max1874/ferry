@@ -410,7 +410,16 @@ function openViewer(source, name) {
   const image = document.createElement("img");
   image.src = source;
   image.alt = name;
-  overlay.append(image);
+  // Rendering the image inline replaced the file card, which was the only way
+  // to save it; the viewer carries that back rather than leaving the reader to
+  // find the browser's own context menu.
+  const save = document.createElement("a");
+  save.className = "viewer-save";
+  save.textContent = "Save";
+  save.href = source;
+  save.download = name;
+  save.addEventListener("click", (event) => event.stopPropagation());
+  overlay.append(image, save);
   const dismiss = (event) => {
     if (event.type === "keydown" && event.key !== "Escape") return;
     overlay.remove();

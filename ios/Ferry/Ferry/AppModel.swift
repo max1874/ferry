@@ -210,6 +210,27 @@ final class AppModel {
         }
     }
 
+    /// Attachment bytes for saving. Unlike `loadImage` this is not cached: a
+    /// file is fetched when the user asks to save it and released with the
+    /// export, so a 64 MB attachment does not sit in memory for the session.
+    func fileData(for message: MessagePayload) async -> Data? {
+        guard let file = message.file, let endpoint, let token else { return nil }
+        let current = generation
+        do {
+            let data = try await client.attachment(endpoint: endpoint, token: token, path: file.downloadURL)
+            guard current == generation else { return nil }
+            return data
+        } catch {
+            guard current == generation else { return nil }
+            if error as? FerryClient.ClientError == .unauthorized {
+                handle(error, generation: current)
+            } else {
+                sendError = error.localizedDescription
+            }
+            return nil
+        }
+    }
+
     private func resetSession(endpoint: ServerEndpoint, token: String?) -> UUID {
         pollTask?.cancel()
         pollTask = nil
