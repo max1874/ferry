@@ -315,7 +315,13 @@ function renderMessage(message) {
     body.append(text);
     head.append(copyControl(message.text));
   } else if (message.kind === "file") {
-    body.append(isImageFile(message.file) ? imageAttachment(message) : fileCard(message));
+    if (isImageFile(message.file)) {
+      // A class rather than :has(), which this stylesheet does not rely on.
+      body.classList.add("has-image");
+      body.append(imageAttachment(message));
+    } else {
+      body.append(fileCard(message));
+    }
   } else {
     return;
   }
@@ -381,13 +387,19 @@ async function loadMessageImage(figure) {
     messageImages.set(message.id, objectURL);
     const image = figure.querySelector("img");
     image.addEventListener("load", () => figure.classList.remove("is-loading"), { once: true });
-    image.addEventListener("error", () => figure.replaceWith(fileCard(message)), { once: true });
+    image.addEventListener("error", () => fallBackToFileCard(figure, message), { once: true });
     image.addEventListener("click", () => openViewer(objectURL, message.file.name));
     image.src = objectURL;
   } catch (error) {
     if (generation !== authGeneration || error.name === "AbortError") return;
-    figure.replaceWith(fileCard(message));
+    fallBackToFileCard(figure, message);
   }
+}
+
+// The bubble tightened its padding for an image; a card needs it back.
+function fallBackToFileCard(figure, message) {
+  figure.closest(".message-body")?.classList.remove("has-image");
+  figure.replaceWith(fileCard(message));
 }
 
 function openViewer(source, name) {
