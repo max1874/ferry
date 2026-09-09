@@ -263,6 +263,10 @@ private fun MessageRow(message: FerryMessage, downloading: Boolean, downloadBusy
                 Text(message.senderName, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.width(8.dp))
                 Text(formatTime(message.createdAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (message is FerryMessage.Text) {
+                    Spacer(Modifier.width(8.dp))
+                    CopyButton(message.text)
+                }
             }
             Spacer(Modifier.height(5.dp))
             when (message) {
@@ -291,14 +295,35 @@ private fun MessageRow(message: FerryMessage, downloading: Boolean, downloadBusy
 
 @Composable
 private fun CopyableText(value: String) {
-    val clipboard = LocalClipboardManager.current
     SelectionContainer {
-        Text(
-            value,
-            modifier = Modifier.fillMaxWidth().clickable { clipboard.setText(AnnotatedString(value)) }
-                .semantics { contentDescription = "Message text. Tap to copy." },
-        )
+        Text(value, modifier = Modifier.fillMaxWidth())
     }
+}
+
+// The clipboard is written only from this button. Android 12 and newer show
+// the user a toast whenever an app reads the clipboard, so Ferry never reads
+// it; putting a message on the clipboard needs no permission and no prompt.
+@Composable
+private fun CopyButton(value: String) {
+    val clipboard = LocalClipboardManager.current
+    var copied by remember(value) { mutableStateOf(false) }
+    LaunchedEffect(copied) {
+        if (copied) {
+            kotlinx.coroutines.delay(1600)
+            copied = false
+        }
+    }
+    Text(
+        if (copied) "Copied" else "Copy",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .clickable {
+                clipboard.setText(AnnotatedString(value))
+                copied = true
+            }
+            .semantics { contentDescription = "Copy this message" },
+    )
 }
 
 @Composable

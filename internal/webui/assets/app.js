@@ -299,6 +299,7 @@ function renderMessage(message) {
     text.className = "message-text";
     text.textContent = message.text;
     body.append(text);
+    head.append(copyControl(message.text));
   } else if (message.kind === "file") {
     const link = document.createElement("button");
     link.className = "file-card";
@@ -327,6 +328,41 @@ function renderMessage(message) {
 
   article.append(head, body);
   messagesElement.append(article);
+}
+
+function copyControl(text) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "copy-message";
+  button.textContent = "Copy";
+  button.addEventListener("click", () => {
+    button.textContent = copyToClipboard(text) ? "Copied" : "Press Ctrl+C";
+    clearTimeout(button.dataset.timer);
+    button.dataset.timer = setTimeout(() => { button.textContent = "Copy"; }, 1600);
+  });
+  return button;
+}
+
+// Ferry serves plain HTTP, where navigator.clipboard does not exist at all:
+// browsers expose it only to secure contexts. A synchronous execCommand inside
+// the click is the one path that works in both contexts, and unlike the async
+// API it cannot be deferred until the window is frontmost -- the click already
+// proves that it is.
+function copyToClipboard(text) {
+  const holder = document.createElement("textarea");
+  holder.value = text;
+  holder.setAttribute("readonly", "");
+  holder.style.position = "fixed";
+  holder.style.top = "-1000px";
+  document.body.append(holder);
+  holder.select();
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    holder.remove();
+  }
 }
 
 async function readError(response) {

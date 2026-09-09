@@ -106,6 +106,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-off
 .sender { font-weight: 500; }
 .time { color: inherit; }
 .time::before { margin-right: 5px; content: "·"; }
+.copy-message { padding: 0; color: inherit; background: none; border: 0; font: inherit; cursor: pointer; }
+.copy-message::before { margin-right: 5px; content: "·"; }
+.copy-message:hover, .copy-message:focus-visible { color: var(--muted); outline: none; }
 .message-text { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; font-size: 15px; line-height: 1.5; }
 .file-card { width: min(330px, 100%); display: flex; align-items: center; gap: 11px; padding: 2px 0; color: inherit; text-align: left; background: transparent; cursor: pointer; border: 0; border-radius: 12px; }
 .file-card:hover .file-title { text-decoration: underline; }
