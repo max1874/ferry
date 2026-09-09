@@ -15,7 +15,11 @@ struct TimelineView: View {
                                                    description: Text("Send text or a file to your other devices."))
                                 .padding(.top, 100)
                         }
-                        ForEach(model.messages) { MessageRow(message: $0).id($0.id) }
+                        ForEach(model.messages) { message in
+                            MessageRow(message: message, image: model.images[message.id],
+                                       loadImage: { await model.loadImage(for: message) })
+                                .id(message.id)
+                        }
                     }.padding(.horizontal, 18).padding(.vertical, 20)
                 }
                 .onChange(of: model.messages.count) { _, _ in

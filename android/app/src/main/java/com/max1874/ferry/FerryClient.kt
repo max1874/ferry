@@ -21,6 +21,7 @@ interface FerryService {
     suspend fun sendText(endpoint: ServerEndpoint, token: String, text: String): FerryMessage
     suspend fun sendFile(endpoint: ServerEndpoint, token: String, file: SelectedContent): FerryMessage
     suspend fun download(endpoint: ServerEndpoint, token: String, file: FerryFile, destinationUri: String)
+    suspend fun attachment(endpoint: ServerEndpoint, token: String, file: FerryFile): ByteArray
 }
 
 class FerryClient(
@@ -121,6 +122,33 @@ class FerryClient(
                 " The incomplete destination file could not be removed."
             throw if (error is FerryApiException) FerryApiException(error.status, error.code, message, cleanupFailed = true)
             else FerryProtocolException(message, error)
+        } finally {
+            cancellation?.dispose()
+            connection.disconnect()
+        }
+    }
+
+    // Attachment bytes held in memory for display. Bounded by the declared size
+    // and by the protocol's own file limit, so a lying Content-Length cannot
+    // make the App allocate without end.
+    override suspend fun attachment(
+        endpoint: ServerEndpoint,
+        token: String,
+        file: FerryFile,
+    ): ByteArray = withContext(dispatcher) {
+        val connection = configured(endpoint.url(file.downloadUrl), "GET", token)
+        val cancellation = disconnectOnCancellation(connection)
+        try {
+            val status = connection.responseCode
+            if (status !in 200..299) {
+                throw FerryJson.error(readBounded(connection.errorStream, FerryJson.MAX_JSON_BYTES), status)
+            }
+            val limit = minOf(file.size, FerryJson.MAX_FILE_BYTES).toInt()
+            val bytes = readBounded(connection.inputStream, limit)
+            if (bytes.size.toLong() != file.size) {
+                throw FerryProtocolException("Downloaded file size does not match the message.")
+            }
+            bytes
         } finally {
             cancellation?.dispose()
             connection.disconnect()

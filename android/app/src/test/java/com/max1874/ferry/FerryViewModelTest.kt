@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -225,6 +226,77 @@ class FerryViewModelTest {
         model.disconnect()
     }
 
+    // BitmapFactory returns the default null under unitTests.isReturnDefaultValues,
+    // so a real decode cannot be proven here. These cover what does not depend on
+    // it: the fetch is attempted once, the result is recorded either way, and a
+    // response that outlives its session is dropped.
+    @Test fun aFailedImageFetchIsRecordedSoTheRowStopsRetrying() = runTest {
+        val service = FakeService().apply {
+            joinResult = { AccessClaim(device(), "token") }
+            attachmentResult = { throw FerryProtocolException("no bytes") }
+        }
+        val model = model(service, this)
+        model.updateServerAddress("http://10.0.0.2:42817")
+        model.connect()
+        runCurrent()
+
+        model.loadImage(imageMessage())
+        runCurrent()
+        assertEquals(1, service.attachmentCalls)
+        assertTrue(model.state.value.images.containsKey("m1"))
+        assertNull(model.state.value.images["m1"])
+
+        model.loadImage(imageMessage())
+        runCurrent()
+        assertEquals(1, service.attachmentCalls)
+        model.disconnect()
+    }
+
+    @Test fun anImageArrivingAfterDisconnectDoesNotEnterTheNewTimeline() = runTest {
+        val pending = CompletableDeferred<ByteArray>()
+        val service = FakeService().apply {
+            joinResult = { AccessClaim(device(), "token") }
+            attachmentResult = { pending.await() }
+        }
+        val model = model(service, this)
+        model.updateServerAddress("http://10.0.0.2:42817")
+        model.connect()
+        runCurrent()
+
+        model.loadImage(imageMessage())
+        runCurrent()
+        model.disconnect()
+        pending.complete(ByteArray(4))
+        runCurrent()
+
+        assertTrue(model.state.value.images.isEmpty())
+    }
+
+    @Test fun aNonImageAttachmentIsNeverFetchedForDisplay() = runTest {
+        val service = FakeService().apply { joinResult = { AccessClaim(device(), "token") } }
+        val model = model(service, this)
+        model.updateServerAddress("http://10.0.0.2:42817")
+        model.connect()
+        runCurrent()
+
+        model.loadImage(
+            FerryMessage.File(
+                "m2", 2, "Pixel", DeviceKind.ANDROID, "2026-08-30T10:00:00Z",
+                FerryFile("notes.txt", "text/plain", 4, "/api/v1/files/m2"),
+            ),
+        )
+        runCurrent()
+
+        assertEquals(0, service.attachmentCalls)
+        assertTrue(model.state.value.images.isEmpty())
+        model.disconnect()
+    }
+
+    private fun imageMessage() = FerryMessage.File(
+        "m1", 1, "Pixel", DeviceKind.ANDROID, "2026-08-30T10:00:00Z",
+        FerryFile("shot.png", "image/png", 4, "/api/v1/files/m1"),
+    )
+
     private fun model(
         service: FerryService,
         scope: TestScope,
@@ -245,6 +317,8 @@ class FerryViewModelTest {
         var sessionResult: suspend () -> FerryDevice = { error("unexpected session") }
         var sendTextResult: suspend (String) -> FerryMessage = { error("unexpected send") }
         var downloadResult: suspend () -> Unit = { }
+        var attachmentResult: suspend () -> ByteArray = { error("unexpected attachment") }
+        var attachmentCalls = 0
         val messageCursors = mutableListOf<Long>()
         override suspend fun join(endpoint: ServerEndpoint, deviceName: String, password: String) = joinResult()
         override suspend fun session(endpoint: ServerEndpoint, token: String) = sessionResult()
@@ -256,6 +330,10 @@ class FerryViewModelTest {
         override suspend fun sendFile(endpoint: ServerEndpoint, token: String, file: SelectedContent): FerryMessage = error("unexpected")
         override suspend fun download(endpoint: ServerEndpoint, token: String, file: FerryFile, destinationUri: String) =
             downloadResult()
+        override suspend fun attachment(endpoint: ServerEndpoint, token: String, file: FerryFile): ByteArray {
+            attachmentCalls++
+            return attachmentResult()
+        }
     }
 
     private class MemoryCredentials : CredentialStore {

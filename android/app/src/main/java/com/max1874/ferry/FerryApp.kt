@@ -2,9 +2,11 @@ package com.max1874.ferry
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -51,7 +54,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -62,6 +68,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.Instant
 import java.time.ZoneId
@@ -240,7 +247,8 @@ private fun TimelineScreen(
             ) {
                 items(state.messages, key = { it.id }) { message ->
                     MessageRow(message, state.downloadingMessageId == message.id,
-                        state.downloadingMessageId != null, onDownload)
+                        state.downloadingMessageId != null, onDownload,
+                        images = state.images, onLoadImage = model::loadImage)
                 }
             }
         }
@@ -250,7 +258,8 @@ private fun TimelineScreen(
 
 @Composable
 private fun MessageRow(message: FerryMessage, downloading: Boolean, downloadBusy: Boolean,
-                       onDownload: (String, FerryFile) -> Unit) {
+                       onDownload: (String, FerryFile) -> Unit,
+                       images: Map<String, Bitmap?>, onLoadImage: (FerryMessage.File) -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF111111), modifier = Modifier.size(34.dp)) {
             Box(contentAlignment = Alignment.Center) {
@@ -271,23 +280,73 @@ private fun MessageRow(message: FerryMessage, downloading: Boolean, downloadBusy
             Spacer(Modifier.height(5.dp))
             when (message) {
                 is FerryMessage.Text -> CopyableText(message.text)
-                is FerryMessage.File -> Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    tonalElevation = 2.dp,
-                    modifier = Modifier.fillMaxWidth().clickable(enabled = !downloadBusy) { onDownload(message.id, message.file) },
-                ) {
-                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Surface(shape = RoundedCornerShape(9.dp), color = ferryBlue, modifier = Modifier.size(42.dp)) {
-                            Box(contentAlignment = Alignment.Center) { Text("FILE", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(message.file.name, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(byteCount(message.file.size), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Text(if (downloading) "Saving…" else "Save", color = MaterialTheme.colorScheme.primary)
+                is FerryMessage.File ->
+                    if (message.file.mediaType.startsWith("image/")) {
+                        ImageAttachment(message, images[message.id], images.containsKey(message.id),
+                                        { onLoadImage(message) }, downloading, downloadBusy, onDownload)
+                    } else {
+                        FileCard(message, downloading, downloadBusy, onDownload)
                     }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FileCard(message: FerryMessage.File, downloading: Boolean, downloadBusy: Boolean,
+                     onDownload: (String, FerryFile) -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        tonalElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth().clickable(enabled = !downloadBusy) { onDownload(message.id, message.file) },
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = RoundedCornerShape(9.dp), color = ferryBlue, modifier = Modifier.size(42.dp)) {
+                Box(contentAlignment = Alignment.Center) { Text("FILE", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(message.file.name, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(byteCount(message.file.size), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(if (downloading) "Saving…" else "Save", color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+// `resolved` separates "not fetched yet" from "fetched and failed": both hold a
+// null bitmap, but only the first should keep showing a placeholder.
+@Composable
+private fun ImageAttachment(message: FerryMessage.File, bitmap: Bitmap?, resolved: Boolean,
+                            onLoad: () -> Unit, downloading: Boolean, downloadBusy: Boolean,
+                            onDownload: (String, FerryFile) -> Unit) {
+    var viewing by remember(message.id) { mutableStateOf(false) }
+    when {
+        bitmap != null -> {
+            Image(
+                bitmap.asImageBitmap(),
+                contentDescription = message.file.name,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.sizeIn(maxWidth = 260.dp, maxHeight = 320.dp)
+                    .clip(RoundedCornerShape(18.dp)).clickable { viewing = true },
+            )
+            if (viewing) {
+                Dialog(onDismissRequest = { viewing = false }) {
+                    Image(
+                        bitmap.asImageBitmap(),
+                        contentDescription = message.file.name,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxWidth().clickable { viewing = false },
+                    )
                 }
+            }
+        }
+        resolved -> FileCard(message, downloading, downloadBusy, onDownload)
+        else -> {
+            LaunchedEffect(message.id) { onLoad() }
+            Surface(shape = RoundedCornerShape(18.dp), tonalElevation = 2.dp,
+                    modifier = Modifier.size(width = 176.dp, height = 118.dp)) {
+                Box(contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             }
         }
     }

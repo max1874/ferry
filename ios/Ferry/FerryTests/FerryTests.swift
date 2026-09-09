@@ -367,6 +367,69 @@ final class FerryTests: XCTestCase {
         XCTAssertTrue(model.messages.isEmpty)
     }
 
+    func testAnImageAttachmentIsFetchedOnceAndKeptForRedraws() async throws {
+        let service = AttachmentService(data: Self.onePixelPNG)
+        let model = makeModel(client: service, credentials: MemoryCredentials())
+        await model.connect()
+        let message = try decodeImageMessage()
+
+        await model.loadImage(for: message)
+        XCTAssertNotNil(model.images[message.id] ?? nil)
+        XCTAssertEqual(service.attachmentCalls, 1)
+
+        // A redraw asks again; a message that already resolved must not refetch.
+        await model.loadImage(for: message)
+        XCTAssertEqual(service.attachmentCalls, 1)
+        model.setActive(false)
+    }
+
+    func testAFailedAttachmentIsRecordedSoTheRowFallsBackInsteadOfRetrying() async throws {
+        let service = AttachmentService(data: nil)
+        let model = makeModel(client: service, credentials: MemoryCredentials())
+        await model.connect()
+        let message = try decodeImageMessage()
+
+        await model.loadImage(for: message)
+        let entry = try XCTUnwrap(model.images[message.id])
+        XCTAssertNil(entry)
+        XCTAssertEqual(service.attachmentCalls, 1)
+
+        await model.loadImage(for: message)
+        XCTAssertEqual(service.attachmentCalls, 1)
+        model.setActive(false)
+    }
+
+    func testAnAttachmentArrivingAfterDisconnectDoesNotEnterTheNewTimeline() async throws {
+        let service = SuspendingAttachmentService(data: Self.onePixelPNG)
+        let model = makeModel(client: service, credentials: MemoryCredentials())
+        await model.connect()
+        let message = try decodeImageMessage()
+
+        let load = Task { await model.loadImage(for: message) }
+        await waitUntil { service.isLoading }
+        model.disconnect()
+        service.release()
+        await load.value
+
+        XCTAssertTrue(model.images.isEmpty)
+    }
+
+    /// A file message carries no text at all; the decoder rejects a payload
+    /// that has both, so this cannot go through `decodeMessage`.
+    private func decodeImageMessage() throws -> MessagePayload {
+        let data = Data("""
+        {"id":"m1","sequence":1,"kind":"file","sender_name":"Phone","created_at":"2026-08-30T00:00:00Z",
+         "file":{"name":"shot.png","media_type":"image/png","size":68,"download_url":"/api/v1/files/f1"}}
+        """.utf8)
+        return try JSONDecoder().decode(MessagePayload.self, from: data)
+    }
+
+    /// Smallest thing UIImage will actually decode; a handful of arbitrary bytes
+    /// would make the success test pass for the wrong reason.
+    private static let onePixelPNG = Data(base64Encoded: """
+    iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==
+    """)!
+
     private func configuration() -> URLSessionConfiguration {
         let value = URLSessionConfiguration.ephemeral
         value.protocolClasses = [URLStub.self]
@@ -398,6 +461,71 @@ final class FerryTests: XCTestCase {
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: timeout)
         while !condition(), clock.now < deadline { try? await Task.sleep(for: .milliseconds(10)) }
+    }
+}
+
+// Only the doubles that exercise attachments implement this. Keeping the
+// default here rather than on the production protocol means a real conformance
+// that forgets it is still a compile error.
+@MainActor
+extension FerryServicing {
+    func attachment(endpoint: ServerEndpoint, token: String, path: String) async throws -> Data {
+        throw FerryClient.ClientError.invalidResponse
+    }
+}
+
+@MainActor
+private class BaseService: FerryServicing {
+    private let device = Device(id: "ios", name: "Test iPhone", createdAt: "2026-08-30T00:00:00Z")
+
+    func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim {
+        AccessClaim(device: device, token: "token")
+    }
+    func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
+    func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
+        MessagesPage(messages: [], nextCursor: after)
+    }
+    func sendText(endpoint: ServerEndpoint, token: String, text: String) async throws -> MessagePayload { fatalError() }
+    func sendFile(endpoint: ServerEndpoint, token: String, file: SelectedFile) async throws -> MessagePayload { fatalError() }
+    // Declared here, not inherited from the protocol extension: a member that
+    // only exists as an extension default cannot be overridden.
+    func attachment(endpoint: ServerEndpoint, token: String, path: String) async throws -> Data {
+        throw FerryClient.ClientError.invalidResponse
+    }
+}
+
+@MainActor
+private final class AttachmentService: BaseService {
+    private(set) var attachmentCalls = 0
+    private let data: Data?
+
+    init(data: Data?) { self.data = data }
+
+    override func attachment(endpoint: ServerEndpoint, token: String, path: String) async throws -> Data {
+        attachmentCalls += 1
+        guard let data else { throw FerryClient.ClientError.invalidResponse }
+        return data
+    }
+}
+
+/// Holds the response open so the test can disconnect while it is in flight.
+@MainActor
+private final class SuspendingAttachmentService: BaseService {
+    private(set) var isLoading = false
+    private let data: Data
+    private var waiter: CheckedContinuation<Void, Never>?
+
+    init(data: Data) { self.data = data }
+
+    func release() {
+        waiter?.resume()
+        waiter = nil
+    }
+
+    override func attachment(endpoint: ServerEndpoint, token: String, path: String) async throws -> Data {
+        isLoading = true
+        await withCheckedContinuation { waiter = $0 }
+        return data
     }
 }
 

@@ -1,5 +1,7 @@
 package com.max1874.ferry
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
@@ -34,6 +36,10 @@ data class FerryUiState(
     val statusMessage: String? = null,
     val sendError: String? = null,
     val credentialWarning: String? = null,
+    // Decoded attachments by message id. A present-but-null value means the
+    // fetch or decode failed and the row keeps its file card rather than
+    // retrying on every recomposition.
+    val images: Map<String, Bitmap?> = emptyMap(),
 ) {
     val canSend: Boolean
         get() = !isSending && phase != ConnectionPhase.SETUP &&
@@ -69,6 +75,7 @@ class FerryViewModel(
     private var pollJob: Job? = null
     private var sendJob: Job? = null
     private var downloadJob: Job? = null
+    private val loadingImages = mutableSetOf<String>()
     private var active = true
     private var started = false
 
@@ -213,6 +220,31 @@ class FerryViewModel(
         }
     }
 
+    // Fetches one image attachment. A message that already resolved -- decoded
+    // or failed -- is never fetched again, and a response that outlives its
+    // session is dropped instead of entering the timeline that replaced it.
+    fun loadImage(message: FerryMessage.File) {
+        if (!message.file.mediaType.startsWith("image/")) return
+        val parsed = endpoint ?: return
+        val credential = token ?: return
+        if (mutableState.value.images.containsKey(message.id)) return
+        if (!loadingImages.add(message.id)) return
+        val current = generation
+        scope.launch {
+            val decoded = try {
+                val bytes = service.attachment(parsed, credential, message.file)
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                null
+            }
+            loadingImages.remove(message.id)
+            if (current != generation) return@launch
+            mutableState.update { it.copy(images = it.images + (message.id to decoded)) }
+        }
+    }
+
     fun download(file: FerryFile, messageId: String, destinationUri: String) {
         val parsed = endpoint
         val credential = token
@@ -313,6 +345,8 @@ class FerryViewModel(
         endpoint = null
         token = null
         cursor = 0
+        loadingImages.clear()
+        mutableState.update { it.copy(images = emptyMap()) }
     }
 
     private fun startPolling() {

@@ -33,6 +33,10 @@ final class AppModel {
     private(set) var sendError: String?
     private(set) var credentialWarning: String?
     private(set) var isSending = false
+    /// Decoded attachments, keyed by message id. A `nil` value means the fetch
+    /// or the decode failed and the row should stay on its file card instead of
+    /// retrying on every redraw.
+    private(set) var images: [String: UIImage?] = [:]
 
     private let client: any FerryServicing
     private let credentials: CredentialStoring
@@ -41,6 +45,7 @@ final class AppModel {
     private var token: String?
     private var cursor: Int64 = 0
     private var generation = UUID()
+    private var loadingImages: Set<String> = []
     private var pollTask: Task<Void, Never>?
     private var sendTask: Task<MessagePayload, Error>?
     private var draftRevision: UInt64 = 0
@@ -184,6 +189,27 @@ final class AppModel {
         }
     }
 
+    /// Fetches an image attachment once. The row asks on appear; a message that
+    /// already has an entry -- decoded or failed -- is never fetched again, and
+    /// a response that outlives its session is discarded rather than written
+    /// into the timeline that replaced it.
+    func loadImage(for message: MessagePayload) async {
+        guard let file = message.file, file.mediaType.hasPrefix("image/") else { return }
+        guard images[message.id] == nil, !loadingImages.contains(message.id) else { return }
+        guard let endpoint, let token else { return }
+        let current = generation
+        loadingImages.insert(message.id)
+        defer { loadingImages.remove(message.id) }
+        do {
+            let data = try await client.attachment(endpoint: endpoint, token: token, path: file.downloadURL)
+            guard current == generation else { return }
+            images[message.id] = UIImage(data: data)
+        } catch {
+            guard current == generation else { return }
+            images[message.id] = UIImage?.none
+        }
+    }
+
     private func resetSession(endpoint: ServerEndpoint, token: String?) -> UUID {
         pollTask?.cancel()
         pollTask = nil
@@ -194,6 +220,8 @@ final class AppModel {
         self.token = token
         currentDevice = nil
         messages = []
+        images = [:]
+        loadingImages = []
         cursor = 0
         draft = ""
         isSending = false
