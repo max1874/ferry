@@ -16,6 +16,7 @@
 - **Decided（Max）**：iOS 26；Liquid Glass 是默认视觉，不维护 iOS 17–25 fallback。
 - **Decided（Max via scope `go`）**：无第三方依赖；Team 留空；临时 Bundle ID `com.max1874.ferry`，发布身份以后再定。
 - **Non-goals**：Android、自动发现、后台剪贴板、文件预览/下载、设备管理、TLS、公网连接、离线消息缓存、推送通知。
+- **Superseded on 2026-09-09（Max）**：其中「文件预览/下载」不再是 Non-goal。`docs/product-core.md` 的核心动作 3 一直包含预览和下载文件，Web 与 Android 后来都实现了，只有 iOS 停在这条里程碑边界上，收到文件却存不下来。现在 iOS 的文件卡片与图片全屏查看都带保存控件，图片在三端内联显示。本条只作用于该项，本文件其余 Non-goal 仍然成立。
 - **Depth**：full；新增原生 client 和跨进程用户旅程，但不改变既有 HTTP contract/schema/auth boundary。
 - **Budget**：最多 10 个 production Swift files、净新增 800 行；一个 Xcode project、一个 unit-test target、一个 UI-test target；不新增持久化 schema 或第三方 package。
 - **Artifact budget**：本文件承载 S0–S7；不创建第二份总结。
