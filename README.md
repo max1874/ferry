@@ -4,6 +4,8 @@ Ferry is a self-hosted, chat-shaped clipboard and file ferry for devices on the 
 
 One Go process serves the Web app and API, stores messages and device identities in SQLite, and keeps uploaded bytes in a local blob directory. Native iOS and Android apps use the same timeline as the browser.
 
+![The Ferry web timeline: a shared link, a command, a text file and an image, each labelled with the device that sent it](docs/screenshot-web.png)
+
 ## Project status
 
 Ferry is under active development and has no tagged release. The remaining gate is the cross-device journey on real hardware — Web, iOS and Android against one Server on a home LAN. Unit and simulator tests do not substitute for it, so treat the components below as working but not yet accepted end to end.

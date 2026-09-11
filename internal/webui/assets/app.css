@@ -113,7 +113,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-off
 .message-body.has-image { padding: 4px; }
 .message-image { width: fit-content; max-width: 100%; margin: 0; overflow: hidden; border-radius: 20px; }
 .message-image.is-loading { min-width: 176px; min-height: 118px; background: var(--soft); }
-.message-image img { display: block; width: auto; height: auto; max-width: min(320px, 100%); max-height: 360px; object-fit: contain; cursor: zoom-in; }
+/* A percentage inside min() is indefinite while the browser is measuring
+   intrinsic width, so the constraint was dropped and the bubble sized itself
+   from max-height times the aspect ratio instead -- leaving a tall image with
+   empty bubble beside it. The figure already caps at 100% of the bubble. */
+.message-image img { display: block; width: auto; height: auto; max-width: 320px; max-height: 360px; object-fit: contain; cursor: zoom-in; }
 .viewer { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: rgba(0, 0, 0, .82); cursor: zoom-out; }
 .viewer img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
 .viewer-save { position: absolute; top: 20px; right: 20px; padding: 8px 16px; color: #fff; text-decoration: none; background: rgba(255, 255, 255, .18); border-radius: 999px; font-size: 13px; font-weight: 500; cursor: pointer; }
