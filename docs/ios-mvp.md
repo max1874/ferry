@@ -16,6 +16,7 @@
 - **Decided（Max）**：iOS 26；Liquid Glass 是默认视觉，不维护 iOS 17–25 fallback。
 - **Decided（Max via scope `go`）**：无第三方依赖；Team 留空；临时 Bundle ID `com.max1874.ferry`，发布身份以后再定。
 - **Superseded on 2026-09-11（Max）**：发布身份定了，其中「临时 Bundle ID」一项不再成立。商店名为 `FerryDrop`，Bundle ID 改为 `com.max1874.ferrydrop`（三个 target 同步），为发 TestFlight 而定。`Ferry` 这个商店名不可用——`en-US`、`en-GB` 等 7 个 locale 已被其他开发者账号占用，查证记录在 `~/Projects/Repo/apple-developer/knowledge/localizations.md`。本条只作用于 Bundle ID 与发布身份，「无第三方依赖」「Team 留空」仍然成立。注意 `CredentialStore.swift` 里的 Keychain service `com.max1874.ferry.device` 是独立标识，未随之更名，改它会使已配对设备丢失 token。
+- **Decided（Max，2026-09-11）**：iOS 版本号用 `x.x.x` 三段格式，从 `1.0.0` 起。`MARKETING_VERSION` 由 `0.1.0` 改为 `1.0.0`，因为首段为 0 的版本号能否被 App Store Connect 接收没有证据，而 archive 要跑几分钟，不值得押在上传那一步才知道。Android 的 APK v0.1.0 记录是既有事实，不受此条影响。
 - **Non-goals**：Android、自动发现、后台剪贴板、文件预览/下载、设备管理、TLS、公网连接、离线消息缓存、推送通知。
 - **Superseded on 2026-09-09（Max）**：其中「文件预览/下载」不再是 Non-goal。`docs/product-core.md` 的核心动作 3 一直包含预览和下载文件，Web 与 Android 后来都实现了，只有 iOS 停在这条里程碑边界上，收到文件却存不下来。现在 iOS 的文件卡片与图片全屏查看都带保存控件，图片在三端内联显示。本条只作用于该项，本文件其余 Non-goal 仍然成立。
 - **Depth**：full；新增原生 client 和跨进程用户旅程，但不改变既有 HTTP contract/schema/auth boundary。
