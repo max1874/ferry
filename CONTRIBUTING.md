@@ -1,6 +1,6 @@
 # Contributing to Ferry
 
-Ferry is not public yet, but changes should already be suitable for an open repository.
+Ferry is a public repository with no tagged release. Treat every change as publicly visible, and see `README.md` for what is still unaccepted.
 
 ## Before changing code
 
