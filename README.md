@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="internal/webui/assets/ferry-icon-256.png" width="160" alt="Ferry app icon">
+  <img src="AppIcon.appiconset/icon_256x256.png" width="160" alt="Ferry app icon">
   <h1>Ferry</h1>
   <p><strong>Your devices, one timeline, on your own network.</strong></p>
   <p>
