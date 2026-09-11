@@ -8,7 +8,7 @@ One Go process serves the Web app and API, stores messages and device identities
 
 ## Project status
 
-Ferry is under active development and has no tagged release. The remaining gate is the cross-device journey on real hardware — Web, iOS and Android against one Server on a home LAN. Unit and simulator tests do not substitute for it, so treat the components below as working but not yet accepted end to end.
+Ferry is under active development and has no tagged release.
 
 | Component | Current state |
 | --- | --- |

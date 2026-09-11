@@ -103,6 +103,6 @@ Checklist 已冻结。没有 REQUESTED 或 DESIGN_NECESSARY 来源的新功能�
 | MVP-09 | 作者完整代码审查无未关闭 P0/P1；fresh closure verdict PASS，无新 P0/P1/P2 |
 | MVP-10 | 本纵切 8 个 production code files、1,386 LOC；`git diff --check` 通过；没有 commit/push/publish |
 
-最终复跑还包括 `go test -race -count=1 ./...`、`go mod verify`、`node --check`、Linux amd64 `CGO_ENABLED=0 go build`。重建二进制与浏览器受测二进制 SHA-256 完全相同。`AppIcon.appiconset/`、`Ferry.icns`、`Ferry_source_1024.png` 是 Max 主动加入仓库的品牌资产；它们不计入本纵切的 production code file/LOC 预算。
+最终复跑还包括 `go test -race -count=1 ./...`、`go mod verify`、`node --check`、Linux amd64 `CGO_ENABLED=0 go build`。重建二进制与浏览器受测二进制 SHA-256 完全相同。`AppIcon.appiconset/`、`Ferry.icns` 是 Max 主动加入仓库的品牌资产；它们不计入本纵切的 production code file/LOC 预算。（同期的 `Ferry_source_1024.png` 是旧字母 logo，已于 2026-09-11 随品牌换成纸船 mark 后删除。）
 
 **Closure：MVP-01…10 全部关闭；第一纵切可以在已确认的 local-only 边界交付。**
