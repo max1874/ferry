@@ -47,7 +47,7 @@ Checklist 已冻结。没有 REQUESTED 或 DESIGN_NECESSARY 来源的新功能�
 6. **策略有门**：loopback、Host、Origin、输入大小、路径与 DB 判别均有对应失败测试；把 `0.0.0.0` 送入 CLI 与 `run` 会实际变红，不只依赖文档。
 7. **不能自证**：作者以真实进程/浏览器关闭旅程；独立 verifier 先找到 3 个问题，修复后再针对原复现复核，结果记录在 S6。
 
-当前 production 的真实浏览器旅程（录制目录 `/Users/max/.config/browser-harness/agent-workspace/recordings/ferry-current-head`，19 frames）：
+当前 production 的真实浏览器旅程（录制目录 `<browser-harness recordings>/ferry-current-head`，19 frames）：
 
 - 空时间线启动后发送 `hello ferry current head`，DOM 得到 1 条相同正文，连接 `Local`，无错误。
 - 上传 `README-upload.md` 后时间线为 2 条，文件卡 URL 为 `/api/v1/files/<message-id>`；点击卡片下载后 `cmp` 与上传原件一致。
@@ -84,7 +84,7 @@ Checklist 已冻结。没有 REQUESTED 或 DESIGN_NECESSARY 来源的新功能�
 修复后由同一位 verifier 做只读 closure QA，最终 verdict 为 **PASS；没有新的 P0/P1/P2**：
 
 - `0.0.0.0:18109` 启动退出 1 且没有 listener；合法 `localhost:18110` 的实际 listener 为 `127.0.0.1`；direct `run(config)` 测试通过且拒绝前没有创建 data 内容。
-- 真实浏览器依次观察 Local/normal → 停服后的 Offline/`Failed to fetch` → 恢复后的 Local/normal；64 MiB+1 send error 经多个成功 poll 仍保留，下一次成功 send 后清除。独立录制目录为 `/Users/max/.config/browser-harness/agent-workspace/recordings/ferry-closure-status`（15 frames）。
+- 真实浏览器依次观察 Local/normal → 停服后的 Offline/`Failed to fetch` → 恢复后的 Local/normal；64 MiB+1 send error 经多个成功 poll 仍保留，下一次成功 send 后清除。独立录制目录为 `<browser-harness recordings>/ferry-closure-status`（15 frames）。
 - crash-window 文案与真实 copy → sync → close → SQLite insert 顺序一致。
 - verifier 独立重跑 `go test ./...`、race、vet、`git diff --check` 全部通过，并停止全部 QA Server。
 

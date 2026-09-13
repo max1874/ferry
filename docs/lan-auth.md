@@ -139,7 +139,7 @@ flowchart LR
 
 > 本节是 16-character code 时代的历史验收记录，其中 code 原文只证明当时运行结果；当前 4 位数字契约与新证据见 `docs/four-digit-pairing.md`。
 
-- Binary：`/private/tmp/ferry-auth-v8.BOHukN/ferry`；SHA-256 `e9995a86d93cb8663104ebc9cdda1deb1b0170fe4d5b245f4ba174341c66f7f5`。录制：`/Users/max/.config/browser-harness/agent-workspace/recordings/ferry-lan-auth-v8`，134 frames。
+- Binary：`/private/tmp/ferry-auth-v8.BOHukN/ferry`；SHA-256 `e9995a86d93cb8663104ebc9cdda1deb1b0170fe4d5b245f4ba174341c66f7f5`。录制：`<browser-harness recordings>/ferry-lan-auth-v8`，134 frames。
 - Storage 被新文档脚本强制抛 `SecurityError` 时仍显示 Pair required；提交 bootstrap 只显示 storage error，随后 A 用同码成功配对，证明失败没有消耗 code。
 - Server 明确绑定 `10.0.0.13:18097`；A/B 分别配对为 `Max Mac`/`Owner iPhone`。A 发送文本并上传 `roundtrip.txt` (40 B)，B 同步看见相同 sender/body，并由 button 经 Bearer fetch→Blob 下载；源/下载 SHA-256 均为 `b535a483…0b745`，`cmp` exit 0。
 - B 新文档的首个 `/session` 被注入 503：页面实显 Offline、token 长度仍 43，2.5 秒后无 reload 回到 Local。强制 `Storage.setItem` 失败后，警告在成功发送消息后仍保持可见。

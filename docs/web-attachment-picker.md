@@ -29,7 +29,7 @@
 
 - Full Go suite, race suite, vet, JavaScript syntax and `git diff --check` passed on the current worktree.
 - Final current-worktree Docker image build passed as `sha256:ca7b08…` after the accessibility fix.
-- Mobile browser journey at 390×844: Photos has `accept=image/*,video/*`; Files has no restriction; coordinate clicks produced counters `{photo: 1, file: 1}` with no cross-trigger; a real PNG selected through Photos rendered the attachment chip, sent successfully, then cleared both inputs; Escape and outside click closed the picker. Recording: `/Users/max/.config/browser-harness/agent-workspace/recordings/ferry-web-attachment-picker-head3` (11 frames, repository-external).
+- Mobile browser journey at 390×844: Photos has `accept=image/*,video/*`; Files has no restriction; coordinate clicks produced counters `{photo: 1, file: 1}` with no cross-trigger; a real PNG selected through Photos rendered the attachment chip, sent successfully, then cleared both inputs; Escape and outside click closed the picker. Recording: `<browser-harness recordings>/ferry-web-attachment-picker-head3` (11 frames, repository-external).
 
 ## Adversarial self-review
 
@@ -53,14 +53,14 @@ Conclusion: **ship candidate after independent review and deployment proof**. Pa
 
 - Pass 1: **not ship**, one P2. Closing the choice group hid the focused choice and left `document.activeElement` on `body`, so keyboard and assistive-technology users could lose their place after cancelling the system picker.
 - Resolution: each Photos / Files handler now restores focus to the visible `+` button before synchronously triggering its native input. Current-head browser replay observed `active=attach` after both branches while preserving `{photo:1,file:1}` routing.
-- Pass 2: **SHIP**, no remaining P0/P1/P2. Independent recording: `/Users/max/.config/browser-harness/agent-workspace/recordings/ferry-attachment-independent-rereview` (repository-external).
+- Pass 2: **SHIP**, no remaining P0/P1/P2. Independent recording: `<browser-harness recordings>/ferry-attachment-independent-rereview` (repository-external).
 
 ## Deployment
 
 - Source commit `30372f0` was pushed to `origin/main`.
 - macmini rebuilt and runs image `sha256:b83c6c…` at `http://10.0.0.2:42817`; Compose recreated the container/network without removing the named data volume, and the live timeline retained its historical text and file messages.
 - Direct LAN checks returned `{"status":"ok"}` and served HTML containing the Photos button and `accept="image/*,video/*"` contract.
-- Live 390×844 browser replay observed two inline SVG icons, Photos-only then Files-only routing `{photo:1,file:1}`, focus restored to `attach` after both choices, and no cross-trigger. Recording: `/Users/max/.config/browser-harness/agent-workspace/recordings/ferry-web-attachment-picker-macmini` (6 frames, repository-external).
+- Live 390×844 browser replay observed two inline SVG icons, Photos-only then Files-only routing `{photo:1,file:1}`, focus restored to `attach` after both choices, and no cross-trigger. Recording: `<browser-harness recordings>/ferry-web-attachment-picker-macmini` (6 frames, repository-external).
 - Known verification boundary: mobile Chromium emulation proves Ferry's responsive UI, DOM contract and routing; the actual iOS system photo-library sheet still requires the user's physical-iPhone tap test.
 
 ## Clipboard image paste — 2026-09-01

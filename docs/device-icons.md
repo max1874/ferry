@@ -121,7 +121,7 @@ Conclusion: `ship candidate`; the round-1 P2 is closed with a same-statement own
 3. **Unchanged consumers** — HTTP calls still pass the authenticated DB-scanned Device; direct anonymous Store helpers still infer from sender name. Full `go test ./...` passed after the query change.
 4. **Contract surfaces** — No contract shape changed in the repair; only Store enforcement tightened to match the already documented owner invariant. OpenAPI and SQLite enum remain unchanged.
 5. **Original reproduction** — The exact same-ID/same-name/different-legal-kind text and file calls now return `ErrUnauthorized`; the test also proves the correct inferred legacy path still writes one iPhone message.
-6. **Journey freshness** — Current production working tree was restarted and replayed at 390×844: two messages, distinct iPhone/Mac paths, empty avatar text; Devices opened with three icons and empty icon text. Recording: `/Users/max/.config/browser-harness/agent-workspace/recordings/ferry-device-icons-final-local`.
+6. **Journey freshness** — Current production working tree was restarted and replayed at 390×844: two messages, distinct iPhone/Mac paths, empty avatar text; Devices opened with three icons and empty icon text. Recording: `<browser-harness recordings>/ferry-device-icons-final-local`.
 7. **Mechanism discrimination** — The positive explicit/inferred paths and negative forged-kind paths execute the same atomic SQL branch; removing the kind predicate would make the two forged assertions fail by creating extra messages/blobs.
 8. **Regression scan** — Candidate regression was rejecting legacy NULL devices. The test explicitly NULLs a real device kind, re-authenticates to inferred iPhone, and successfully creates exactly one message before rejecting a forged Mac kind.
 9. **Scale/edge** — The repair adds constant comparisons only; NULL and non-NULL extremes are both covered. Empty blob cleanup is asserted. Single self-host tenant remains unchanged.
@@ -149,6 +149,6 @@ Fresh zero-context verifier verdict: code-level **SHIP**, P0/P1/P2 = 0; overall 
 - Existing five-message history remained present after migration. A live authenticated API read returned sender kinds in order: `mac, iphone, mac, android, android`, including the existing file message.
 - Real deployed Web at 390×844 rendered five SVG avatars with empty text and distinct desktop, phone, and Android paths. The Devices panel rendered seven SVG icons with empty text, including existing Mac, iPhone, Android, and unknown-name browser fallback devices.
 - Evidence screenshots: `/private/tmp/ferry-device-icons-macmini-cf9f3af-timeline.png`, `/private/tmp/ferry-device-icons-macmini-cf9f3af-devices.png`.
-- Recording: `/Users/max/.config/browser-harness/agent-workspace/recordings/ferry-device-icons-macmini-cf9f3af`.
+- Recording: `<browser-harness recordings>/ferry-device-icons-macmini-cf9f3af`.
 
 Final verdict: **SHIP**. All five frozen checklist items passed; P0/P1/P2 = 0 after the repaired side-door re-review.

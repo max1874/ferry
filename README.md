@@ -133,10 +133,10 @@ Ferry is under active development and has no tagged release.
 | Component | Current state |
 | --- | --- |
 | Server + Web | Go/SQLite MVP, deployed together with Docker Compose |
-| iOS App | Native SwiftUI MVP for iOS 26 |
+| iOS App | Native SwiftUI MVP for iOS 26; builds are distributed to internal TestFlight testers under the name FerryDrop |
 | Android App | Native Compose MVP for Android 8+; real-device install and launch confirmed |
 
-Automatic discovery, clipboard synchronisation, background transfer, TLS/public-Internet exposure and store publication are not part of the current milestone.
+Automatic discovery, clipboard synchronisation, background transfer, TLS/public-Internet exposure and App Store publication are not part of the current milestone. TestFlight is the only iOS distribution channel.
 
 ## Development
 
