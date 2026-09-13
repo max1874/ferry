@@ -21,7 +21,7 @@ Run the gates relevant to your change; the complete command list is in `README.m
 
 ## Changes and reviews
 
-Use a focused commit message that explains the observable change. In a pull request, include:
+Write commit messages and pull requests in English. Use a focused commit message that explains the observable change. In a pull request, include:
 
 - what user problem it addresses;
 - which components and contracts changed;
