@@ -9,6 +9,7 @@
 - Requested (2026-08-30): run Ferry Server and Web on `macmini` in Docker on a high port rather than 8080.
 - Done: Web and iPhone use `http://10.0.0.2:42817`, exchange real messages, and retain data across a container restart.
 - Non-goals: TLS, a domain, reverse proxying, public-Internet exposure, and migration of the temporary laptop test data.
+- **Decided (Max, 2026-09-13, issue #1)**: an operator-run TLS reverse proxy is now supported through `FERRY_TRUSTED_ORIGIN` / `-trusted-origin`. The listener rule is unchanged: the proxy reaches the published port or the container address, so no wildcard bind is needed. Ferry admits only the configured origin in `Host` and `Origin` and ignores `X-Forwarded-*`.
 - Depth: contract, because the deployment must preserve Ferry's authenticated LAN-listener boundary.
 - Budget: Dockerfile, Compose, `.dockerignore`, deployment documentation, and directly necessary tests; no API or database changes.
 

@@ -63,6 +63,22 @@ Because the round trip is the cost. A self-chat in a messaging app sends your cl
 
 Keep Ferry on a trusted private network and do not expose it to the public Internet; see [Security](#security).
 
+### Behind a reverse proxy
+
+To reach Ferry through a private domain with your own TLS proxy (for example on a VPN), tell Ferry the one browser origin it should accept. Ferry still binds its specific address; the proxy connects to the published port and forwards the original `Host` header, which Caddy does by default:
+
+```bash
+FERRY_TRUSTED_ORIGIN=https://ferry.example.com docker compose up --build -d
+```
+
+```Caddyfile
+ferry.example.com {
+  reverse_proxy 127.0.0.1:42817
+}
+```
+
+If the proxy runs as a container on the same Compose network, use `reverse_proxy ferry:42817` and leave `FERRY_HOST_IP` at its loopback default. From source, pass `-trusted-origin https://ferry.example.com`. Requests whose `Host` or `Origin` names any other domain are still rejected. The proxy-to-Ferry hop is plain HTTP, so keep it on loopback or a private network.
+
 ### Back up and restore
 
 Build the image once, then use the data tool from the repository root:

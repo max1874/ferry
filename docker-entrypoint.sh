@@ -9,6 +9,9 @@ fi
 
 port="${FERRY_PORT:-42817}"
 published_host="${FERRY_HOST_IP:-127.0.0.1}"
+if [ -n "${FERRY_TRUSTED_ORIGIN:-}" ]; then
+    set -- "$@" -trusted-origin "${FERRY_TRUSTED_ORIGIN}"
+fi
 exec /usr/local/bin/ferry \
     "$@" \
     -lan \

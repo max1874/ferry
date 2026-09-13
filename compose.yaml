@@ -7,6 +7,7 @@ services:
     environment:
       FERRY_HOST_IP: ${FERRY_HOST_IP:-127.0.0.1}
       FERRY_PORT: ${FERRY_PORT:-42817}
+      FERRY_TRUSTED_ORIGIN: ${FERRY_TRUSTED_ORIGIN:-}
       TZ: Asia/Shanghai
     ports:
       - "${FERRY_HOST_IP:-127.0.0.1}:${FERRY_PORT:-42817}:${FERRY_PORT:-42817}"

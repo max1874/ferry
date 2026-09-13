@@ -22,6 +22,7 @@ type config struct {
 	listen        string
 	dataDir       string
 	publishedHost string
+	trustedOrigin string
 	lan           bool
 }
 
@@ -32,12 +33,20 @@ func parseConfig(arguments []string) (config, error) {
 	flags.StringVar(&value.listen, "listen", "127.0.0.1:8080", "HTTP listen address")
 	flags.StringVar(&value.dataDir, "data-dir", "./ferry-data", "directory for the SQLite database and uploaded files")
 	flags.StringVar(&value.publishedHost, "published-host", "", "optional host IP that publishes this listener")
+	flags.StringVar(&value.trustedOrigin, "trusted-origin", "", "optional reverse-proxy origin, such as https://ferry.example.com")
 	flags.BoolVar(&value.lan, "lan", false, "allow an authenticated HTTP listener on private LAN addresses")
 	if err := flags.Parse(arguments); err != nil {
 		return config{}, err
 	}
 	if flags.NArg() != 0 {
 		return config{}, fmt.Errorf("unexpected positional arguments")
+	}
+	if value.trustedOrigin != "" {
+		origin, err := ferry.ParseTrustedOrigin(value.trustedOrigin)
+		if err != nil {
+			return config{}, err
+		}
+		value.trustedOrigin = origin.String()
 	}
 	if err := validateListenAddress(value.listen, value.lan); err != nil {
 		return config{}, err
@@ -99,10 +108,13 @@ func run(ctx context.Context, value config) error {
 	if value.lan {
 		log.Printf("LAN mode uses unencrypted HTTP; use only on a trusted network")
 	}
+	if value.trustedOrigin != "" {
+		log.Printf("accepting browser requests for reverse-proxy origin %s", value.trustedOrigin)
+	}
 
 	server := &http.Server{
 		Addr:              value.listen,
-		Handler:           ferry.NewHandler(store, ferry.HandlerOptions{AllowLANHosts: value.lan, Logger: log.Default()}),
+		Handler:           ferry.NewHandler(store, ferry.HandlerOptions{AllowLANHosts: value.lan, TrustedOrigin: value.trustedOrigin, Logger: log.Default()}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       5 * time.Minute,
 		WriteTimeout:      5 * time.Minute,

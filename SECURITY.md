@@ -20,4 +20,6 @@ The current Ferry milestone is designed for a trusted private or link-local netw
 - admitted devices can manage the shared password and revoke other devices;
 - backups contain private messages, files, hashed device tokens and the password verifier.
 
+A TLS reverse proxy on a private network or VPN is supported through `-trusted-origin` (`FERRY_TRUSTED_ORIGIN` in Docker). It encrypts only the browser-to-proxy hop; the proxy-to-Ferry hop stays HTTP and should stay on loopback or a private network. The proxy does not make public exposure supported.
+
 Do not publish Ferry directly to the Internet. Use a host firewall, a specific private listener address, a high port, and access controls appropriate for the network. TLS, hostile-network hardening and a stable security-support policy are future milestones.

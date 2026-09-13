@@ -32,12 +32,23 @@ type server struct {
 
 type HandlerOptions struct {
 	AllowLANHosts bool
+	// TrustedOrigin is the browser origin of a reverse proxy in front of Ferry,
+	// such as "https://ferry.example.com". Empty disables proxy access.
+	TrustedOrigin string
 	Logger        *log.Logger
 }
 
 func NewHandler(store *Store, options HandlerOptions) http.Handler {
 	if options.Logger == nil {
 		options.Logger = log.Default()
+	}
+	boundary := boundaryPolicy{allowLANHosts: options.AllowLANHosts}
+	if options.TrustedOrigin != "" {
+		origin, err := ParseTrustedOrigin(options.TrustedOrigin)
+		if err != nil {
+			panic(err)
+		}
+		boundary.trusted = &origin
 	}
 	s := &server{store: store, logger: options.Logger}
 	api := http.NewServeMux()
@@ -57,16 +68,92 @@ func NewHandler(store *Store, options HandlerOptions) http.Handler {
 	mux.HandleFunc("POST /api/v1/access/join", s.join)
 	mux.Handle("/api/v1/", s.requireDevice(api))
 	mux.Handle("/", webui.Handler())
-	return requestBoundary(securityHeaders(mux), options.AllowLANHosts)
+	return requestBoundary(securityHeaders(mux), boundary)
 }
 
-func requestBoundary(next http.Handler, allowLANHosts bool) http.Handler {
+// TrustedOrigin is a reverse-proxy origin reduced to its scheme and to a host
+// with the scheme's default port removed, so it compares equal to Host and
+// Origin headers however the proxy or browser spells the port.
+type TrustedOrigin struct {
+	scheme string
+	host   string
+}
+
+func (o TrustedOrigin) String() string {
+	return o.scheme + "://" + o.host
+}
+
+// ParseTrustedOrigin accepts only a bare http or https origin: no credentials,
+// path, query or fragment, because browsers never send those in Origin.
+func ParseTrustedOrigin(value string) (TrustedOrigin, error) {
+	invalid := errors.New("trusted origin must look like https://ferry.example.com")
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Opaque != "" || parsed.User != nil || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" || (parsed.Path != "" && parsed.Path != "/") {
+		return TrustedOrigin{}, invalid
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" || parsed.Hostname() == "" {
+		return TrustedOrigin{}, invalid
+	}
+	if portText := parsed.Port(); portText != "" {
+		if port, err := strconv.Atoi(portText); err != nil || port < 1 || port > 65535 {
+			return TrustedOrigin{}, invalid
+		}
+	}
+	return TrustedOrigin{scheme: scheme, host: canonicalHost(parsed.Host, scheme)}, nil
+}
+
+// canonicalHost lowercases a Host-style value and drops the scheme's default port.
+func canonicalHost(hostPort, scheme string) string {
+	host, port, err := net.SplitHostPort(hostPort)
+	if err != nil {
+		host, port = strings.Trim(hostPort, "[]"), ""
+	}
+	host = strings.ToLower(host)
+	if scheme == "http" && port == "80" || scheme == "https" && port == "443" {
+		port = ""
+	}
+	if port != "" {
+		return net.JoinHostPort(host, port)
+	}
+	if strings.Contains(host, ":") {
+		return "[" + host + "]"
+	}
+	return host
+}
+
+type boundaryPolicy struct {
+	allowLANHosts bool
+	trusted       *TrustedOrigin
+}
+
+func (p boundaryPolicy) isTrustedHost(hostPort string) bool {
+	return p.trusted != nil && hostPort != "" && canonicalHost(hostPort, p.trusted.scheme) == p.trusted.host
+}
+
+// isTrustedOriginWrite admits a browser write that a TLS-terminating proxy
+// forwarded over HTTP: the single Origin and the Host must both name the
+// configured proxy origin.
+func (p boundaryPolicy) isTrustedOriginWrite(r *http.Request) bool {
+	origins := r.Header.Values("Origin")
+	if p.trusted == nil || len(origins) != 1 || !p.isTrustedHost(r.Host) {
+		return false
+	}
+	parsed, err := url.Parse(origins[0])
+	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.Path != "" {
+		return false
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	return scheme == p.trusted.scheme && canonicalHost(parsed.Host, scheme) == p.trusted.host
+}
+
+func requestBoundary(next http.Handler, policy boundaryPolicy) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !isAllowedHost(r.Host, allowLANHosts) {
-			writeError(w, http.StatusMisdirectedRequest, "invalid_host", "Host must be localhost or an allowed IP address")
+		if !isAllowedHost(r.Host, policy.allowLANHosts) && !policy.isTrustedHost(r.Host) {
+			writeError(w, http.StatusMisdirectedRequest, "invalid_host", "Host must be localhost, an allowed IP address, or the trusted origin")
 			return
 		}
-		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions && !sameOriginOrNative(r) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions && !sameOriginOrNative(r) && !policy.isTrustedOriginWrite(r) {
 			writeError(w, http.StatusForbidden, "cross_origin_denied", "cross-origin writes are not allowed")
 			return
 		}
