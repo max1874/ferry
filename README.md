@@ -164,7 +164,7 @@ ferry.example.com {
 }
 ```
 
-**Proxy in its own bridge container.** Inside that container `127.0.0.1` is the proxy itself, so attach Ferry to the proxy's Docker network and use the service name. Ferry then has two IP addresses, so set both `FERRY_TRUSTED_ORIGIN=https://ferry.example.com` and `FERRY_LISTEN_HOST=0.0.0.0` in `.env`, and add a `compose.override.yaml` next to `compose.yaml`. Compose loads that file automatically only when no files are named; with `COMPOSE_FILE` or `-f`, list it last, as in `COMPOSE_FILE=compose.yaml:compose.build.yaml:compose.override.yaml`, or the container loses the proxy network.
+**Proxy in its own bridge container.** Inside that container `127.0.0.1` is the proxy itself, so attach Ferry to the proxy's Docker network and use the service name. Ferry then has two IP addresses, so set both `FERRY_TRUSTED_ORIGIN=https://ferry.example.com` and `FERRY_LISTEN_HOST=0.0.0.0` in `.env`, and add a `compose.override.yaml` next to `compose.yaml`. Compose loads that file automatically only when no files are named; with `COMPOSE_FILE` or `-f`, list it last, as in `COMPOSE_FILE=compose.yaml:compose.build.yaml:compose.override.yaml`, or the container loses the proxy network. This setup has not yet been tested end to end; please open an issue if it misbehaves.
 
 ```yaml
 services:

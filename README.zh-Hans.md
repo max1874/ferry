@@ -164,7 +164,7 @@ ferry.example.com {
 }
 ```
 
-**代理跑在自己的 bridge 容器里。** 这时代理容器里的 `127.0.0.1` 指向代理自己，所以要把 Ferry 接入代理所在的 Docker 网络，并用服务名访问。Ferry 这时有两个 IP 地址，所以要在 `.env` 里同时设置 `FERRY_TRUSTED_ORIGIN=https://ferry.example.com` 和 `FERRY_LISTEN_HOST=0.0.0.0`，并在 `compose.yaml` 旁边新建 `compose.override.yaml`。只有在没有指定任何文件时，Compose 才会自动加载它；使用 `COMPOSE_FILE` 或 `-f` 时，要把它放在最后，例如 `COMPOSE_FILE=compose.yaml:compose.build.yaml:compose.override.yaml`，否则容器会丢掉代理网络：
+**代理跑在自己的 bridge 容器里。** 这时代理容器里的 `127.0.0.1` 指向代理自己，所以要把 Ferry 接入代理所在的 Docker 网络，并用服务名访问。Ferry 这时有两个 IP 地址，所以要在 `.env` 里同时设置 `FERRY_TRUSTED_ORIGIN=https://ferry.example.com` 和 `FERRY_LISTEN_HOST=0.0.0.0`，并在 `compose.yaml` 旁边新建 `compose.override.yaml`。只有在没有指定任何文件时，Compose 才会自动加载它；使用 `COMPOSE_FILE` 或 `-f` 时，要把它放在最后，例如 `COMPOSE_FILE=compose.yaml:compose.build.yaml:compose.override.yaml`，否则容器会丢掉代理网络。这种部署方式还没有端到端实测过；如果遇到问题，请开 issue。
 
 ```yaml
 services:

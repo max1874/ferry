@@ -2,47 +2,7 @@
 
 > English | [简体中文](docker-deployment.zh-Hans.md)
 
-> Admission was changed on 2026-08-30: current Ferry joins directly and optionally uses the password configured in Web settings. Pairing-code journey notes below are historical deployment evidence; `docs/password-access.md` governs the live access contract. Docker environment values configure only network publication, never the product password.
-
-## Delivery record
-
-- Status: `deployed` on macmini under the current passwordless/optional-password admission model; cross-device home-LAN revalidation is tracked in `docs/release-readiness.md` rather than under the retired pairing flow.
-- Subject: the current main deployment; the pairing-code checklist below is retained only as historical evidence for the original container boundary.
-- Requested (2026-08-30): run Ferry Server and Web on `macmini` in Docker on a high port rather than 8080.
-- Done: Web and iPhone use `http://10.0.0.2:42817`, exchange real messages, and retain data across a container restart.
-- Non-goals: TLS, a domain, reverse proxying, public-Internet exposure, and migration of the temporary laptop test data.
-- **Decided (Max, 2026-09-13, issue #1)**: an operator-run TLS reverse proxy is now supported through `FERRY_TRUSTED_ORIGIN` / `-trusted-origin`. The listener rule is unchanged: the proxy reaches the published port or the container address, so no wildcard bind is needed. Ferry admits only the configured origin in `Host` and `Origin` and ignores `X-Forwarded-*`.
-- **Decided (Max, 2026-09-14)**: the listen address is the deployer's choice. `FERRY_LISTEN_HOST` defaults to the container's single IP, as before, and may be set to a specific private IP or to `0.0.0.0` / `::`. Outside Docker, `-lan` now accepts `0.0.0.0` and `[::]`; without `-lan` Ferry still listens on loopback only. This supersedes the 2026-08-30 rejection of `0.0.0.0` below.
-- **Decided (Max, 2026-09-14)**: deployment defaults to the published image `ghcr.io/max1874/ferry:<version>` for `linux/amd64` and `linux/arm64`. `compose.yaml` pulls it, `FERRY_IMAGE` selects the version, and `compose.build.yaml` builds the current source for developers and for the data self-test. The service name, volume, data directory and runtime user are unchanged, so a source deployment upgrades in place. The release flow lives in `docs/release-process.md`.
-- **Observed**: the image's build stage cross-compiles on the builder's platform (`CGO_ENABLED=0`), so the `arm64` image does not compile Go under emulation.
-- Depth: contract, because the deployment must preserve Ferry's authenticated LAN-listener boundary.
-- Budget: Dockerfile, Compose, `.dockerignore`, deployment documentation, and directly necessary tests; no API or database changes.
-
-## Evidence and decision
-
-- **Observed**: Ferry's Go process embeds both the Web UI and API, and persists SQLite plus blobs below `-data-dir`.
-- **Observed**: `macmini` is arm64 at `10.0.0.2`, runs OrbStack Docker 29.4.0 / Compose 5.1.2, and port 42817 was unused at preflight.
-- **Observed**: the predecessor `avocado` deployment uses Compose, a named volume, `restart: unless-stopped`, and host networking.
-- **Observed (2026-08-30; superseded 2026-09-14)**: Ferry rejected wildcard listeners even in LAN mode, so a normal bridge container could not bind `0.0.0.0`.
-- **Recommended, selected under the user's execution delegation**: use a bridge network, derive the container's single IPv4 address at startup, bind Ferry to that private address, and publish only the configured Mac LAN address.
-- **Rejected**: host networking makes OrbStack's forwarding boundary implicit and publishes without a host-IP mapping.
-- **Rejected (2026-08-30; superseded 2026-09-14)**: allowing `0.0.0.0` would weaken an existing tested security boundary solely for deployment convenience. The rejection was reversed once a real deployment appeared that the single-IP listener cannot serve: a proxy container on a second Docker network (issue #1).
-
-```text
-iPhone / browser
-      |
-      | http://10.0.0.2:42817
-      v
-Mac mini host-IP port mapping
-      |
-      v
-Ferry container private IPv4:42817
-      |
-      +-- embedded Web + authenticated API
-      +-- /data named volume (SQLite + blobs)
-```
-
-Plain brief: this adds a repeatable container package for the existing combined Ferry Server and Web UI. The container keeps Ferry's specific-private-address listener rule while exposing one configurable high port on the Mac mini. If the address wiring or volume is wrong, devices cannot connect or data disappears after restart.
+The README is the deployment guide. This document records the container boundary behind it: listen addresses, reverse proxies, the gates that protect them and the decisions that shaped them. The original 2026-08-30 macmini delivery and its pairing-era evidence follow as history.
 
 ## Listen address options
 
@@ -73,12 +33,56 @@ Plain brief: this adds a repeatable container package for the existing combined 
 - `go test ./...` and `go vet ./...` must remain green.
 - Image build must compile the same `./cmd/ferry` entry point used outside Docker.
 - Startup must fail if `FERRY_LISTEN_HOST` is unset and the container address is empty or ambiguous, or if `FERRY_HOST_IP` is not loopback/private/link-local; Ferry itself remains the final numeric/private-address judge for both listener and published host.
-- Compose defaults to loopback publication; the Mac mini deployment opts into `10.0.0.2` through an untracked `.env` file.
+- Compose defaults to loopback publication; a deployment opts into a LAN address through its untracked `.env` file.
 - CI builds both architectures, starts each through `compose.yaml`, asserts the startup log's browser address, keeps a device, text, file and password across a restart, and moves a source-built deployment to the image without losing them (`scripts/image-smoke.sh`).
 - `scripts/ferry-data.sh self-test` builds the current source through `compose.build.yaml`; it must never test a pulled image.
 - `git diff --check` and a full-file security review gate shipping.
 
-## Historical pairing-era ship checklist
+## Decisions
+
+- **Decided (Max, 2026-09-13, issue #1)**: an operator-run TLS reverse proxy is now supported through `FERRY_TRUSTED_ORIGIN` / `-trusted-origin`. The listener rule is unchanged: the proxy reaches the published port or the container address, so no wildcard bind is needed. Ferry admits only the configured origin in `Host` and `Origin` and ignores `X-Forwarded-*`.
+- **Decided (Max, 2026-09-14)**: the listen address is the deployer's choice. `FERRY_LISTEN_HOST` defaults to the container's single IP, as before, and may be set to a specific private IP or to `0.0.0.0` / `::`. Outside Docker, `-lan` now accepts `0.0.0.0` and `[::]`; without `-lan` Ferry still listens on loopback only. This supersedes the 2026-08-30 rejection of `0.0.0.0` below.
+- **Decided (Max, 2026-09-14)**: deployment defaults to the published image `ghcr.io/max1874/ferry:<version>` for `linux/amd64` and `linux/arm64`. `compose.yaml` pulls it, `FERRY_IMAGE` selects the version, and `compose.build.yaml` builds the current source for developers and for the data self-test. The service name, volume, data directory and runtime user are unchanged, so a source deployment upgrades in place. The release flow lives in `docs/release-process.md`.
+- **Observed**: the image's build stage cross-compiles on the builder's platform (`CGO_ENABLED=0`), so the `arm64` image does not compile Go under emulation.
+- **Observed**: Ferry's Go process embeds both the Web UI and API, and persists SQLite plus blobs below `-data-dir`.
+- **Observed (2026-08-30; superseded 2026-09-14)**: Ferry rejected wildcard listeners even in LAN mode, so a normal bridge container could not bind `0.0.0.0`.
+- **Recommended, selected under the user's execution delegation**: use a bridge network, derive the container's single IPv4 address at startup, bind Ferry to that private address, and publish only the configured host LAN address.
+- **Rejected**: host networking makes OrbStack's forwarding boundary implicit and publishes without a host-IP mapping.
+- **Rejected (2026-08-30; superseded 2026-09-14)**: allowing `0.0.0.0` would weaken an existing tested security boundary solely for deployment convenience. The rejection was reversed once a real deployment appeared that the single-IP listener cannot serve: a proxy container on a second Docker network (issue #1).
+
+## History: the 2026-08-30 macmini delivery
+
+> Admission was changed on 2026-08-30: current Ferry joins directly and optionally uses the password configured in Web settings. Pairing-code journey notes below are historical deployment evidence; `docs/password-access.md` governs the live access contract. Docker environment values configure only network publication, never the product password.
+
+### Delivery record
+
+- Status: `deployed` on macmini under the current passwordless/optional-password admission model; cross-device home-LAN revalidation is tracked in `docs/release-readiness.md` rather than under the retired pairing flow.
+- Subject: the original container deployment; the pairing-code checklist below is retained only as historical evidence for the original container boundary.
+- Requested (2026-08-30): run Ferry Server and Web on `macmini` in Docker on a high port rather than 8080.
+- Done: Web and iPhone use `http://10.0.0.2:42817`, exchange real messages, and retain data across a container restart.
+- Non-goals at the time: TLS, a domain, reverse proxying, public-Internet exposure, and migration of the temporary laptop test data.
+- Depth: contract, because the deployment must preserve Ferry's authenticated LAN-listener boundary.
+- Budget: Dockerfile, Compose, `.dockerignore`, deployment documentation, and directly necessary tests; no API or database changes.
+- **Observed**: `macmini` is arm64 at `10.0.0.2`, runs OrbStack Docker 29.4.0 / Compose 5.1.2, and port 42817 was unused at preflight.
+- **Observed**: the predecessor `avocado` deployment uses Compose, a named volume, `restart: unless-stopped`, and host networking.
+
+```text
+iPhone / browser
+      |
+      | http://10.0.0.2:42817
+      v
+Mac mini host-IP port mapping
+      |
+      v
+Ferry container private IPv4:42817
+      |
+      +-- embedded Web + authenticated API
+      +-- /data named volume (SQLite + blobs)
+```
+
+Plain brief: this adds a repeatable container package for the existing combined Ferry Server and Web UI. The container keeps Ferry's specific-private-address listener rule while exposing one configurable high port on the Mac mini. If the address wiring or volume is wrong, devices cannot connect or data disappears after restart.
+
+### Pairing-era ship checklist
 
 1. **REQUESTED** — `docker compose config` resolves host port 42817 and a persistent `/data` volume.
 2. **DESIGN_NECESSARY** — the running process binds a specific container-private IP, while Docker publishes only `10.0.0.2:42817`; wildcard binding remains rejected by existing tests.
@@ -89,7 +93,7 @@ Plain brief: this adds a repeatable container package for the existing combined 
 7. **DESIGN_NECESSARY kill probe** — publishing a different/unconfigured port does not make the accepted URL succeed; stopping the container makes the journey unavailable.
 8. **REPO_REQUIRED** — adversarial self-review and fresh zero-context contract review have no unresolved P0/P1/P2 findings.
 
-## Historical pairing-era journey expectations
+### Pairing-era journey expectations
 
 - Browser entry: opening `/` renders Ferry's pairing screen, not an API error or another service.
 - Bootstrap: the first successful claim returns a Web device identity; replaying that code is rejected.
@@ -97,7 +101,7 @@ Plain brief: this adds a repeatable container package for the existing combined 
 - Exchange: browser sends `from web via macmini 42817`; iPhone renders that exact text. iPhone sends `from iphone via macmini 42817`; Web renders that exact text.
 - Restart: the same URL recovers, both tokens remain valid, and both exact messages remain present.
 
-## Build and review records
+### Build and review records
 
 - `docker compose config` defaults to `127.0.0.1:42817` and a named `ferry-data:/data` volume; macmini's untracked `.env` explicitly publishes `10.0.0.2:42817`.
 - Local and macmini multi-stage builds passed. The running macmini container reports user `ferry`, status `running`, container IP `192.168.148.2`, and host mapping `10.0.0.2:42817->42817/tcp`.

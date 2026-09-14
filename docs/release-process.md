@@ -37,13 +37,13 @@ Frozen on 2026-09-14. Status values: `done` with evidence, `pending` with an own
 
 | # | Item | Status |
 | --- | --- | --- |
-| 1 | Web: empty-timeline guide and **Connect another device**; Devices connect section with address, copy, local QR code and private-network note; local-only address shows a hint instead of a QR code | implemented; browser acceptance pending (items 9–10) |
+| 1 | Web: empty-timeline guide and **Connect another device**; Devices connect section with address, copy, local QR code and private-network note; local-only address shows a hint instead of a QR code | implemented; the join and transfer journey passed in real browsers (item 9); the edge cases in item 10 were skipped |
 | 2 | Startup log names the listener and the browser address separately | implemented; the CI container journey asserts the loopback message |
 | 3 | `compose.yaml` pulls the image; `compose.build.yaml` builds the source; `.env.example` holds image and network settings | implemented |
-| 4 | CI builds, starts and checks both architectures, source-to-image upgrade and backup/restore self-test against the current source, and keeps the candidate | implemented; pending a green CI run |
-| 5 | Release workflow: verified run and artifact, no rebuild, no overwrite, anonymous pull, draft Release | implemented; not yet run |
+| 4 | CI builds, starts and checks both architectures, source-to-image upgrade and backup/restore self-test against the current source, and keeps the candidate | done (2026-09-14): release run 34818862090 accepted the successful CI push run for `84c355b` as its candidate |
+| 5 | Release workflow: verified run and artifact, no rebuild, no overwrite, anonymous pull, draft Release | done (2026-09-14): release run 34818862090 pushed the `84c355b` candidate and created the draft Release |
 | 6 | README and this document in English and Chinese; product core records the first-run journey | done |
-| 7 | Isolated deployment from an empty directory following the README, restart keeping data, existing source deployment moved to the image, backup and restore | CI covers restart, upgrade and self-test; a README walk-through from the published bundle is pending after the release workflow creates it |
+| 7 | Isolated deployment from an empty directory following the README, restart keeping data, existing source deployment moved to the image, backup and restore | CI covers restart, upgrade and self-test; a README walk-through from the published Compose download on a clean host is pending (owner: Max) |
 | 8 | Real desktop and phone screenshots and a ~15 second transfer GIF from the final candidate, each file under 3 MiB | deferred (Max, 2026-09-14); the README keeps the existing screenshot |
 | 9 | Real computer and phone browsers: QR join, text send and copy, image preview, file download, without and with a password; record each device and browser | done (Max, 2026-09-14): on the macmini deployment of `84c355b` with host networking, an iPhone camera scan opened Safari and joined; text send and copy, image preview and file download passed without and with a password, with a Mac browser as the other device. Exact iPhone model, iOS version and desktop browser were not recorded. The native apps have no scan entry; scanning always joins through Safari |
 | 10 | Local-only hint, IPv4, IPv6, private proxy domain, copy failure, QR failure, offline and reconnect | skipped by Max's decision (2026-09-14); unverified |
@@ -52,6 +52,8 @@ Frozen on 2026-09-14. Status values: `done` with evidence, `pending` with an own
 | 13 | README quick start switches from the source build to the bundle after the image pulls anonymously and the bundle URL answers; until then the README must not point at unpublished downloads | done (2026-09-14) |
 
 Browser acceptance is not native-app acceptance, and CI container runs are not real-device evidence.
+
+- **Observed (2026-09-14)**: 1.0.0 was built from `84c355b`, before later commits on `main`. Its Web app still carries the icon that `360c300` redrew, and the `compose.yaml` in its Compose download still sets `TZ: Asia/Shanghai`, a maintainer-local default that `main` has since removed; the Alpine image has no time-zone data, so that setting has no reliable effect. Both changes reach users only in the next release.
 
 ## After 1.0.0
 

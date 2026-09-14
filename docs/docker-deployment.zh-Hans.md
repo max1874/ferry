@@ -2,47 +2,7 @@
 
 > [English](docker-deployment.md) | 简体中文
 
-> 准入方式在 2026-08-30 已改变：当前的 Ferry 直接加入，并可选使用在 Web 设置里配置的密码。下文关于配对码的旅程记录是历史部署证据；当前的接入合约以 `docs/password-access.md` 为准。Docker 环境变量只配置网络发布，从不配置产品密码。
-
-## 交付记录
-
-- 状态：在 macmini 上以当前的免密码/可选密码准入模式 `deployed`；跨设备的家庭局域网复验记录在 `docs/release-readiness.md`，不再挂在已退役的配对流程下。
-- 对象：当前 main 部署；下面的配对码检查清单只作为原始容器边界的历史证据保留。
-- 需求（2026-08-30）：在 `macmini` 上用 Docker 运行 Ferry Server 和 Web，使用高位端口而不是 8080。
-- 完成标准：Web 和 iPhone 通过 `http://10.0.0.2:42817` 互发真实消息，容器重启后数据仍在。
-- 不做：TLS、域名、反向代理、公网暴露，以及迁移笔记本上的临时测试数据。
-- **Decided（Max，2026-09-13，issue #1）**：现在支持运维者自己运行的 TLS 反向代理，通过 `FERRY_TRUSTED_ORIGIN` / `-trusted-origin` 配置。监听规则不变：代理连到发布端口或容器地址，因此不需要绑定通配地址。Ferry 在 `Host` 和 `Origin` 里只放行配置的那个 origin，并忽略 `X-Forwarded-*`。
-- **Decided（Max，2026-09-14）**：监听地址由部署者选择。`FERRY_LISTEN_HOST` 默认仍是容器唯一的 IP，也可以设成具体的私有 IP，或 `0.0.0.0` / `::`。不用 Docker 时，`-lan` 现在接受 `0.0.0.0` 和 `[::]`；不带 `-lan` 时 Ferry 仍然只监听 loopback。这条决定取代下文 2026-08-30 对 `0.0.0.0` 的否决。
-- **Decided（Max，2026-09-14）**：部署默认使用已发布的镜像 `ghcr.io/max1874/ferry:<version>`，支持 `linux/amd64` 和 `linux/arm64`。`compose.yaml` 拉取镜像，`FERRY_IMAGE` 选择版本，`compose.build.yaml` 为开发者和数据自检构建当前源码。服务名、数据卷、数据目录和运行用户都不变，所以源码部署可以原地升级。发布流程见 `docs/release-process.zh-Hans.md`。
-- **Observed**：镜像的构建阶段在构建机自己的平台上交叉编译（`CGO_ENABLED=0`），所以 `arm64` 镜像不会在模拟环境里编译 Go。
-- 深度：contract，因为部署必须保持 Ferry 的已鉴权局域网监听边界。
-- 预算：Dockerfile、Compose、`.dockerignore`、部署文档和直接必要的测试；不改 API 或数据库。
-
-## 证据与决策
-
-- **Observed**：Ferry 的 Go 进程同时内嵌 Web UI 和 API，并把 SQLite 和 blob 持久化在 `-data-dir` 下。
-- **Observed**：`macmini` 是 arm64，地址 `10.0.0.2`，运行 OrbStack Docker 29.4.0 / Compose 5.1.2，预检时 42817 端口未被占用。
-- **Observed**：前一个项目 `avocado` 的部署使用 Compose、命名数据卷、`restart: unless-stopped` 和 host 网络。
-- **Observed（2026-08-30；2026-09-14 已被取代）**：Ferry 当时即使在 LAN 模式下也拒绝通配监听，普通的 bridge 容器因此不能绑定 `0.0.0.0`。
-- **Recommended，在用户授权执行的前提下选定**：使用 bridge 网络，启动时取出容器唯一的 IPv4 地址，让 Ferry 绑定这个私有地址，并只发布到配置的 Mac 局域网地址。
-- **Rejected**：host 网络会让 OrbStack 的转发边界变得隐式，而且发布时不带 host-IP 映射。
-- **Rejected（2026-08-30；2026-09-14 已被取代）**：允许 `0.0.0.0` 会仅仅为了部署方便而削弱一条已测试的安全边界。出现了单 IP 监听无法支持的真实部署后，这条否决被推翻：代理容器在第二个 Docker 网络里（issue #1）。
-
-```text
-iPhone / browser
-      |
-      | http://10.0.0.2:42817
-      v
-Mac mini host-IP port mapping
-      |
-      v
-Ferry container private IPv4:42817
-      |
-      +-- embedded Web + authenticated API
-      +-- /data named volume (SQLite + blobs)
-```
-
-一句话说明：这一步为现有的 Ferry Server + Web UI 组合加了一个可重复的容器打包方式。容器保留 Ferry「只监听具体私有地址」的规则，同时在 Mac mini 上暴露一个可配置的高位端口。如果地址接线或数据卷配错，设备会连不上，或者重启后数据消失。
+部署指南是 README。本文记录它背后的容器边界：监听地址、反向代理、保护这些边界的检查，以及塑造它们的决策。最初 2026-08-30 在 macmini 上的交付及配对时代的证据放在后面，作为历史保留。
 
 ## 监听地址选项
 
@@ -73,12 +33,56 @@ Ferry container private IPv4:42817
 - `go test ./...` 和 `go vet ./...` 必须保持绿色。
 - 镜像构建必须编译和 Docker 之外相同的 `./cmd/ferry` 入口。
 - 如果未设置 `FERRY_LISTEN_HOST` 且容器地址为空或有歧义，或者 `FERRY_HOST_IP` 不是 loopback/私有/链路本地地址，启动必须失败；Ferry 本身仍是监听地址和发布主机两者数值/私有地址的最终裁决者。
-- Compose 默认发布到 loopback；Mac mini 部署通过一个未跟踪的 `.env` 文件选择 `10.0.0.2`。
+- Compose 默认发布到 loopback；部署通过未跟踪的 `.env` 文件选择局域网地址。
 - CI 构建两个架构，分别通过 `compose.yaml` 启动，断言启动日志里的浏览器访问地址，让设备、文字、文件和密码挺过一次重启，并把源码构建的部署切换到镜像而不丢失这些数据（`scripts/image-smoke.sh`）。
 - `scripts/ferry-data.sh self-test` 通过 `compose.build.yaml` 构建当前源码；它绝不能去测一个拉取来的镜像。
 - `git diff --check` 和一次完整文件的安全评审是发布门槛。
 
-## 配对时代的历史检查清单
+## 决策
+
+- **Decided（Max，2026-09-13，issue #1）**：现在支持运维者自己运行的 TLS 反向代理，通过 `FERRY_TRUSTED_ORIGIN` / `-trusted-origin` 配置。监听规则不变：代理连到发布端口或容器地址，因此不需要绑定通配地址。Ferry 在 `Host` 和 `Origin` 里只放行配置的那个 origin，并忽略 `X-Forwarded-*`。
+- **Decided（Max，2026-09-14）**：监听地址由部署者选择。`FERRY_LISTEN_HOST` 默认仍是容器唯一的 IP，也可以设成具体的私有 IP，或 `0.0.0.0` / `::`。不用 Docker 时，`-lan` 现在接受 `0.0.0.0` 和 `[::]`；不带 `-lan` 时 Ferry 仍然只监听 loopback。这条决定取代下文 2026-08-30 对 `0.0.0.0` 的否决。
+- **Decided（Max，2026-09-14）**：部署默认使用已发布的镜像 `ghcr.io/max1874/ferry:<version>`，支持 `linux/amd64` 和 `linux/arm64`。`compose.yaml` 拉取镜像，`FERRY_IMAGE` 选择版本，`compose.build.yaml` 为开发者和数据自检构建当前源码。服务名、数据卷、数据目录和运行用户都不变，所以源码部署可以原地升级。发布流程见 `docs/release-process.zh-Hans.md`。
+- **Observed**：镜像的构建阶段在构建机自己的平台上交叉编译（`CGO_ENABLED=0`），所以 `arm64` 镜像不会在模拟环境里编译 Go。
+- **Observed**：Ferry 的 Go 进程同时内嵌 Web UI 和 API，并把 SQLite 和 blob 持久化在 `-data-dir` 下。
+- **Observed（2026-08-30；2026-09-14 已被取代）**：Ferry 当时即使在 LAN 模式下也拒绝通配监听，普通的 bridge 容器因此不能绑定 `0.0.0.0`。
+- **Recommended，在用户授权执行的前提下选定**：使用 bridge 网络，启动时取出容器唯一的 IPv4 地址，让 Ferry 绑定这个私有地址，并只发布到配置的宿主机局域网地址。
+- **Rejected**：host 网络会让 OrbStack 的转发边界变得隐式，而且发布时不带 host-IP 映射。
+- **Rejected（2026-08-30；2026-09-14 已被取代）**：允许 `0.0.0.0` 会仅仅为了部署方便而削弱一条已测试的安全边界。出现了单 IP 监听无法支持的真实部署后，这条否决被推翻：代理容器在第二个 Docker 网络里（issue #1）。
+
+## 历史：2026-08-30 的 macmini 交付
+
+> 准入方式在 2026-08-30 已改变：当前的 Ferry 直接加入，并可选使用在 Web 设置里配置的密码。下文关于配对码的旅程记录是历史部署证据；当前的接入合约以 `docs/password-access.md` 为准。Docker 环境变量只配置网络发布，从不配置产品密码。
+
+### 交付记录
+
+- 状态：在 macmini 上以当前的免密码/可选密码准入模式 `deployed`；跨设备的家庭局域网复验记录在 `docs/release-readiness.md`，不再挂在已退役的配对流程下。
+- 对象：最初的容器部署；下面的配对码检查清单只作为原始容器边界的历史证据保留。
+- 需求（2026-08-30）：在 `macmini` 上用 Docker 运行 Ferry Server 和 Web，使用高位端口而不是 8080。
+- 完成标准：Web 和 iPhone 通过 `http://10.0.0.2:42817` 互发真实消息，容器重启后数据仍在。
+- 当时不做：TLS、域名、反向代理、公网暴露，以及迁移笔记本上的临时测试数据。
+- 深度：contract，因为部署必须保持 Ferry 的已鉴权局域网监听边界。
+- 预算：Dockerfile、Compose、`.dockerignore`、部署文档和直接必要的测试；不改 API 或数据库。
+- **Observed**：`macmini` 是 arm64，地址 `10.0.0.2`，运行 OrbStack Docker 29.4.0 / Compose 5.1.2，预检时 42817 端口未被占用。
+- **Observed**：前一个项目 `avocado` 的部署使用 Compose、命名数据卷、`restart: unless-stopped` 和 host 网络。
+
+```text
+iPhone / browser
+      |
+      | http://10.0.0.2:42817
+      v
+Mac mini host-IP port mapping
+      |
+      v
+Ferry container private IPv4:42817
+      |
+      +-- embedded Web + authenticated API
+      +-- /data named volume (SQLite + blobs)
+```
+
+一句话说明：这一步为现有的 Ferry Server + Web UI 组合加了一个可重复的容器打包方式。容器保留 Ferry「只监听具体私有地址」的规则，同时在 Mac mini 上暴露一个可配置的高位端口。如果地址接线或数据卷配错，设备会连不上，或者重启后数据消失。
+
+### 配对时代的检查清单
 
 1. **REQUESTED** — `docker compose config` 解析出宿主端口 42817 和持久化的 `/data` 数据卷。
 2. **DESIGN_NECESSARY** — 运行中的进程绑定一个具体的容器私有 IP，而 Docker 只发布 `10.0.0.2:42817`；既有测试仍然拒绝通配绑定。
@@ -89,7 +93,7 @@ Ferry container private IPv4:42817
 7. **DESIGN_NECESSARY kill probe** — 发布一个不同的/未配置的端口不会让已接受的 URL 成功；停掉容器会让旅程不可用。
 8. **REPO_REQUIRED** — 对抗式自审和全新零上下文合约评审都没有未解决的 P0/P1/P2。
 
-## 配对时代的历史旅程预期
+### 配对时代的旅程预期
 
 - 浏览器入口：打开 `/` 显示 Ferry 的配对页面，而不是 API 错误或其他服务。
 - Bootstrap：第一次成功领取返回一个 Web 设备身份；重放该 code 被拒绝。
@@ -97,7 +101,7 @@ Ferry container private IPv4:42817
 - 互发：浏览器发送 `from web via macmini 42817`，iPhone 显示完全相同的文字。iPhone 发送 `from iphone via macmini 42817`，Web 显示完全相同的文字。
 - 重启：同一个 URL 恢复访问，两个 token 都仍有效，两条消息原样都在。
 
-## 构建与评审记录
+### 构建与评审记录
 
 - `docker compose config` 默认使用 `127.0.0.1:42817` 和命名数据卷 `ferry-data:/data`；macmini 未跟踪的 `.env` 明确发布到 `10.0.0.2:42817`。
 - 本地和 macmini 的多阶段构建都通过。运行中的 macmini 容器报告用户 `ferry`、状态 `running`、容器 IP `192.168.148.2`、宿主映射 `10.0.0.2:42817->42817/tcp`。
