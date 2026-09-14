@@ -1,8 +1,10 @@
 # Optional shared-password access
 
+> English | [简体中文](password-access.zh-Hans.md)
+
 ## Scope card
 
-- **REQUESTED — Max, 2026-08-30**: “全设备免配对；支持一个密码功能；部署 Server 的人决定访问这个地址要不要密码。” Follow-up: password configuration must live in Web settings, not environment variables.
+- **REQUESTED — Max, 2026-08-30**: “全设备免配对；支持一个密码功能；部署 Server 的人决定访问这个地址要不要密码。” (“no pairing for any device; support a password feature; whoever deploys the Server decides whether this address needs a password.”) Follow-up: password configuration must live in Web settings, not environment variables.
 - **Done**: a new Web browser and iPhone can join Ferry without a pairing code; with no configured password they enter directly, and with a configured password they enter after one shared-password prompt.
 - **Non-goals**: user accounts/roles, per-device passwords, Internet exposure, TLS, password recovery, forced logout of already issued device tokens, or Android implementation in this phase.
 - **REPO_REQUIRED**: keep device tokens for remembered sessions/revocation, strict request decoding, private-listener boundary, no password logging/persistence, full Go/iOS tests, real Web/iPhone journey, adversarial and zero-context review.

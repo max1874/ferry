@@ -1,75 +1,78 @@
-# Ferry — 仓库约束
+# Ferry — Repository Rules
 
-本文件是 Ferry 的 repo 级协作约定，也是项目规则的唯一权威。`CLAUDE.md` 必须始终是指向本文件的软链接，禁止维护两份内容。
+> English | [简体中文](AGENTS.zh-Hans.md)
 
-## 当前阶段
+This file is Ferry's repository-level collaboration contract and the single authority on project rules. `CLAUDE.md` must always be a symlink to this file; never maintain a second copy of its content. `AGENTS.zh-Hans.md` is a translation: when the two disagree, this English file wins, and both change in the same commit.
 
-- Ferry 是准备公开的自托管局域网剪贴板与文件共享项目，包含 Go Server、内嵌 Web、iOS 26 App 与 Android 8+ App；产品边界以 `docs/product-core.md` 为准。
-- 当前四个组件均已有 MVP。Android 已有真实设备安装/启动证据。跨 Web/iOS/Android 的完整局域网旅程没有做过真机端到端验收；**Decided（Max，2026-09-11）**：不把它作为公开仓库的前置条件。不要把单测或模拟器结果说成这条旅程的验收证据。
-- 当前不做 TLS、公网部署、自动剪贴板或后台传输；新增这些方向前必须由用户明确决定。
-- **Decided（Max，2026-09-13，issue #1）**：支持部署者在私有网络里用自己的 TLS 反向代理（如 Caddy）挂 Ferry，Server 通过显式的 `-trusted-origin` 只放行这一个 origin。Ferry 自身仍不做 TLS、不监听通配地址、不读 `X-Forwarded-*`，公网暴露仍不支持。
-- **Decided（Max，2026-09-11）**：iOS 走 TestFlight 分发，**不上架 App Store**。App Store Connect 记录已建，商店名 `FerryDrop`（`Ferry` 在 en-US 等 locale 已被其他开发者账号占用），Bundle ID `com.max1874.ferrydrop`，`1.0.0 (1)` 已在内部测试。上架 App Store 仍然不做，要做必须由用户再次明确决定。分发所需的 Team ID、ExportOptions 与流水线都在账号侧的私有知识库，不进本仓库。
-- 局域网 TLS 与跨设备剪贴板同步在 2026-09-08 实现过一次，2026-09-09 整体撤回。重新提案前必须先读 `docs/clipboard-sync.md`，那里有撤回理由和已经跑过的实测；不要重跑同样的测量再得出同样的结论。Ferry 只在用户点复制控件时写剪贴板，任何情况下都不读。
+## Current stage
 
-## 产品核心先于功能
+- Ferry is a self-hosted LAN clipboard and file-sharing project being prepared for the public, made of a Go Server, an embedded Web app, an iOS 26 App and an Android 8+ App. Product boundaries are defined by `docs/product-core.md`.
+- All four components have an MVP. Android has real-device install and launch evidence. The full LAN journey across Web, iOS and Android has never been accepted end to end on real hardware; **Decided (Max, 2026-09-11)**: that is not a precondition for making the repository public. Do not present unit tests or simulator runs as acceptance evidence for that journey.
+- Ferry does not currently do TLS, public-Internet deployment, automatic clipboard or background transfer; adding any of these requires an explicit user decision first.
+- **Decided (Max, 2026-09-13, issue #1)**: deployers may put Ferry behind their own TLS reverse proxy (such as Caddy) inside a private network; the Server admits that one origin only through an explicit `-trusted-origin`. Ferry itself still does no TLS, never listens on a wildcard address and never reads `X-Forwarded-*`; public-Internet exposure remains unsupported.
+- **Decided (Max, 2026-09-11)**: iOS is distributed through TestFlight and is **not released on the App Store**. The App Store Connect record exists under the store name `FerryDrop` (`Ferry` is taken by other developer accounts in en-US and other locales), Bundle ID `com.max1874.ferrydrop`, with `1.0.0 (1)` in internal testing. An App Store release is still out of scope and needs a new explicit user decision. The Team ID, ExportOptions and pipeline needed for distribution live in a private account-side knowledge base, never in this repository.
+- LAN TLS and cross-device clipboard synchronisation were implemented once on 2026-09-08 and withdrawn in full on 2026-09-09. Before proposing either again, read `docs/clipboard-sync.md`, which records why they were withdrawn and the measurements already taken; do not rerun the same measurements to reach the same conclusion. Ferry writes the clipboard only when the user taps a copy control, and never reads it.
 
-- 产品方向明确后，先创建 `docs/product-core.md`，写清目标用户、核心问题、核心动作、明确不做什么，以及功能提案的判断标准。
-- 评估或实现功能前先读 `docs/product-core.md`。功能必须服务核心问题，不能因为“常见 App 都有”就加入。
-- 产品硬决策只由用户确认。记录时注明依据：`Observed`（事实）、`Decided`（用户或已授权决策）、`Recommended`（建议）；不要把推断伪装成决定。
-- 需求改变时同步更新产品核心与验收标准，避免代码、文案和商店定位各说各话。
+## Product core before features
 
-## 工作方式
+- Once the product direction is clear, create `docs/product-core.md` first: target users, core problem, core actions, explicit non-goals and the criteria for judging feature proposals.
+- Read `docs/product-core.md` before evaluating or implementing a feature. A feature must serve the core problem; "every common app has it" is not a reason.
+- Hard product decisions are confirmed only by the user. Record the basis of each: `Observed` (fact), `Decided` (by the user or an authorised decision), `Recommended` (suggestion); never dress an inference up as a decision.
+- When requirements change, update the product core and acceptance criteria together so code, copy and store positioning do not drift apart.
 
-- 开始前先查看当前完整文件、`git status` 和相关历史；不要只凭 diff 或旧文档判断现状。
-- 仓库可能有并发会话。只改本任务涉及的文件，不覆盖、不提交他人的在途改动。
-- 默认在当前工作树工作。用户已决定完成的仓库改动默认 commit 并 push 到 `origin/main`；不要自行建分支、开 PR、部署或发布。
-- **Decided（Max，2026-09-13）**：仓库已公开、面向国际，commit message、PR 标题和正文一律用英文。
-- 复杂功能先冻结有限、可验证的 ship checklist；实现过程中发现新问题，先判断是否属于原目标，不能让调查替换目标。
-- 修 bug 先找根因，再改机制；不要用重试、延时、吞错或 UI 遮挡来掩盖未知状态。
+## How to work
 
-## iOS 工程原则
+- Before starting, read the complete current files, `git status` and the relevant history; do not judge the current state from a diff or old documents alone.
+- The repository may have concurrent sessions. Change only the files this task involves; never overwrite or commit someone else's work in progress.
+- Work in the current worktree by default. Repository changes the user has decided on are committed and pushed to `origin/main` by default; do not create branches, open PRs, deploy or publish on your own.
+- **Decided (Max, 2026-09-13)**: the repository is public and international, so commit messages, PR titles and PR bodies are always written in English.
+- **Decided (Max, 2026-09-13)**: every document is provided in English and Simplified Chinese. English lives at the original path and Chinese at the sibling `*.zh-Hans.md`, each linking to the other under its title. A change to either language updates the other in the same commit.
+- For a complex feature, freeze a finite, verifiable ship checklist first; when a new problem appears during implementation, decide whether it belongs to the original goal before acting, and never let an investigation replace the goal.
+- Fix bugs by finding the root cause and then changing the mechanism; never hide an unknown state behind retries, delays, swallowed errors or UI cover-ups.
 
-- 默认优先使用 Apple 原生框架与 SwiftUI；最低版本已决定为 iOS 26，依赖策略变化必须明确记录。
-- 状态要有单一所有者，派生值从源状态计算，避免多份手工同步的计数、数组或缓存。
-- 异步请求、媒体播放、导航任务等必须处理过期回调、取消、失败、重试与释放。需要时用 generation/token gate，旧任务无权改写新状态。
-- 资源生命周期与界面生命周期对齐：离场、被覆盖或切换对象后，取消请求并释放 observer、播放器、缓存占用等资源。
-- 错误状态必须可观察；不能把失败永久显示成 loading、静态海报或“看起来没事”。
-- 日期、时区、权限、云端资源和后台/前台切换都按真实边界设计，不依赖只在开发机成立的默认值。
-- 用户数据离开设备、传给后端或第三方 AI 前，必须有清晰用途说明和符合产品要求的授权；最小化采集、持久化和日志暴露。
-- 不把密钥、签名材料、个人路径或 App Store Connect 凭据写入源码和本文件。用未跟踪的本地配置或安全存储，并提供不含秘密的示例。
+## iOS engineering principles
 
-## Xcode 工程
+- Prefer Apple native frameworks and SwiftUI by default; the minimum version is decided as iOS 26, and any change to the dependency policy must be recorded explicitly.
+- State has a single owner and derived values are computed from source state; avoid several hand-synchronised copies of counts, arrays or caches.
+- Asynchronous requests, media playback and navigation tasks must handle stale callbacks, cancellation, failure, retry and release. Use a generation/token gate when needed so old tasks have no right to rewrite new state.
+- Resource lifetimes follow interface lifetimes: after leaving, being covered or switching objects, cancel requests and release observers, players and cache usage.
+- Error states must be observable; a failure must never be shown forever as loading, a static poster or "looks fine".
+- Dates, time zones, permissions, cloud resources and background/foreground transitions are designed against their real boundaries, not defaults that only hold on the development machine.
+- Before user data leaves the device or goes to a backend or third-party AI, there must be a clear statement of purpose and authorisation that meets product requirements; minimise collection, persistence and log exposure.
+- Never write keys, signing material, personal paths or App Store Connect credentials into source code or this file. Use untracked local configuration or secure storage, and provide examples without secrets.
 
-- 若工程采用 Xcode 的 file-system synchronized groups（如 `objectVersion = 77`），新增源文件由目录自动进入 target，禁止为“加文件”手改 `project.pbxproj`。
-- 只有在构建设置、target、capability、资源归属等确实需要变化时才编辑工程文件；编辑后检查 diff，避免无关 UUID/排序噪音。
-- 禁止 `xcodebuild clean`。使用增量构建，每个任务指定仓库外独立的 `-derivedDataPath`。
-- 不安装新工具或依赖，除非项目需要且用户已同意；新增依赖必须说明为什么系统框架或现有代码不能满足。
+## Xcode project
 
-## 模拟器与机器负载（硬约束）
+- If the project uses Xcode file-system synchronized groups (for example `objectVersion = 77`), new source files join the target through their directory; never hand-edit `project.pbxproj` just to add a file.
+- Edit the project file only when build settings, targets, capabilities or resource ownership genuinely need to change; review the diff afterwards to avoid unrelated UUID or ordering noise.
+- `xcodebuild clean` is forbidden. Use incremental builds with a separate `-derivedDataPath` outside the repository for each task.
+- Do not install new tools or dependencies unless the project needs them and the user has agreed; a new dependency must explain why system frameworks or existing code cannot do the job.
 
-- 任意时刻最多 1 个 booted Simulator、1 个 `xcodebuild`；禁止并行构建或并行 UI 测试。
-- 测试完成后关闭并删除本任务创建的 Simulator；不得删除用户已有设备或数据。
-- 不主动触发 `mediaanalysisd`：不要批量向照片库导入媒体，不导入大图或视频。确需媒体验收时，复用一次性 seed，数量和尺寸压到能证明行为的最小值。
-- 截图只保留关键验收点，全部写入仓库外临时目录，或仓库内以 `.noindex` 结尾且被 git 忽略的 artifacts 目录。
-- 不启动与任务无关的常驻重负载进程。
+## Simulators and machine load (hard constraints)
 
-## 验证标准
+- At most 1 booted Simulator and 1 `xcodebuild` at any time; no parallel builds or parallel UI tests.
+- After testing, shut down and delete the Simulators this task created; never delete the user's existing devices or data.
+- Do not trigger `mediaanalysisd`: do not bulk-import media into the photo library, and do not import large images or video. When media acceptance is genuinely needed, reuse a one-off seed kept to the smallest count and size that proves the behaviour.
+- Keep screenshots only for key acceptance points, all written to a temporary directory outside the repository or to a git-ignored artifacts directory inside it whose name ends in `.noindex`.
+- Do not start heavy long-running processes unrelated to the task.
 
-- “验证通过”必须附可复现证据：命令结果、测试结果、截图或真机安装回执；“应该可以”不算。
-- 验证用户行为本身，不验证替代信号。例如播放用时间推进证明，不用两张截图像素不同；异步完成要断言终态，不只断言按钮消失。
-- 逻辑、状态迁移、竞态和回归优先用单元/集成测试；视觉布局与交互再用最少量模拟器或真机验收。不要因为前辈项目曾移除测试，就在 Ferry 默认禁用测试。
-- 测试不得以 skip 当成功；失败、取消、空值、过期回调、重复操作和 teardown 是异步功能的基础用例。
-- 交付前至少执行与风险相称的 build/test、`git diff --check`，并对非平凡改动做一轮对抗式自审。
+## Verification standard
 
-## 文档纪律
+- "Verified" must come with reproducible evidence: command output, test results, screenshots or a real-device install receipt; "it should work" does not count.
+- Verify the user behaviour itself, not a proxy signal. For example, prove playback by time advancing, not by two screenshots differing; for asynchronous completion assert the final state, not merely that a button disappeared.
+- Prefer unit/integration tests for logic, state transitions, races and regressions; use the fewest simulator or real-device checks for visual layout and interaction. Do not disable tests in Ferry by default just because an earlier project removed them.
+- A skipped test is never a success; failure, cancellation, empty values, stale callbacks, repeated actions and teardown are baseline cases for asynchronous features.
+- Before delivery, run at least the build/tests proportionate to the risk and `git diff --check`, and do one adversarial self-review round for non-trivial changes.
 
-- `AGENTS.md` 写长期约束；`docs/product-core.md` 写产品边界；复杂设计文档写问题、证据、候选方案、决策、反例和验收。
-- 文档只记录从代码中读不出的取舍、外部契约和踩坑。不要复制文件清单、视图职责或 API 列表；这些会过期，应以当前代码为准。
-- 历史设计文档可能描述已经删除的 target、测试或架构。执行前必须与当前工程和源码交叉验证。
+## Documentation discipline
 
-## 发布与外部动作
+- `AGENTS.md` holds long-term constraints; `docs/product-core.md` holds product boundaries; complex design documents hold the problem, evidence, candidates, decision, counterexamples and acceptance.
+- Documents record only trade-offs, external contracts and pitfalls that cannot be read from the code. Do not copy file lists, view responsibilities or API lists; they go stale, and the current code is the authority.
+- Historical design documents may describe targets, tests or architecture that have since been deleted. Cross-check them against the current project and source before acting on them.
 
-- TestFlight、App Store 提审、生产部署、数据迁移和外部消息都需要用户明确授权；构建成功不等于获准发布。
-- 发布身份、语言范围、隐私答案和 release policy 确定后写入专门的 release 文档，不把账号秘密写进仓库。
-- 可逆的预检与不可逆的提交分开。提审前先核对实际支持的 locale、版本状态、构建号、隐私声明和商店素材；不要复制并保留没有真实译文的 locale。
-- 有配套后端时，把客户端与兼容后端的发布顺序、失败语义和验收收口到一个脚本；脚本失败必须关闭，只有所有发布面实测通过才能宣称完成。
+## Releases and external actions
+
+- TestFlight, App Store submission, production deployment, data migration and external messages all require explicit user authorisation; a successful build is not permission to release.
+- Once release identity, language coverage, privacy answers and release policy are settled, write them into a dedicated release document, never account secrets into the repository.
+- Keep reversible pre-checks separate from irreversible submissions. Before submission, check the locales actually supported, version state, build number, privacy declarations and store assets; do not copy and keep locales that have no real translation.
+- When there is a companion backend, gather the release order, failure semantics and acceptance of client and compatible backend into one script; the script fails closed, and completion is claimed only when every release surface has been verified for real.

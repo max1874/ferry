@@ -9,7 +9,7 @@
     <img alt="Apache 2.0 License" src="https://img.shields.io/badge/license-Apache%202.0-22c55e">
     <img alt="No cloud account" src="https://img.shields.io/badge/cloud%20account-none-06b6d4">
   </p>
-  <p><a href="#how-do-i-run-ferry"><strong>Run it with two commands</strong></a></p>
+  <p><a href="#how-do-i-run-ferry"><strong>Run it with two commands</strong></a> · <a href="README.zh-Hans.md">简体中文</a></p>
 </div>
 
 Ferry is a self-hosted clipboard and file ferry for the devices on one trusted local network. It looks like a chat: everything you send lands in a single timeline that every joined device can read, so moving a link from your phone to your laptop is a paste and a copy, not an email to yourself.

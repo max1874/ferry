@@ -1,53 +1,55 @@
-# Ferry 产品核心
+# Ferry Product Core
 
-## 定位
+> English | [简体中文](product-core.zh-Hans.md)
 
-- **Decided（Max，2026-08-29）**：Ferry 是一个最终公开开源、由用户自托管的跨设备局域网剪贴板与文件共享项目。
-- **Decided（Max，2026-08-29）**：产品包含 iOS App、Android App、Web 与 Server；Web 和 Server 由用户 self-host。
-- **Decided（Max，2026-08-29）**：主要交互是一条学习 ChatGPT 信息层级的聊天时间线。
-- **Decided（Max，2026-08-30）**：iOS App 最低支持 iOS 26，默认使用 Liquid Glass，不维护旧系统视觉 fallback。
-- **Decided（Max，2026-08-30）**：所有设备使用同一接入流程，不再使用设备配对码；Server 部署者可选择无密码直接接入，或配置一个共享访问密码。
-- **Decided（Max，2026-08-30）**：当前里程碑把同一局域网内接入 Ferry 的设备视为可信设备，不引入管理员账号、设备所有权或抢首台设备的防守机制；共享密码是可选的接入门槛，不是账户权限体系。
-- **Recommended**：一句话定义为“把文字和文件像给自己发消息一样，摆渡到自己的其他设备”。
+## Positioning
 
-## 目标用户与核心问题
+- **Decided (Max, 2026-08-29)**: Ferry is a cross-device LAN clipboard and file-sharing project that will ultimately be public and open source, and is self-hosted by its users.
+- **Decided (Max, 2026-08-29)**: the product consists of an iOS App, an Android App, a Web app and a Server; the Web app and Server are self-hosted by the user.
+- **Decided (Max, 2026-08-29)**: the main interaction is a chat timeline that follows ChatGPT's information hierarchy.
+- **Decided (Max, 2026-08-30)**: the iOS App supports iOS 26 at minimum and uses Liquid Glass by default, without maintaining a visual fallback for older systems.
+- **Decided (Max, 2026-08-30)**: every device uses the same join flow and device pairing codes are no longer used; the Server deployer chooses between joining directly without a password or configuring one shared access password.
+- **Decided (Max, 2026-08-30)**: for the current milestone, devices that join Ferry on the same LAN are treated as trusted. There are no administrator accounts, device ownership or defences against grabbing the first device; the shared password is an optional entry barrier, not an account permission system.
+- **Recommended**: the one-line definition is "ferry text and files to your other devices, as easily as messaging yourself".
 
-- **Inferred**：目标用户拥有多台设备，希望数据停留在自己控制的机器与局域网内。
-- **Observed**：传统文件传输通常把文字、文件与历史记录拆成不同入口；本仓库还没有实现可验证这一体验。
-- **Recommended**：Ferry 用一条按时间排序、可回看的消息流统一这些内容。
+## Target users and core problem
 
-## 核心动作
+- **Inferred**: target users own several devices and want their data to stay on machines and a LAN they control.
+- **Observed**: traditional file transfer usually splits text, files and history into separate entry points; this repository has not yet implemented anything that verifies the experience.
+- **Recommended**: Ferry unifies this content in one chronological message stream that can be scrolled back through.
 
-1. **Decided**：用户主动发送一段文字或一个文件。
-2. **Decided**：其他已连接设备在同一时间线看到它。
-3. **Decided**：用户复制文字，或预览、下载文件。
+## Core actions
 
-第一版坚持主动发送。自动监听系统剪贴板涉及误传、隐私和平台后台限制，不属于当前已确认范围。
+1. **Decided**: the user deliberately sends a piece of text or a file.
+2. **Decided**: other connected devices see it in the same timeline.
+3. **Decided**: the user copies the text, or previews and downloads the file.
 
-- **Decided（Max，2026-09-09）**：Ferry 不主动读写任何设备的剪贴板。内容进 Ferry 用系统自带的粘贴，出 Ferry 用每条消息上的复制控件。自动同步实现过一次又整体撤回，理由与实测证据见 `docs/clipboard-sync.md`。
+The first version sticks to deliberate sending. Automatically watching the system clipboard involves accidental transfer, privacy and platform background limits, and is not in the currently confirmed scope.
 
-## 产品原则
+- **Decided (Max, 2026-09-09)**: Ferry never reads or writes any device's clipboard on its own. Content enters Ferry through the system's own paste and leaves through the copy control on each message. Automatic synchronisation was implemented once and withdrawn in full; the reasons and measured evidence are in `docs/clipboard-sync.md`.
 
-- **Decided**：用户只需要部署 Ferry Server；Web 由同一服务提供。
-- **Recommended**：默认空间服务于“我的设备”，不是社交关系。
-- **Recommended**：发送、失败、重试和下载状态必须清楚；不能用聊天外观掩盖传输错误。
-- **Decided（Max，2026-08-31）**：聊天时间线中，当前设备发送的消息显示在右侧，其他设备发送的消息显示在左侧。
-- **Recommended**：UI 学习 ChatGPT 的清晰层级、留白和 composer 结构，不复制其商标、文案或品牌资产。
-- **Recommended**：隐私优先于“魔法感”；任何自动同步能力以后必须显式开启并解释边界。
+## Product principles
 
-## 当前明确不做
+- **Decided**: the user deploys only the Ferry Server; the Web app is served by the same service.
+- **Recommended**: the default space serves "my devices", not social relationships.
+- **Recommended**: sending, failure, retry and download states must be clear; a chat appearance must not hide transfer errors.
+- **Decided (Max, 2026-08-31)**: in the chat timeline, messages sent by the current device appear on the right and messages sent by other devices appear on the left.
+- **Recommended**: the UI follows ChatGPT's clear hierarchy, whitespace and composer structure without copying its trademarks, copy or brand assets.
+- **Recommended**: privacy comes before a sense of magic; any future automatic synchronisation must be switched on explicitly and explain its boundaries.
 
-- 好友、联系人、群管理、在线状态、已读回执和“正在输入”。
-- 第三方云托管账户体系。
-- 自动读取并上传系统剪贴板，以及把收到的消息自动写入系统剪贴板。
-- 跨设备剪贴板互通。每台设备只处理自己的剪贴板。
-- 默认暴露到不可信网络；LAN 必须显式开启，公网暴露要等 TLS 与相应安全配置。
-- **Decided（Max，2026-09-13）**：部署者自己的 TLS 反向代理（私有网络或 VPN 内的域名）是受支持的部署方式，必须用 `-trusted-origin` 显式声明唯一 origin；这不改变“不暴露到公网”的边界。
+## Explicitly not doing now
 
-## 功能提案判断标准
+- Friends, contacts, group management, presence, read receipts and "typing" indicators.
+- A third-party cloud-hosted account system.
+- Automatically reading and uploading the system clipboard, or automatically writing received messages into it.
+- Cross-device clipboard interoperability. Each device handles only its own clipboard.
+- Exposure to untrusted networks by default; LAN access must be switched on explicitly, and public-Internet exposure waits for TLS and matching security configuration.
+- **Decided (Max, 2026-09-13)**: a deployer's own TLS reverse proxy (a domain inside a private network or VPN) is a supported deployment, and the single origin must be declared explicitly with `-trusted-origin`; this does not change the "no public-Internet exposure" boundary.
 
-先问：**它是否让用户在自己控制的设备之间，更直接、可靠地摆渡文字或文件？**
+## Criteria for feature proposals
 
-- 能减少发送步骤、增强传输可靠性或让历史更容易找回：优先。
-- 主要服务社交聊天、内容创作或云盘管理：默认不做。
-- 需要牺牲 self-host、数据控制权或清晰授权：拒绝，除非用户重新定义产品核心。
+First ask: **does it let the user ferry text or files between devices they control more directly and reliably?**
+
+- Reduces sending steps, improves transfer reliability or makes history easier to find again: prioritise.
+- Mainly serves social chat, content creation or cloud-drive management: not by default.
+- Requires giving up self-hosting, data control or clear authorisation: reject, unless the user redefines the product core.

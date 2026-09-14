@@ -1,8 +1,10 @@
 # Web message metadata placement
 
+> English | [简体中文](message-metadata-placement.zh-Hans.md)
+
 ## Scope and decision
 
-- Requested (Max, 2026-09-01): “**Mac Web**11:16 AM 这种显示在气泡底下感觉有点不舒服”.
+- Requested (Max, 2026-09-01): “**Mac Web**11:16 AM 这种显示在气泡底下感觉有点不舒服” (“having something like **Mac Web**11:16 AM shown under the bubble feels a bit off”).
 - Done: Web renders device identity and time immediately above the corresponding bubble; the current-device group remains right-aligned and every other group remains left-aligned.
 - Non-goals: native clients, metadata content, message identity, API/schema, or a broader timeline redesign.
 - Depth: focused. Budget: 2 production files, 3 net production lines, no persistent mechanism; one static-test file and this evidence note.

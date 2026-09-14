@@ -1,8 +1,10 @@
 # Web icon adaptation
 
+> English | [简体中文](web-icon.zh-Hans.md)
+
 ## Scope and decision
 
-- **REQUESTED — Max, 2026-08-30**: “web 也要适配上 icon”。
+- **REQUESTED — Max, 2026-08-30**: “web 也要适配上 icon” (“the Web needs the icon too”).
 - **Done**: favicon, Apple touch icon, top-bar brand, connection card, and empty-chat welcome use the repository Ferry icon; no letter placeholder remains.
 - **Non-goals**: redesigning the icon, changing layout, API, auth, iOS, or Android.
 - **Depth**: focused; two Web production files and two embedded PNG assets, plus one static-resource test.

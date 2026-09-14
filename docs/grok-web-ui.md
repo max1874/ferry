@@ -1,23 +1,25 @@
 # Grok-inspired Web UI delivery
 
+> English | [简体中文](grok-web-ui.zh-Hans.md)
+
 ## S0 — Scope card
 
-- **REQUESTED（Max）**：`ui 有点丑，开一个浏览器 1:1 复制 grok 的 ui`。
-- **Done**：本地运行的 Ferry Web 在桌面与手机浏览器中采用 Grok 当前首页的空间结构、尺寸节奏、圆角、明暗配色与贴底输入体验，同时保留 Ferry 的消息、文件、设备和密码功能。
-- **Non-goals**：不修改 iOS/Android；不改 Server/API/认证语义；不复制 Grok 商标、名称、文案或专有图形；不增加依赖、主题账户体系或新持久化状态。
-- **INFERRED（不纳入）**：手动主题切换、侧边栏、搜索、Imagine、模型选择、登录/注册。
-- **REPO_REQUIRED**：保留 Ferry 图标与设备图标；照片/文件分入口；错误状态可观察；真实浏览器桌面/手机 journey；相关 Go/Web 检查、diff check、对抗式自审和完整文件复核。
-- **Depth**：full；这是一个横跨接入页、空时间线、已有消息、composer、附件菜单、设备设置与响应式布局的整体视觉重做，但不改变外部合同。
-- **Budget**：最多 3 个生产文件、净新增不超过 450 行、0 个新持久机制；1 个过程文件、最多 180 行。
-- **Execution budget**：45 分钟；最多 2 次无效浏览器验收尝试；外部动作仅公开 Grok UI 只读检查与最终 `origin/main` push。
-- **Boundary plan**：真实本地 Ferry Server + browser-harness；桌面 1383×997 与手机 390×844 分别检查空状态、已有消息、附件菜单和设备弹窗。API 测试只作支持证据，不能替代页面验收。
-- **Expansion triggers**：需要后端/API 变化、第四个生产文件、新依赖、Grok 专有资产、或超出预算时立即停止并回报。
+- **REQUESTED (Max)**: `ui 有点丑，开一个浏览器 1:1 复制 grok 的 ui` (“the UI is a bit ugly; open a browser and copy Grok's UI 1:1”).
+- **Done**: locally running Ferry Web adopts, on desktop and mobile browsers, the spatial structure, sizing rhythm, corner radii, light/dark palette and bottom-pinned input experience of Grok's current home page, while keeping Ferry's messages, files, devices and password features.
+- **Non-goals**: no iOS/Android changes; no Server/API/auth semantics changes; no copying of Grok's trademark, name, copy or proprietary graphics; no new dependency, theme account system or new persistent state.
+- **INFERRED (excluded)**: manual theme switching, sidebar, search, Imagine, model picker, sign-in/sign-up.
+- **REPO_REQUIRED**: keep the Ferry icon and device icons; separate Photos/Files entries; observable error states; real desktop/mobile browser journeys; relevant Go/Web checks, diff check, adversarial self-review and complete-file review.
+- **Depth**: full; this is a whole visual rebuild across the access page, empty timeline, existing messages, composer, attachment menu, device settings and responsive layout, with no external contract change.
+- **Budget**: at most 3 production files, no more than 450 net added lines, 0 new persistent mechanisms; 1 process file of at most 180 lines.
+- **Execution budget**: 45 minutes; at most 2 ineffective browser acceptance attempts; external actions limited to read-only inspection of the public Grok UI and the final `origin/main` push.
+- **Boundary plan**: real local Ferry Server + browser-harness; desktop 1383×997 and mobile 390×844 each check the empty state, existing messages, attachment menu and devices dialog. API tests are supporting evidence only and cannot replace page acceptance.
+- **Expansion triggers**: stop and report immediately if the work needs backend/API changes, a fourth production file, a new dependency, Grok proprietary assets, or goes over budget.
 
 Scope confirmed by Max's `go` on 2026-08-31.
 
 ## S1 — Design decision
 
-**Observed**：Grok's current public Web page uses a borderless full-viewport canvas, icon-only top-left brand, lightweight top-right actions, a large centered brand, a roughly 760 px pill composer, near-black dark mode, and a bottom-pinned mobile composer. Ferry currently uses a bordered top bar, a card-like access panel, a narrow ChatGPT-style feed, and a permanently bottom-pinned composer.
+**Observed**: Grok's current public Web page uses a borderless full-viewport canvas, icon-only top-left brand, lightweight top-right actions, a large centered brand, a roughly 760 px pill composer, near-black dark mode, and a bottom-pinned mobile composer. Ferry currently uses a bordered top bar, a card-like access panel, a narrow ChatGPT-style feed, and a permanently bottom-pinned composer.
 
 Candidates:
 
@@ -50,16 +52,16 @@ The first delivery, its compatibility repair and the composer-focus repair remai
 
 ## Actual-chat redesign — S0 scope card
 
-- **REQUESTED（Max）**：`你觉和 grok 不像呢`，随后要求 `go` 继续处理。
-- **Done**：部署在 Mac mini 的 Ferry 已有消息页，第一眼呈现 Grok 实际聊天页的信息层级：右侧发送气泡、无头像内容流、弱化元信息、窄正文列与贴底 composer；文字、文件、设备和密码功能保持可用。
-- **Non-goals**：不复制 Grok 商标、文案或专有资产；不伪造 AI 回复、模型选择、搜索、会话列表或账号功能；不修改 Server/API、认证、iOS、Android 或持久化数据。
-- **INFERRED（不纳入）**：完整左侧会话栏、登录态 Grok 的隐藏功能、主题切换与消息编辑。
-- **REPO_REQUIRED**：保留 Ferry/device icon、照片与文件入口、可观察错误；真实桌面/手机浏览器 journey；相关测试、diff check、完整文件复核与对抗式自审。
-- **Depth**：full；已有消息、文件卡片、空状态、composer、设备面板与响应式布局需要作为一个页面系统重做，但无外部合同变化。
-- **Budget**：最多 3 个生产文件、净新增不超过 350 行、0 个新持久机制；沿用本过程文件，总行数不超过 220 行。
-- **Execution budget**：60 分钟；最多 2 次无效浏览器验收；外部动作限 Grok 匿名 UI 对照、`origin/main` push 和既有 Mac mini Ferry 容器部署。
-- **Boundary plan**：真实本地 Ferry Server 上验证桌面空/有消息、文件卡、设备面板与 390×844 手机布局，再在 Mac mini 部署后的真实入口复验。匿名 Grok 登录墙后的内容不作臆测。
-- **Expansion triggers**：需要 API/数据模型变化、第四个生产文件、新依赖、专有资产或超预算时立即停止。
+- **REQUESTED (Max)**: `你觉和 grok 不像呢` (“don't you think it doesn't look like Grok?”), followed by `go` to continue.
+- **Done**: the populated page of the Ferry deployed on the Mac mini presents, at first glance, the information hierarchy of Grok's actual chat page: right-side sent bubbles, an avatar-free content stream, subdued metadata, a narrow body column and a bottom-pinned composer; text, file, device and password features remain usable.
+- **Non-goals**: no copying of Grok's trademark, copy or proprietary assets; no fake AI replies, model picker, search, conversation list or account features; no changes to Server/API, auth, iOS, Android or persisted data.
+- **INFERRED (excluded)**: a full left conversation sidebar, hidden features of signed-in Grok, theme switching and message editing.
+- **REPO_REQUIRED**: keep Ferry/device icons, Photos and Files entries, and observable errors; real desktop/mobile browser journeys; relevant tests, diff check, complete-file review and adversarial self-review.
+- **Depth**: full; existing messages, file cards, empty state, composer, devices panel and responsive layout must be rebuilt as one page system, with no external contract change.
+- **Budget**: at most 3 production files, no more than 350 net added lines, 0 new persistent mechanisms; reuse this process file, at most 220 lines total.
+- **Execution budget**: 60 minutes; at most 2 ineffective browser acceptance attempts; external actions limited to comparison with Grok's anonymous UI, the `origin/main` push and the existing Mac mini Ferry container deployment.
+- **Boundary plan**: on a real local Ferry Server, verify desktop empty/populated states, file cards, devices panel and 390×844 mobile layout, then re-verify at the real entry point after the Mac mini deployment. Content behind the anonymous Grok login wall is not guessed at.
+- **Expansion triggers**: stop immediately if the work needs API/data-model changes, a fourth production file, a new dependency, proprietary assets, or goes over budget.
 
 Read-only evidence: Grok anonymous desktop and mobile chat state captured in `/private/tmp/grok-live-chat-result.png` and `/private/tmp/grok-live-chat-mobile.png`; recording `grok-actual-chat-study` (18 frames). The login wall blocked assistant-response inspection, so only directly observed user-bubble, content-card, typography, spacing and responsive behavior enter the design.
 
@@ -67,7 +69,7 @@ Scope confirmed by Max's `go` on 2026-08-31 after the card was displayed.
 
 ### Actual-chat redesign — S1 decision
 
-**Observed old semantics**：`renderMessage` creates a 34 px device avatar, then sender/time above text or file; CSS lays every item out as a left-aligned two-column row. This is why the page still reads as a conventional messenger even after the homepage shell changed.
+**Observed old semantics**: `renderMessage` creates a 34 px device avatar, then sender/time above text or file; CSS lays every item out as a left-aligned two-column row. This is why the page still reads as a conventional messenger even after the homepage shell changed.
 
 1. **Selected — reuse the current DOM/API state machine, change message markup classes and the presentation layer**. Every Ferry event remains a message from one of the user's devices, so its content becomes a right-aligned Grok-style user bubble with compact device/time provenance below it. Empty state, composer, attachment and settings keep their existing owners and IDs.
 2. **Rejected — add a Grok-like sidebar and conversation history**. Ferry has one shared timeline, so a fake sidebar would add controls with no product meaning.
@@ -139,7 +141,7 @@ Max identified that anonymous/login-wall evidence was insufficient and completed
 
 **S1 reopened — semantic invalidation 1.** The selected “no sidebar + two-row composer” design contradicts authenticated Grok and is removed. Replacement: a 257 px Ferry sidebar containing only real Ferry destinations (Timeline, Devices and current-server identity), a 704 px message column, the existing one-row 752×60 composer, and a meaningful empty-state server row. No fake search/history/model/AI functions.
 
-**S2 replacement checks**：desktop at 1383×997 must measure sidebar 257, composer 752×60 and message column 704; existing messages retain device provenance and file download; mobile uses a compact rail without overflow; attachment, Devices/password, focus, Offline/recovery and light/dark checks remain. Production budget remains 3 files / ≤350 net lines / 0 persistent mechanisms; user authorization is the original 1:1 request plus the completed authenticated-browser handoff.
+**S2 replacement checks**: desktop at 1383×997 must measure sidebar 257, composer 752×60 and message column 704; existing messages retain device provenance and file download; mobile uses a compact rail without overflow; attachment, Devices/password, focus, Offline/recovery and light/dark checks remain. Production budget remains 3 files / ≤350 net lines / 0 persistent mechanisms; user authorization is the original 1:1 request plus the completed authenticated-browser handoff.
 
 ### Authenticated correction — S3/S4 evidence
 
@@ -176,18 +178,18 @@ Author adversarial review, pass 4 (author fresh pass, not independent):
 
 ## Current-device message alignment
 
-- **Requested**：`本机发的在右边，其他发的在左边`。Done is exact device identity, not name/kind guessing; old messages without identity remain on the left.
-- **Scope**：Server persistence/API projection plus Web rendering; iOS/Android visual alignment is excluded from this Web correction. Contract depth applies because the message response gains `is_current_device`; budget is 5 production files, ≤100 net lines and one nullable SQLite column, with no new service/dependency.
-- **Decision**：persist nullable `sender_device_id` at the existing authenticated create seam, keep it private, and project only contextual `is_current_device` from list/create handlers. Counterexample: two devices named `iPhone` with the same kind must still render on opposite sides.
-- **Frozen checks**：legacy DB migrates with old messages foreign; authenticated text/file creates retain sender identity; list responses differ by requesting device; Web maps strict boolean true to right and every other value to left; two real browser identities send and observe opposite sides at desktop/mobile widths.
+- **Requested**: `本机发的在右边，其他发的在左边` (“messages sent from this device on the right, others on the left”). Done is exact device identity, not name/kind guessing; old messages without identity remain on the left.
+- **Scope**: Server persistence/API projection plus Web rendering; iOS/Android visual alignment is excluded from this Web correction. Contract depth applies because the message response gains `is_current_device`; budget is 5 production files, ≤100 net lines and one nullable SQLite column, with no new service/dependency.
+- **Decision**: persist nullable `sender_device_id` at the existing authenticated create seam, keep it private, and project only contextual `is_current_device` from list/create handlers. Counterexample: two devices named `iPhone` with the same kind must still render on opposite sides.
+- **Frozen checks**: legacy DB migrates with old messages foreign; authenticated text/file creates retain sender identity; list responses differ by requesting device; Web maps strict boolean true to right and every other value to left; two real browser identities send and observe opposite sides at desktop/mobile widths.
 - Status: `shipped`; implementation and author gates pass; Max explicitly waived the contract-class independent verifier on 2026-08-31 to preserve the standing no-subagent decision.
 
 Alignment evidence and adversarial closure:
 
-- **S3 behavior**：two real browser identities, both named/kind `Mac Web/browser`, sent A/B; each reload placed its own message right and its peer left. At 390 px, right ended x=378, left began x=68, overflow 0. Authenticated curl returned `Cache-Control: no-store`, contextual booleans and no `sender_device_id`.
-- **S3 mutation**：temporarily replacing ID equality with sender-name equality made `TestMessageCurrentDeviceProjectionUsesIdentityNotName` fail; restoring ID equality passed.
-- **Attacks 1–3**：dual judges were Store/API tests plus Chromium; legacy NULL, text, file, same-name peers and mobile were exercised; equivalent name/kind spellings could not collapse distinct IDs.
-- **Attacks 4–7**：missing/legacy values fail left through strict `=== true`; direct legacy plus authenticated text/file/list/open-file paths were enumerated; the name-comparison mutation failed closed; two auth tokens and a no-store response exercised the identity/cache boundary.
+- **S3 behavior**: two real browser identities, both named/kind `Mac Web/browser`, sent A/B; each reload placed its own message right and its peer left. At 390 px, right ended x=378, left began x=68, overflow 0. Authenticated curl returned `Cache-Control: no-store`, contextual booleans and no `sender_device_id`.
+- **S3 mutation**: temporarily replacing ID equality with sender-name equality made `TestMessageCurrentDeviceProjectionUsesIdentityNotName` fail; restoring ID equality passed.
+- **Attacks 1–3**: dual judges were Store/API tests plus Chromium; legacy NULL, text, file, same-name peers and mobile were exercised; equivalent name/kind spellings could not collapse distinct IDs.
+- **Attacks 4–7**: missing/legacy values fail left through strict `=== true`; direct legacy plus authenticated text/file/list/open-file paths were enumerated; the name-comparison mutation failed closed; two auth tokens and a no-store response exercised the identity/cache boundary.
 
 Author adversarial review (fresh final tree, not independent):
 

@@ -1,5 +1,7 @@
 # Four-digit pairing (historical)
 
+> English | [简体中文](four-digit-pairing.zh-Hans.md)
+
 > Superseded on 2026-08-30 by `docs/password-access.md`. The live product no longer uses pairing codes.
 
 ## Scope and decision

@@ -1,5 +1,7 @@
 # Security policy
 
+> English | [简体中文](SECURITY.zh-Hans.md)
+
 ## Supported versions
 
 Ferry has not published a stable release. Security fixes currently target the latest commit on `main`; old commits, debug APKs and private test deployments are not maintained release channels.

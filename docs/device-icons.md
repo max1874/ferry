@@ -1,34 +1,36 @@
 # Device icons
 
+> English | [简体中文](device-icons.zh-Hans.md)
+
 ## S0 — Scope card
 
-- **REQUESTED — Max, 2026-08-30**: “icon 也按之前的讨论补上”；此前明确示例是 iPhone 显示 iPhone、Mac 显示 Mac。
-- **Done**: Web 时间线和 Devices 面板按 `iphone / ipad / mac / android / windows / browser` 显示对应设备图标；已有 macmini 历史也不显示名字首字母。
-- **Non-goals**: 不识别具体机型，不采集硬件序列号/指纹，不引入完整图标包，不改变账户或权限模型，不改 iOS 时间线视觉。
-- **INFERRED (excluded)**: 设备类型不是安全身份，不能用于鉴权或设备所有权判断。
-- **REPO_REQUIRED**: 旧数据库原地升级；新客户端可连接旧 Server；旧客户端可使用新 Server；API/OpenAPI/SQLite/Web/iOS join 一致；Tabler MIT notice 随发布物分发。
-- **Depth**: contract — 扩展公开 JSON 与 SQLite，但不改变现有字段语义。
-- **Budget**: 最多 9 个 production files，1 个 SQLite 迁移机制，0 个依赖；不创建新 endpoint/table/service。
-- **Artifact budget**: 本文件作为 S0–S7 唯一状态记录。
-- **Execution budget**: 本轮完成；最多 2 次无效浏览器验收尝试。
-- **Boundary plan**: Go 契约/迁移测试证明兼容；真实 Web 证明用户可见图标；macmini 重建证明旧数据保留。
-- **Expansion triggers**: 若需要设备指纹、具体机型库、破坏性迁移或 API v2，立即 HALT。
-- **Confirmation**: Max 在看到此前“显式 device kind + 历史名字 fallback”建议后要求“按之前的讨论补上”，并再次用本 scope card 明确执行边界。
+- **REQUESTED — Max, 2026-08-30**: “icon 也按之前的讨论补上” (“add the icons as discussed earlier”); the earlier explicit example was an iPhone showing an iPhone and a Mac showing a Mac.
+- **Done**: the Web timeline and Devices panel show the matching device icon for `iphone / ipad / mac / android / windows / browser`; existing macmini history no longer shows name initials either.
+- **Non-goals**: no specific model detection, no hardware serial/fingerprint collection, no full icon pack, no change to the account or permission model, no change to the iOS timeline visuals.
+- **INFERRED (excluded)**: device kind is not a security identity and must not be used for authentication or device-ownership decisions.
+- **REPO_REQUIRED**: old databases upgrade in place; new clients can connect to old Servers; old clients can use new Servers; API/OpenAPI/SQLite/Web/iOS join stay consistent; the Tabler MIT notice ships with the release.
+- **Depth**: contract — extends public JSON and SQLite without changing the meaning of existing fields.
+- **Budget**: at most 9 production files, 1 SQLite migration mechanism, 0 dependencies; no new endpoint/table/service.
+- **Artifact budget**: this file is the only S0–S7 status record.
+- **Execution budget**: finish in this round; at most 2 ineffective browser acceptance attempts.
+- **Boundary plan**: Go contract/migration tests prove compatibility; a real Web page proves the user-visible icons; a macmini rebuild proves old data is retained.
+- **Expansion triggers**: HALT immediately if the work needs device fingerprints, a model database, a destructive migration or API v2.
+- **Confirmation**: after seeing the earlier “explicit device kind + historical name fallback” recommendation, Max asked to “add them as discussed”, and this scope card restated the execution boundary.
 
 ## S1 — Design decision
 
 ### Problems and evidence
 
-- **Observed**: Web `renderMessage` 和 iOS `MessageRow` 都取发送者名字首字母作为头像；`Device` / `Message` / SQLite 当前没有设备类型。
-- **Observed**: join JSON 由 `decodeStrictObject` 要求字段集合完全相等；直接增加客户端 JSON 字段会被旧 Server 拒绝。
-- **Observed**: Tabler Icons 官方仓库允许 inline SVG，并以 MIT 许可发布。
-- **Inferred**: 仅凭名字无法可靠覆盖用户自定义名，但足以兼容已有 `iPhone 17 Pro`、`Mac Web` 等历史记录。
+- **Observed**: Web `renderMessage` and iOS `MessageRow` both use the sender name's first letter as the avatar; `Device` / `Message` / SQLite currently have no device kind.
+- **Observed**: join JSON is decoded by `decodeStrictObject`, which requires the exact field set; adding a client JSON field directly would be rejected by old Servers.
+- **Observed**: the official Tabler Icons repository allows inline SVG and is published under the MIT license.
+- **Inferred**: the name alone cannot reliably cover user-chosen names, but it is enough to stay compatible with existing records such as `iPhone 17 Pro` and `Mac Web`.
 
 ### Candidates
 
-1. **Front-end name inference only** — 文件少、无迁移；自定义名会永久显示错，Devices 与消息可能各自漂移。
-2. **Required join JSON field** — 类型明确；新客户端无法连接旧 self-host Server，拒绝。
-3. **Recommended / confirmed: optional header + persisted kind + history fallback** — 新旧版本双向兼容；需要两个可空 SQLite 列和幂等迁移。
+1. **Front-end name inference only** — few files, no migration; custom names would show the wrong icon forever, and Devices and messages could drift apart.
+2. **Required join JSON field** — explicit kind; new clients could not connect to old self-hosted Servers, so rejected.
+3. **Recommended / confirmed: optional header + persisted kind + history fallback** — compatible in both directions between old and new versions; needs two nullable SQLite columns and an idempotent migration.
 
 ### Selected mechanism
 

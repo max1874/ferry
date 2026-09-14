@@ -1,5 +1,7 @@
 # Devices main-page navigation
 
+> English | [简体中文](devices-page.zh-Hans.md)
+
 ## Scope and decision
 
 - Requested (Max, 2026-09-01): clicking the left-side Devices item must not open a disconnected panel on the far right; visual interactions must be exercised before delivery.

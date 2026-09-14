@@ -1,10 +1,12 @@
 # Release readiness
 
+> English | [简体中文](release-readiness.zh-Hans.md)
+
 This is the authoritative record for the repository-preparation milestone. It does not certify the postponed physical-device or home-LAN journeys.
 
 ## S0 — Confirmed scope
 
-- **REQUESTED（Max，2026-08-31）**：完成现有 TODO 中除验证外的工作；License 由 Codex 选择最合适的类型。
+- **REQUESTED (Max, 2026-08-31)**: finish the existing TODO items other than verification; Codex chooses the most suitable license.
 - **Done**：the repository has accurate public-facing documentation, one CI gate for Go/Web/iOS/Android, a recoverable Docker data workflow, release-signing templates, and open-source contribution/security files.
 - **Non-goals**：physical-device exchange, Mac mini restore drill, store submission, public deployment, TLS, API/schema/database/product behavior changes, or committing secrets.
 - **Recommended and selected under user delegation**：Apache License 2.0, because its permissive terms include an explicit patent grant and patent-termination protection.

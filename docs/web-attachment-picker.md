@@ -1,29 +1,31 @@
 # Web attachment picker
 
+> English | [简体中文](web-attachment-picker.zh-Hans.md)
+
 ## Scope card
 
-- **REQUESTED — Max, 2026-08-30**: Web 的 `+` 不能默认只进入文件选择；手机用户需要清楚、直接地从相册选择媒体。
-- **Done**: 点击 `+` 显示“Photos”和“Files”两个入口；Photos 只请求图片/视频，Files 保留任意文件；两者选中后复用现有附件预览与发送流程；菜单支持点击外部和 Escape 关闭。
-- **Non-goals**: 不主动启动相机、不增加多选、不改 Server API、不修改 iOS 原生附件入口。
-- **Depth**: focused。
-- **Budget**: `index.html`、`app.css`、`app.js` 三个 production 文件和直接相关测试；无依赖、无持久化、无协议变更。
-- **Boundary proof**: Web handler contract test，加真实移动 viewport 浏览器旅程，分别证明 Photos 与 Files 路由到不同 input。
+- **REQUESTED — Max, 2026-08-30**: the Web `+` must not go straight to a file chooser; phone users need a clear, direct way to pick media from their photo library.
+- **Done**: tapping `+` shows two entries, “Photos” and “Files”; Photos requests only images/videos, Files keeps any file; both reuse the existing attachment preview and send flow after selection; the menu closes on outside click and Escape.
+- **Non-goals**: no camera launch, no multi-select, no Server API change, no change to the native iOS attachment entry.
+- **Depth**: focused.
+- **Budget**: three production files (`index.html`, `app.css`, `app.js`) and directly related tests; no dependency, persistence or protocol change.
+- **Boundary proof**: a Web handler contract test plus a real mobile-viewport browser journey, proving separately that Photos and Files route to different inputs.
 
 ## Evidence and decision
 
-- **Observed**: 原实现的 `+` 是一个直接包裹无 `accept` 属性文件 input 的 label，因此只有通用文件选择语义。
-- **Decided**: `+` 先打开 Ferry 自己的二选一菜单；Photos 使用 `accept="image/*,video/*"`，Files 不设置 `accept`。
-- **Decided**: 不设置 `capture`；用户要求的是相册入口，不能把它强制变成相机入口。
+- **Observed**: the original `+` was a label directly wrapping a file input with no `accept` attribute, so it only had generic file-chooser semantics.
+- **Decided**: `+` first opens Ferry's own two-choice menu; Photos uses `accept="image/*,video/*"`, Files sets no `accept`.
+- **Decided**: no `capture`; the user asked for a photo-library entry, which must not be forced into a camera entry.
 
 ## Ship checklist
 
-1. `+` 显示 Photos / Files，ARIA 展开状态同步。
-2. Photos 同步触发媒体 input，Files 同步触发通用 input。
-3. 两种选择只保留一个当前附件，并复用原发送与清除流程。
-4. 点击外部、Escape、进入 access 状态都会关闭菜单。
-5. Go tests、race、vet、JavaScript syntax、Docker build 与 `git diff --check` 通过。
-6. 当前 HEAD 和 macmini 部署均通过真实浏览器旅程。
-7. 推送前完成 13 项对抗式自审与一次独立 focused review。
+1. `+` shows Photos / Files, with ARIA expanded state kept in sync.
+2. Photos synchronously triggers the media input; Files synchronously triggers the generic input.
+3. Either choice keeps only one current attachment and reuses the existing send and clear flow.
+4. Outside click, Escape and entering the access state all close the menu.
+5. Go tests, race, vet, JavaScript syntax, Docker build and `git diff --check` pass.
+6. Both current HEAD and the macmini deployment pass a real browser journey.
+7. The 13-item adversarial self-review and one independent focused review are complete before push.
 
 ## Verification
 
@@ -65,7 +67,7 @@ Conclusion: **ship candidate after independent review and deployment proof**. Pa
 
 ## Clipboard image paste — 2026-09-01
 
-- Requested: “输入框不支持直接粘贴图片？” Done is image clipboard data becoming the existing single attachment chip and using the existing file-send path; ordinary pasted text remains text. Native apps, multi-image paste, and a new upload mechanism are excluded.
+- Requested: “输入框不支持直接粘贴图片？” (“the input box can't paste images directly?”). Done is image clipboard data becoming the existing single attachment chip and using the existing file-send path; ordinary pasted text remains text. Native apps, multi-image paste, and a new upload mechanism are excluded.
 - Focused design: one nullable in-memory `pastedAttachment` joins the two existing picker inputs at `selectedAttachment`; every existing clear/success path clears it, and choosing a picker file replaces it. Only an actual `image/*` file prevents the browser's default paste.
 - Frozen checks: native Cmd-V image shows `image.png`, disables text mode and enables Send; sending produces a file message and clears the chip; native Cmd-V text inserts exact text without a chip; existing Photos/Files replacement and remove behavior remain.
 - Local final-tree Chromium used the real system clipboard and native Paste command: a PNG produced `{chip:true,name:image.png,textDisabled:true,sendDisabled:false}`, sent as a visible `image.png` file message, then plain text produced `{chip:false,text:"plain clipboard text"}`. Recording: `ferry-paste-image-local` (9 frames).

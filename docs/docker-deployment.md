@@ -1,5 +1,7 @@
 # Docker deployment
 
+> English | [简体中文](docker-deployment.zh-Hans.md)
+
 > Admission was changed on 2026-08-30: current Ferry joins directly and optionally uses the password configured in Web settings. Pairing-code journey notes below are historical deployment evidence; `docs/password-access.md` governs the live access contract. Docker environment values configure only network publication, never the product password.
 
 ## Delivery record

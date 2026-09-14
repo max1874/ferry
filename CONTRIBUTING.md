@@ -1,5 +1,7 @@
 # Contributing to Ferry
 
+> English | [简体中文](CONTRIBUTING.zh-Hans.md)
+
 Ferry is a public repository with no tagged release. Treat every change as publicly visible, and see `README.md` for what is still unaccepted.
 
 ## Before changing code
@@ -16,6 +18,7 @@ Ferry is a public repository with no tagged release. Treat every change as publi
 - Add a regression test for every confirmed defect.
 - Report failures visibly; do not hide them behind retries or loading states.
 - Preserve `CLAUDE.md` as a symlink to `AGENTS.md`.
+- Keep documentation in English and Simplified Chinese: English at the original path, Chinese at the sibling `*.zh-Hans.md`, both updated in the same commit.
 
 Run the gates relevant to your change; the complete command list is in `README.md`. At minimum run `scripts/check-repo.sh`, `git diff --check`, and the tests/build for every touched component. Physical-device claims require physical-device evidence and must remain explicitly unverified when that evidence is unavailable.
 
