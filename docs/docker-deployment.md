@@ -12,6 +12,7 @@
 - Done: Web and iPhone use `http://10.0.0.2:42817`, exchange real messages, and retain data across a container restart.
 - Non-goals: TLS, a domain, reverse proxying, public-Internet exposure, and migration of the temporary laptop test data.
 - **Decided (Max, 2026-09-13, issue #1)**: an operator-run TLS reverse proxy is now supported through `FERRY_TRUSTED_ORIGIN` / `-trusted-origin`. The listener rule is unchanged: the proxy reaches the published port or the container address, so no wildcard bind is needed. Ferry admits only the configured origin in `Host` and `Origin` and ignores `X-Forwarded-*`.
+- **Decided (Max, 2026-09-14)**: the listen address is the deployer's choice. `FERRY_LISTEN_HOST` defaults to the container's single IP, as before, and may be set to a specific private IP or to `0.0.0.0` / `::`. Outside Docker, `-lan` now accepts `0.0.0.0` and `[::]`; without `-lan` Ferry still listens on loopback only. This supersedes the 2026-08-30 rejection of `0.0.0.0` below.
 - Depth: contract, because the deployment must preserve Ferry's authenticated LAN-listener boundary.
 - Budget: Dockerfile, Compose, `.dockerignore`, deployment documentation, and directly necessary tests; no API or database changes.
 
@@ -20,10 +21,10 @@
 - **Observed**: Ferry's Go process embeds both the Web UI and API, and persists SQLite plus blobs below `-data-dir`.
 - **Observed**: `macmini` is arm64 at `10.0.0.2`, runs OrbStack Docker 29.4.0 / Compose 5.1.2, and port 42817 was unused at preflight.
 - **Observed**: the predecessor `avocado` deployment uses Compose, a named volume, `restart: unless-stopped`, and host networking.
-- **Observed**: Ferry rejects wildcard listeners even in LAN mode; a normal bridge container therefore cannot bind `0.0.0.0`.
+- **Observed (2026-08-30; superseded 2026-09-14)**: Ferry rejected wildcard listeners even in LAN mode, so a normal bridge container could not bind `0.0.0.0`.
 - **Recommended, selected under the user's execution delegation**: use a bridge network, derive the container's single IPv4 address at startup, bind Ferry to that private address, and publish only the configured Mac LAN address.
 - **Rejected**: host networking makes OrbStack's forwarding boundary implicit and publishes without a host-IP mapping.
-- **Rejected**: allowing `0.0.0.0` would weaken an existing tested security boundary solely for deployment convenience.
+- **Rejected (2026-08-30; superseded 2026-09-14)**: allowing `0.0.0.0` would weaken an existing tested security boundary solely for deployment convenience. The rejection was reversed once a real deployment appeared that the single-IP listener cannot serve: a proxy container on a second Docker network (issue #1).
 
 ```text
 iPhone / browser
@@ -41,11 +42,35 @@ Ferry container private IPv4:42817
 
 Plain brief: this adds a repeatable container package for the existing combined Ferry Server and Web UI. The container keeps Ferry's specific-private-address listener rule while exposing one configurable high port on the Mac mini. If the address wiring or volume is wrong, devices cannot connect or data disappears after restart.
 
+## Listen address options
+
+| `FERRY_LISTEN_HOST` | Listener inside the container | Who can reach Ferry | Use when |
+| --- | --- | --- | --- |
+| unset (default) | the container's only IP | through the port published on `FERRY_HOST_IP`, plus other containers on the same Docker network | the container has one network |
+| a specific private IP | that IP | as above, restricted to that network | you want to pick one of several networks |
+| `0.0.0.0` or `::` | every container interface | through the published port, plus containers on every attached network | the container joins several networks, such as a proxy network |
+
+- With the default, startup fails if the container has zero or several IP addresses; the error names `FERRY_LISTEN_HOST` as the way out.
+- In a bridge container, `0.0.0.0` does not widen access from outside the host: Docker still publishes only on `FERRY_HOST_IP`, which Ferry validates as loopback or private.
+- With `network_mode: host`, `ports:` is ignored and `0.0.0.0` means every host interface. Reachability then depends entirely on the host firewall. Note that Docker's own published ports bypass host firewalls such as ufw, which is why Compose always names a host IP.
+- Ferry logs a warning whenever it listens on every interface.
+
+### Behind a reverse proxy
+
+| Where the proxy runs | Ferry settings | Proxy target |
+| --- | --- | --- |
+| On the host, or a container with `network_mode: host` | `FERRY_TRUSTED_ORIGIN` | `127.0.0.1:42817` (the loopback-published port) |
+| In its own bridge container | `FERRY_TRUSTED_ORIGIN`, `FERRY_LISTEN_HOST=0.0.0.0`, and a Compose override that adds the proxy's external network next to `default` | `ferry:42817` |
+| Ferry run from source | `-listen 127.0.0.1:42817 -trusted-origin …` | `127.0.0.1:42817` |
+
+- **Observed (2026-09-14)**: the host-proxy row was exercised on a Linux host with Caddy v2.11.3 on host networking and Ferry built from `382f194`: without the trusted origin the proxied page returned 421; with it, Chrome joined two sessions, exchanged text, an image and a 12 MB video, and foreign `Host` / `Origin` values were rejected.
+- The bridge-container row has not been exercised end to end.
+
 ## Governing gates
 
 - `go test ./...` and `go vet ./...` must remain green.
 - Image build must compile the same `./cmd/ferry` entry point used outside Docker.
-- Startup must fail if the container address is empty or ambiguous, or if `FERRY_HOST_IP` is not loopback/private/link-local; Ferry itself remains the final numeric/private-address judge for both listener and published host.
+- Startup must fail if `FERRY_LISTEN_HOST` is unset and the container address is empty or ambiguous, or if `FERRY_HOST_IP` is not loopback/private/link-local; Ferry itself remains the final numeric/private-address judge for both listener and published host.
 - Compose defaults to loopback publication; the Mac mini deployment opts into `10.0.0.2` through an untracked `.env` file.
 - `git diff --check` and a full-file security review gate shipping.
 

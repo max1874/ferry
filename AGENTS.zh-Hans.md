@@ -9,7 +9,8 @@
 - Ferry 是准备公开的自托管局域网剪贴板与文件共享项目，包含 Go Server、内嵌 Web、iOS 26 App 与 Android 8+ App；产品边界以 `docs/product-core.md` 为准。
 - 当前四个组件均已有 MVP。Android 已有真实设备安装/启动证据。跨 Web/iOS/Android 的完整局域网旅程没有做过真机端到端验收；**Decided（Max，2026-09-11）**：不把它作为公开仓库的前置条件。不要把单测或模拟器结果说成这条旅程的验收证据。
 - 当前不做 TLS、公网部署、自动剪贴板或后台传输；新增这些方向前必须由用户明确决定。
-- **Decided（Max，2026-09-13，issue #1）**：支持部署者在私有网络里用自己的 TLS 反向代理（如 Caddy）挂 Ferry，Server 通过显式的 `-trusted-origin` 只放行这一个 origin。Ferry 自身仍不做 TLS、不监听通配地址、不读 `X-Forwarded-*`，公网暴露仍不支持。
+- **Decided（Max，2026-09-13，issue #1）**：支持部署者在私有网络里用自己的 TLS 反向代理（如 Caddy）挂 Ferry，Server 通过显式的 `-trusted-origin` 只放行这一个 origin。Ferry 自身仍不做 TLS、不读 `X-Forwarded-*`，公网暴露仍不支持。
+- **Decided（Max，2026-09-14）**：监听地址交给部署者选择，以选项提供而不是强制限制。带 `-lan` 时，Ferry 接受 `0.0.0.0` / `[::]`；Docker 里对应 `FERRY_LISTEN_HOST`，默认值仍是容器唯一的 IP。不带 `-lan` 时，Ferry 仍然只监听 loopback，主机名和公网地址仍被拒绝。
 - **Decided（Max，2026-09-11）**：iOS 走 TestFlight 分发，**不上架 App Store**。App Store Connect 记录已建，商店名 `FerryDrop`（`Ferry` 在 en-US 等 locale 已被其他开发者账号占用），Bundle ID `com.max1874.ferrydrop`，`1.0.0 (1)` 已在内部测试。上架 App Store 仍然不做，要做必须由用户再次明确决定。分发所需的 Team ID、ExportOptions 与流水线都在账号侧的私有知识库，不进本仓库。
 - 局域网 TLS 与跨设备剪贴板同步在 2026-09-08 实现过一次，2026-09-09 整体撤回。重新提案前必须先读 `docs/clipboard-sync.md`，那里有撤回理由和已经跑过的实测；不要重跑同样的测量再得出同样的结论。Ferry 只在用户点复制控件时写剪贴板，任何情况下都不读。
 

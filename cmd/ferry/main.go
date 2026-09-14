@@ -73,11 +73,11 @@ func validateListenAddress(address string, allowLAN bool) error {
 		return fmt.Errorf("listen port must be between 1 and 65535")
 	}
 	ip := net.ParseIP(host)
-	if strings.EqualFold(host, "localhost") || ip != nil && (ip.IsLoopback() || allowLAN && allowedLANIP(ip)) {
+	if strings.EqualFold(host, "localhost") || ip != nil && (ip.IsLoopback() || allowLAN && (allowedLANIP(ip) || ip.IsUnspecified())) {
 		return nil
 	}
 	if allowLAN {
-		return fmt.Errorf("listen host must be localhost, loopback, or a private/link-local IP address")
+		return fmt.Errorf("listen host must be localhost, loopback, a private/link-local IP address, or 0.0.0.0/[::]")
 	}
 	return fmt.Errorf("listen host must be localhost or a loopback IP address; use -lan for a private LAN listener")
 }
@@ -96,7 +96,7 @@ func run(ctx context.Context, value config) error {
 	}
 	defer listener.Close()
 	address, ok := listener.Addr().(*net.TCPAddr)
-	if !ok || !(address.IP.IsLoopback() || value.lan && allowedLANIP(address.IP)) {
+	if !ok || !(address.IP.IsLoopback() || value.lan && (allowedLANIP(address.IP) || address.IP.IsUnspecified())) {
 		return fmt.Errorf("resolved listen address is outside the allowed listener boundary")
 	}
 
@@ -107,6 +107,9 @@ func run(ctx context.Context, value config) error {
 	defer store.Close()
 	if value.lan {
 		log.Printf("LAN mode uses unencrypted HTTP; use only on a trusted network")
+	}
+	if address.IP.IsUnspecified() {
+		log.Printf("listening on every network interface; the host firewall and any port publishing decide who can reach Ferry")
 	}
 	if value.trustedOrigin != "" {
 		log.Printf("accepting browser requests for reverse-proxy origin %s", value.trustedOrigin)

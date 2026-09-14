@@ -31,7 +31,7 @@ Ferry 是一个自托管的剪贴板与文件摆渡工具，服务于同一个�
 | 历史 | 一条持久的时间线，而不是传完就消失的一次传输 |
 | 文件 | 按上传原样存储和提供，最大 64 MB，不重新编码 |
 | 剪贴板 | 只由你自己的粘贴快捷键和复制控件读写 |
-| 网络 | 拒绝发布到通配地址、主机名或公网地址 |
+| 网络 | 默认只监听 loopback；局域网地址和监听所有网卡都要显式开启；从不绑定主机名或公网地址 |
 
 ## 功能
 
@@ -45,7 +45,7 @@ Ferry 是一个自托管的剪贴板与文件摆渡工具，服务于同一个�
 ## 环境要求
 
 - 托管 Ferry 的机器上装有 Docker 和 Compose v2，或者用 Go 1.26.3 从源码运行
-- 一个可信的私有网络；Ferry 拒绝绑定通配地址、主机名或公网地址
+- 一个可信的私有网络；Ferry 拒绝绑定主机名或公网地址
 - 可选：iOS App 需要 Xcode 26.6，Android App 需要 Android Studio、JDK 17 和 SDK 35
 
 ## 如何运行 Ferry
@@ -63,9 +63,32 @@ Ferry 是一个自托管的剪贴板与文件摆渡工具，服务于同一个�
 
 请把 Ferry 留在可信的私有网络里，不要暴露到公网；见[安全](#安全)。
 
+### 容器监听地址
+
+谁能访问容器，由两个设置决定：
+
+| 设置 | 默认值 | 含义 |
+| --- | --- | --- |
+| `FERRY_HOST_IP` | `127.0.0.1` | Docker 把端口发布到宿主机的哪个地址；必须是 loopback 或私有地址 |
+| `FERRY_LISTEN_HOST` | 容器自己的 IP | Ferry 在容器里监听的地址 |
+
+默认的监听方式要求容器恰好只有一个 IP 地址，否则启动失败。设置 `FERRY_LISTEN_HOST=0.0.0.0`（或 `::`）可以监听容器的所有网卡，比如容器加入了第二个 Docker 网络时：
+
+```bash
+FERRY_LISTEN_HOST=0.0.0.0 docker compose up --build -d
+```
+
+在普通的 bridge 容器里，`0.0.0.0` 仍然只能通过发布在 `FERRY_HOST_IP` 上的端口被外部访问。使用 `network_mode: host` 时，容器的网卡就是宿主机的网卡，防火墙放行的所有宿主机网卡都能访问 Ferry。
+
+不用 Docker 时，对应的写法是 `-lan -listen 0.0.0.0:42817`；Ferry 监听所有网卡时会在日志里给出警告。
+
 ### 放在反向代理后面
 
-如果要通过私有域名、用你自己的 TLS 代理访问 Ferry（比如在 VPN 里），要告诉 Ferry 它应该接受的那一个浏览器 origin。Ferry 仍然绑定它自己的具体地址；代理连到发布的端口，并转发原始的 `Host` 头，Caddy 默认就会这样做：
+如果要通过私有域名、用你自己的 TLS 代理访问 Ferry（比如在 VPN 里），要告诉 Ferry 它应该接受的那一个浏览器 origin。代理必须转发原始的 `Host` 头，Caddy 默认就会这样做。`Host` 或 `Origin` 指向其他域名的请求仍会被拒绝。代理到 Ferry 这一跳是明文 HTTP，所以要让它留在 loopback 或私有网络里。
+
+`reverse_proxy` 后面填什么，取决于代理跑在哪里。
+
+**代理装在宿主机上，或者代理容器使用 `network_mode: host`。** 连到 Compose 发布在 loopback 上的端口：
 
 ```bash
 FERRY_TRUSTED_ORIGIN=https://ferry.example.com docker compose up --build -d
@@ -77,7 +100,34 @@ ferry.example.com {
 }
 ```
 
-如果代理以容器形式跑在同一个 Compose 网络里，就用 `reverse_proxy ferry:42817`，并让 `FERRY_HOST_IP` 保持默认的 loopback。从源码运行时，传 `-trusted-origin https://ferry.example.com`。`Host` 或 `Origin` 指向其他域名的请求仍会被拒绝。代理到 Ferry 这一跳是明文 HTTP，所以要让它留在 loopback 或私有网络里。
+**代理跑在自己的 bridge 容器里。** 这时代理容器里的 `127.0.0.1` 指向代理自己，所以要把 Ferry 接入代理所在的 Docker 网络，并用服务名访问。Ferry 这时有两个 IP 地址，必须监听容器的所有网卡。在 `compose.yaml` 旁边新建 `compose.override.yaml`：
+
+```yaml
+services:
+  ferry:
+    networks: [default, proxy]
+
+networks:
+  proxy:
+    external: true
+    name: caddy_default # 代理所在的网络名，用 `docker network ls` 查看
+```
+
+```bash
+FERRY_LISTEN_HOST=0.0.0.0 FERRY_TRUSTED_ORIGIN=https://ferry.example.com docker compose up --build -d
+```
+
+```Caddyfile
+ferry.example.com {
+  reverse_proxy ferry:42817
+}
+```
+
+**从源码运行。** 用参数传入 origin，代理指向 loopback 监听地址：
+
+```bash
+go run ./cmd/ferry -listen 127.0.0.1:42817 -trusted-origin https://ferry.example.com
+```
 
 ### 备份与恢复
 

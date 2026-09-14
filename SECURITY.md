@@ -24,4 +24,6 @@ The current Ferry milestone is designed for a trusted private or link-local netw
 
 A TLS reverse proxy on a private network or VPN is supported through `-trusted-origin` (`FERRY_TRUSTED_ORIGIN` in Docker). It encrypts only the browser-to-proxy hop; the proxy-to-Ferry hop stays HTTP and should stay on loopback or a private network. The proxy does not make public exposure supported.
 
+Listening on every interface (`-lan -listen 0.0.0.0:…`, or `FERRY_LISTEN_HOST=0.0.0.0` in Docker) is an explicit opt-in. In a bridge container it is still limited by the published port; on a host, or with host networking, every interface the firewall allows can reach Ferry.
+
 Do not publish Ferry directly to the Internet. Use a host firewall, a specific private listener address, a high port, and access controls appropriate for the network. TLS, hostile-network hardening and a stable security-support policy are future milestones.

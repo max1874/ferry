@@ -37,7 +37,12 @@ func TestConfigRequiresExplicitLANModeAndPrivateAddress(t *testing.T) {
 			t.Fatalf("accepted %q without -lan", address)
 		}
 	}
-	for _, address := range []string{"0.0.0.0:8080", "[::]:8080", "8.8.8.8:8080", "example.com:8080", ":8080"} {
+	for _, address := range []string{"0.0.0.0:8080", "[::]:8080"} {
+		if _, err := parseConfig([]string{"-lan", "-listen", address}); err != nil {
+			t.Fatalf("rejected explicit LAN wildcard %q: %v", address, err)
+		}
+	}
+	for _, address := range []string{"8.8.8.8:8080", "example.com:8080", ":8080"} {
 		if _, err := parseConfig([]string{"-lan", "-listen", address}); err == nil {
 			t.Fatalf("accepted non-private LAN address %q", address)
 		}

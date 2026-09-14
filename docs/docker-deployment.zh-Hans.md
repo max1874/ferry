@@ -12,6 +12,7 @@
 - 完成标准：Web 和 iPhone 通过 `http://10.0.0.2:42817` 互发真实消息，容器重启后数据仍在。
 - 不做：TLS、域名、反向代理、公网暴露，以及迁移笔记本上的临时测试数据。
 - **Decided（Max，2026-09-13，issue #1）**：现在支持运维者自己运行的 TLS 反向代理，通过 `FERRY_TRUSTED_ORIGIN` / `-trusted-origin` 配置。监听规则不变：代理连到发布端口或容器地址，因此不需要绑定通配地址。Ferry 在 `Host` 和 `Origin` 里只放行配置的那个 origin，并忽略 `X-Forwarded-*`。
+- **Decided（Max，2026-09-14）**：监听地址由部署者选择。`FERRY_LISTEN_HOST` 默认仍是容器唯一的 IP，也可以设成具体的私有 IP，或 `0.0.0.0` / `::`。不用 Docker 时，`-lan` 现在接受 `0.0.0.0` 和 `[::]`；不带 `-lan` 时 Ferry 仍然只监听 loopback。这条决定取代下文 2026-08-30 对 `0.0.0.0` 的否决。
 - 深度：contract，因为部署必须保持 Ferry 的已鉴权局域网监听边界。
 - 预算：Dockerfile、Compose、`.dockerignore`、部署文档和直接必要的测试；不改 API 或数据库。
 
@@ -20,10 +21,10 @@
 - **Observed**：Ferry 的 Go 进程同时内嵌 Web UI 和 API，并把 SQLite 和 blob 持久化在 `-data-dir` 下。
 - **Observed**：`macmini` 是 arm64，地址 `10.0.0.2`，运行 OrbStack Docker 29.4.0 / Compose 5.1.2，预检时 42817 端口未被占用。
 - **Observed**：前一个项目 `avocado` 的部署使用 Compose、命名数据卷、`restart: unless-stopped` 和 host 网络。
-- **Observed**：Ferry 即使在 LAN 模式下也拒绝通配监听；普通的 bridge 容器因此不能绑定 `0.0.0.0`。
+- **Observed（2026-08-30；2026-09-14 已被取代）**：Ferry 当时即使在 LAN 模式下也拒绝通配监听，普通的 bridge 容器因此不能绑定 `0.0.0.0`。
 - **Recommended，在用户授权执行的前提下选定**：使用 bridge 网络，启动时取出容器唯一的 IPv4 地址，让 Ferry 绑定这个私有地址，并只发布到配置的 Mac 局域网地址。
 - **Rejected**：host 网络会让 OrbStack 的转发边界变得隐式，而且发布时不带 host-IP 映射。
-- **Rejected**：允许 `0.0.0.0` 会仅仅为了部署方便而削弱一条已测试的安全边界。
+- **Rejected（2026-08-30；2026-09-14 已被取代）**：允许 `0.0.0.0` 会仅仅为了部署方便而削弱一条已测试的安全边界。出现了单 IP 监听无法支持的真实部署后，这条否决被推翻：代理容器在第二个 Docker 网络里（issue #1）。
 
 ```text
 iPhone / browser
@@ -41,11 +42,35 @@ Ferry container private IPv4:42817
 
 一句话说明：这一步为现有的 Ferry Server + Web UI 组合加了一个可重复的容器打包方式。容器保留 Ferry「只监听具体私有地址」的规则，同时在 Mac mini 上暴露一个可配置的高位端口。如果地址接线或数据卷配错，设备会连不上，或者重启后数据消失。
 
+## 监听地址选项
+
+| `FERRY_LISTEN_HOST` | 容器内的监听地址 | 谁能访问 Ferry | 适用场景 |
+| --- | --- | --- | --- |
+| 不设置（默认） | 容器唯一的 IP | 通过发布在 `FERRY_HOST_IP` 上的端口，以及同一 Docker 网络里的其他容器 | 容器只接入一个网络 |
+| 具体的私有 IP | 这个 IP | 同上，但限定在这个网络 | 想在多个网络中指定一个 |
+| `0.0.0.0` 或 `::` | 容器的所有网卡 | 通过发布的端口，以及所有已接入网络里的容器 | 容器接入多个网络，比如代理所在的网络 |
+
+- 使用默认值时，如果容器没有 IP 或有多个 IP，启动会失败，报错会提示可以设置 `FERRY_LISTEN_HOST`。
+- 在 bridge 容器里，`0.0.0.0` 不会扩大宿主机外部的访问范围：Docker 仍然只发布到 `FERRY_HOST_IP`，而 Ferry 会校验它必须是 loopback 或私有地址。
+- 使用 `network_mode: host` 时，`ports:` 不生效，`0.0.0.0` 就是宿主机的所有网卡，能否访问完全取决于宿主机防火墙。另外注意，Docker 自己发布的端口会绕过 ufw 这类宿主机防火墙，所以 Compose 始终指定宿主机 IP。
+- Ferry 监听所有网卡时，都会在日志里给出警告。
+
+### 放在反向代理后面
+
+| 代理跑在哪里 | Ferry 设置 | 代理目标 |
+| --- | --- | --- |
+| 宿主机上，或使用 `network_mode: host` 的容器 | `FERRY_TRUSTED_ORIGIN` | `127.0.0.1:42817`（发布在 loopback 上的端口） |
+| 自己的 bridge 容器里 | `FERRY_TRUSTED_ORIGIN`、`FERRY_LISTEN_HOST=0.0.0.0`，以及一个在 `default` 之外加入代理外部网络的 Compose override | `ferry:42817` |
+| 从源码运行 Ferry | `-listen 127.0.0.1:42817 -trusted-origin …` | `127.0.0.1:42817` |
+
+- **Observed（2026-09-14）**：宿主机代理这一行已在一台 Linux 主机上实测：Caddy v2.11.3 使用 host 网络，Ferry 从 `382f194` 构建。不设可信 origin 时，经代理访问页面返回 421；设置后，Chrome 两个会话分别加入，互发文字、一张图片和一个 12 MB 视频，其他域名的 `Host` / `Origin` 被拒绝。
+- bridge 容器这一行还没有端到端实测过。
+
 ## 约束性检查
 
 - `go test ./...` 和 `go vet ./...` 必须保持绿色。
 - 镜像构建必须编译和 Docker 之外相同的 `./cmd/ferry` 入口。
-- 如果容器地址为空或有歧义，或者 `FERRY_HOST_IP` 不是 loopback/私有/链路本地地址，启动必须失败；Ferry 本身仍是监听地址和发布主机两者数值/私有地址的最终裁决者。
+- 如果未设置 `FERRY_LISTEN_HOST` 且容器地址为空或有歧义，或者 `FERRY_HOST_IP` 不是 loopback/私有/链路本地地址，启动必须失败；Ferry 本身仍是监听地址和发布主机两者数值/私有地址的最终裁决者。
 - Compose 默认发布到 loopback；Mac mini 部署通过一个未跟踪的 `.env` 文件选择 `10.0.0.2`。
 - `git diff --check` 和一次完整文件的安全评审是发布门槛。
 

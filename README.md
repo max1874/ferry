@@ -31,7 +31,7 @@ Because the round trip is the cost. A self-chat in a messaging app sends your cl
 | History | A persistent timeline, not a transfer that disappears when it lands |
 | Files | Stored and served as uploaded, up to 64 MB, no re-encoding |
 | Clipboard | Read and written only by your own paste shortcut and copy control |
-| Network | Refuses to publish on a wildcard, hostname or public address |
+| Network | Loopback by default; LAN and all-interface listeners are explicit opt-ins; never a hostname or public address |
 
 ## Features
 
@@ -45,7 +45,7 @@ Because the round trip is the cost. A self-chat in a messaging app sends your cl
 ## Requirements
 
 - Docker with Compose v2 on the machine that will host Ferry, or Go 1.26.3 to run it from source
-- A trusted private network; Ferry refuses to bind a wildcard, hostname or public address
+- A trusted private network; Ferry refuses to bind a hostname or public address
 - Optional: Xcode 26.6 for the iOS app, Android Studio with JDK 17 and SDK 35 for the Android app
 
 ## How do I run Ferry?
@@ -63,9 +63,32 @@ Because the round trip is the cost. A self-chat in a messaging app sends your cl
 
 Keep Ferry on a trusted private network and do not expose it to the public Internet; see [Security](#security).
 
+### Container listen address
+
+Two settings decide who can reach the container:
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `FERRY_HOST_IP` | `127.0.0.1` | Host address Docker publishes the port on; must be loopback or private |
+| `FERRY_LISTEN_HOST` | the container's own IP | Address Ferry listens on inside the container |
+
+The default listener needs the container to have exactly one IP address, and startup fails otherwise. Set `FERRY_LISTEN_HOST=0.0.0.0` (or `::`) to listen on every interface of the container, for example when it joins a second Docker network:
+
+```bash
+FERRY_LISTEN_HOST=0.0.0.0 docker compose up --build -d
+```
+
+In a normal bridge container, `0.0.0.0` still reaches the outside only through the port published on `FERRY_HOST_IP`. With `network_mode: host` the container's interfaces are the host's, so every host interface the firewall allows can reach Ferry.
+
+Outside Docker the same choice is `-lan -listen 0.0.0.0:42817`; Ferry logs a warning when it listens on every interface.
+
 ### Behind a reverse proxy
 
-To reach Ferry through a private domain with your own TLS proxy (for example on a VPN), tell Ferry the one browser origin it should accept. Ferry still binds its specific address; the proxy connects to the published port and forwards the original `Host` header, which Caddy does by default:
+To reach Ferry through a private domain with your own TLS proxy (for example on a VPN), tell Ferry the one browser origin it should accept. The proxy must forward the original `Host` header, which Caddy does by default. Requests whose `Host` or `Origin` names any other domain are still rejected. The proxy-to-Ferry hop is plain HTTP, so keep it on loopback or a private network.
+
+Where `reverse_proxy` points depends on where the proxy runs.
+
+**Proxy on the host, or a proxy container with `network_mode: host`.** Connect to the port Compose publishes on loopback:
 
 ```bash
 FERRY_TRUSTED_ORIGIN=https://ferry.example.com docker compose up --build -d
@@ -77,7 +100,34 @@ ferry.example.com {
 }
 ```
 
-If the proxy runs as a container on the same Compose network, use `reverse_proxy ferry:42817` and leave `FERRY_HOST_IP` at its loopback default. From source, pass `-trusted-origin https://ferry.example.com`. Requests whose `Host` or `Origin` names any other domain are still rejected. The proxy-to-Ferry hop is plain HTTP, so keep it on loopback or a private network.
+**Proxy in its own bridge container.** Inside that container `127.0.0.1` is the proxy itself, so attach Ferry to the proxy's Docker network and use the service name. Ferry then has two IP addresses, so it must listen on every container interface. Add a `compose.override.yaml` next to `compose.yaml`:
+
+```yaml
+services:
+  ferry:
+    networks: [default, proxy]
+
+networks:
+  proxy:
+    external: true
+    name: caddy_default # the proxy's network; see `docker network ls`
+```
+
+```bash
+FERRY_LISTEN_HOST=0.0.0.0 FERRY_TRUSTED_ORIGIN=https://ferry.example.com docker compose up --build -d
+```
+
+```Caddyfile
+ferry.example.com {
+  reverse_proxy ferry:42817
+}
+```
+
+**From source.** Pass the origin as a flag and point the proxy at the loopback listener:
+
+```bash
+go run ./cmd/ferry -listen 127.0.0.1:42817 -trusted-origin https://ferry.example.com
+```
 
 ### Back up and restore
 
