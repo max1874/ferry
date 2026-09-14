@@ -13,6 +13,8 @@
 - Non-goals: TLS, a domain, reverse proxying, public-Internet exposure, and migration of the temporary laptop test data.
 - **Decided (Max, 2026-09-13, issue #1)**: an operator-run TLS reverse proxy is now supported through `FERRY_TRUSTED_ORIGIN` / `-trusted-origin`. The listener rule is unchanged: the proxy reaches the published port or the container address, so no wildcard bind is needed. Ferry admits only the configured origin in `Host` and `Origin` and ignores `X-Forwarded-*`.
 - **Decided (Max, 2026-09-14)**: the listen address is the deployer's choice. `FERRY_LISTEN_HOST` defaults to the container's single IP, as before, and may be set to a specific private IP or to `0.0.0.0` / `::`. Outside Docker, `-lan` now accepts `0.0.0.0` and `[::]`; without `-lan` Ferry still listens on loopback only. This supersedes the 2026-08-30 rejection of `0.0.0.0` below.
+- **Decided (Max, 2026-09-14)**: deployment defaults to the published image `ghcr.io/max1874/ferry:<version>` for `linux/amd64` and `linux/arm64`. `compose.yaml` pulls it, `FERRY_IMAGE` selects the version, and `compose.build.yaml` builds the current source for developers and for the data self-test. The service name, volume, data directory and runtime user are unchanged, so a source deployment upgrades in place. The release flow lives in `docs/release-process.md`.
+- **Observed**: the image's build stage cross-compiles on the builder's platform (`CGO_ENABLED=0`), so the `arm64` image does not compile Go under emulation.
 - Depth: contract, because the deployment must preserve Ferry's authenticated LAN-listener boundary.
 - Budget: Dockerfile, Compose, `.dockerignore`, deployment documentation, and directly necessary tests; no API or database changes.
 
@@ -72,6 +74,8 @@ Plain brief: this adds a repeatable container package for the existing combined 
 - Image build must compile the same `./cmd/ferry` entry point used outside Docker.
 - Startup must fail if `FERRY_LISTEN_HOST` is unset and the container address is empty or ambiguous, or if `FERRY_HOST_IP` is not loopback/private/link-local; Ferry itself remains the final numeric/private-address judge for both listener and published host.
 - Compose defaults to loopback publication; the Mac mini deployment opts into `10.0.0.2` through an untracked `.env` file.
+- CI builds both architectures, starts each through `compose.yaml`, asserts the startup log's browser address, keeps a device, text, file and password across a restart, and moves a source-built deployment to the image without losing them (`scripts/image-smoke.sh`).
+- `scripts/ferry-data.sh self-test` builds the current source through `compose.build.yaml`; it must never test a pulled image.
 - `git diff --check` and a full-file security review gate shipping.
 
 ## Historical pairing-era ship checklist

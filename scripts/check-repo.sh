@@ -34,6 +34,12 @@ grep -Fq 'Android App' README.md || fail "README must describe Android"
 grep -Fq 'Superseded on 2026-08-30' docs/four-digit-pairing.md || fail "pairing document must stay historical"
 grep -Fq 'Apache License 2.0' README.md || fail "README license statement is missing"
 
+# The deployment bundle ships both files; a user who copies .env.example must
+# get the same image that compose.yaml would choose without it.
+compose_image=$(sed -n 's/^    image: \${FERRY_IMAGE:-\(.*\)}$/\1/p' compose.yaml)
+[ -n "$compose_image" ] || fail "compose.yaml must default FERRY_IMAGE to a published image"
+grep -Fxq "FERRY_IMAGE=$compose_image" .env.example || fail ".env.example must name $compose_image like compose.yaml"
+
 unpinned_actions=$(awk '
     /^[[:space:]]*- uses:/ {
         count = split($0, parts, "@")

@@ -1,8 +1,6 @@
 services:
   ferry:
-    build:
-      context: .
-    image: ferry:local
+    image: ${FERRY_IMAGE:-ghcr.io/max1874/ferry:1.0.0}
     container_name: ferry
     environment:
       FERRY_HOST_IP: ${FERRY_HOST_IP:-127.0.0.1}

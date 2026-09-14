@@ -33,6 +33,13 @@ const deviceList = document.querySelector("#device-list");
 const settingsPasswordInput = document.querySelector("#settings-password");
 const saveAccessButton = document.querySelector("#save-access");
 const accessSettingsStatus = document.querySelector("#access-settings-status");
+const welcomeGuide = document.querySelector("#welcome-guide");
+const welcomeConnectButton = document.querySelector("#welcome-connect");
+const serverAddressInput = document.querySelector("#server-address");
+const copyAddressButton = document.querySelector("#copy-address");
+const connectStatus = document.querySelector("#connect-status");
+const connectHint = document.querySelector("#connect-hint");
+const connectQR = document.querySelector("#connect-qr");
 
 const messageImages = new Map();
 const pendingImages = new WeakMap();
@@ -140,6 +147,8 @@ function resetTimeline() {
   messageImages.clear();
   messagesElement.replaceChildren();
   welcome.hidden = false;
+  // The guide belongs to a timeline known to be empty, not one still loading.
+  welcomeGuide.hidden = true;
 }
 
 function selectedAttachment() {
@@ -530,6 +539,7 @@ async function loadMessages() {
     const payload = await response.json();
     for (const message of payload.messages) renderMessage(message);
     cursor = payload.next_cursor;
+    welcomeGuide.hidden = false;
     connectionElement.textContent = "Local";
     connectionError = "";
     renderStatus();
@@ -726,7 +736,10 @@ async function loadDevices() {
 
 timelineButton.addEventListener("click", () => selectView("timeline"));
 
-deviceButton.addEventListener("click", async () => {
+deviceButton.addEventListener("click", openDevices);
+welcomeConnectButton.addEventListener("click", openDevices);
+
+async function openDevices() {
   selectView("devices");
   accessSettingsStatus.textContent = "";
   settingsPasswordInput.value = "";
@@ -746,7 +759,73 @@ deviceButton.addEventListener("click", async () => {
     if (error.name === "AbortError") return;
     accessSettingsStatus.textContent = error.message;
   }
+}
+
+// The address another device should open is the one this browser is using.
+// location.origin carries no path, query or fragment, and the device token
+// lives in localStorage, so neither the token nor a password can leak into it.
+function renderConnectSection() {
+  const address = location.origin;
+  serverAddressInput.value = address;
+  connectQR.replaceChildren();
+  connectQR.hidden = true;
+  if (isLocalOnlyHost(location.hostname)) {
+    connectHint.textContent = "This page is open at an address only this computer can reach. Open Ferry through the server's LAN IP, such as http://192.168.1.20:42817, then connect other devices from there.";
+    return;
+  }
+  try {
+    connectQR.append(qrCodeSVG(address));
+    connectQR.hidden = false;
+    connectHint.textContent = "";
+  } catch {
+    connectQR.replaceChildren();
+    connectHint.textContent = "The QR code could not be created. Type or copy the address on the other device instead.";
+  }
+}
+
+function isLocalOnlyHost(hostname) {
+  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  return host === "localhost" || host.endsWith(".localhost") || /^127\./.test(host) || /^0\.0\.0\.0$/.test(host) ||
+    host === "::1" || host === "::" || host.startsWith("::ffff:7f") || host.startsWith("::ffff:127.");
+}
+
+function qrCodeSVG(text) {
+  const code = qrcodegen.QrCode.encodeText(text, qrcodegen.QrCode.Ecc.MEDIUM);
+  const border = 4;
+  const size = code.size + border * 2;
+  const namespace = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(namespace, "svg");
+  svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", `QR code for ${text}`);
+  svg.setAttribute("shape-rendering", "crispEdges");
+  const ground = document.createElementNS(namespace, "rect");
+  ground.setAttribute("width", String(size));
+  ground.setAttribute("height", String(size));
+  ground.setAttribute("fill", "#ffffff");
+  let modules = "";
+  for (let y = 0; y < code.size; y += 1) {
+    for (let x = 0; x < code.size; x += 1) {
+      if (code.getModule(x, y)) modules += `M${x + border},${y + border}h1v1h-1z`;
+    }
+  }
+  const path = document.createElementNS(namespace, "path");
+  path.setAttribute("d", modules);
+  path.setAttribute("fill", "#000000");
+  svg.append(ground, path);
+  return svg;
+}
+
+copyAddressButton.addEventListener("click", () => {
+  const copied = copyToClipboard(serverAddressInput.value);
+  connectStatus.textContent = copied ? "Address copied." : "Copy failed. Select the address and copy it yourself.";
+  connectStatus.classList.toggle("error", !copied);
+  if (!copied) {
+    serverAddressInput.focus();
+    serverAddressInput.select();
+  }
 });
+serverAddressInput.addEventListener("focus", () => serverAddressInput.select());
 
 saveAccessButton.addEventListener("click", async () => {
   saveAccessButton.disabled = true;
@@ -879,5 +958,6 @@ window.addEventListener("resize", resizeComposer);
 
 updateComposer();
 resizeComposer();
+renderConnectSection();
 loadSession();
 window.setInterval(pollServer, 1500);

@@ -132,7 +132,8 @@ func run(ctx context.Context, value config) error {
 	}
 	result := make(chan error, 1)
 	go func() {
-		log.Printf("Ferry is running at http://%s", shownAddress)
+		log.Printf("listening on %s", shownAddress)
+		log.Print(browserAddressMessage(value, address))
 		result <- server.Serve(listener)
 	}()
 
@@ -153,6 +154,28 @@ func run(ctx context.Context, value config) error {
 			return nil
 		}
 		return err
+	}
+}
+
+// browserAddressMessage names the address a person should open, which is not
+// the listener: a container listens on its own bridge IP, and a wildcard such
+// as 0.0.0.0 is not an address another device can reach.
+func browserAddressMessage(value config, listener *net.TCPAddr) string {
+	if value.trustedOrigin != "" {
+		return fmt.Sprintf("open Ferry at %s", value.trustedOrigin)
+	}
+	port := strconv.Itoa(listener.Port)
+	host := listener.IP
+	if value.publishedHost != "" {
+		host = net.ParseIP(value.publishedHost)
+	}
+	switch {
+	case host.IsUnspecified():
+		return fmt.Sprintf("open Ferry at http://<this server's LAN IP>:%s from other devices on the same private network", port)
+	case host.IsLoopback():
+		return fmt.Sprintf("open Ferry at http://%s on this computer only; other devices need the server's LAN IP", net.JoinHostPort(host.String(), port))
+	default:
+		return fmt.Sprintf("open Ferry at http://%s from devices on the same private network", net.JoinHostPort(host.String(), port))
 	}
 }
 

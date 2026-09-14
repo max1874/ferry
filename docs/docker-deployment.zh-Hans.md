@@ -13,6 +13,8 @@
 - 不做：TLS、域名、反向代理、公网暴露，以及迁移笔记本上的临时测试数据。
 - **Decided（Max，2026-09-13，issue #1）**：现在支持运维者自己运行的 TLS 反向代理，通过 `FERRY_TRUSTED_ORIGIN` / `-trusted-origin` 配置。监听规则不变：代理连到发布端口或容器地址，因此不需要绑定通配地址。Ferry 在 `Host` 和 `Origin` 里只放行配置的那个 origin，并忽略 `X-Forwarded-*`。
 - **Decided（Max，2026-09-14）**：监听地址由部署者选择。`FERRY_LISTEN_HOST` 默认仍是容器唯一的 IP，也可以设成具体的私有 IP，或 `0.0.0.0` / `::`。不用 Docker 时，`-lan` 现在接受 `0.0.0.0` 和 `[::]`；不带 `-lan` 时 Ferry 仍然只监听 loopback。这条决定取代下文 2026-08-30 对 `0.0.0.0` 的否决。
+- **Decided（Max，2026-09-14）**：部署默认使用已发布的镜像 `ghcr.io/max1874/ferry:<version>`，支持 `linux/amd64` 和 `linux/arm64`。`compose.yaml` 拉取镜像，`FERRY_IMAGE` 选择版本，`compose.build.yaml` 为开发者和数据自检构建当前源码。服务名、数据卷、数据目录和运行用户都不变，所以源码部署可以原地升级。发布流程见 `docs/release-process.zh-Hans.md`。
+- **Observed**：镜像的构建阶段在构建机自己的平台上交叉编译（`CGO_ENABLED=0`），所以 `arm64` 镜像不会在模拟环境里编译 Go。
 - 深度：contract，因为部署必须保持 Ferry 的已鉴权局域网监听边界。
 - 预算：Dockerfile、Compose、`.dockerignore`、部署文档和直接必要的测试；不改 API 或数据库。
 
@@ -72,6 +74,8 @@ Ferry container private IPv4:42817
 - 镜像构建必须编译和 Docker 之外相同的 `./cmd/ferry` 入口。
 - 如果未设置 `FERRY_LISTEN_HOST` 且容器地址为空或有歧义，或者 `FERRY_HOST_IP` 不是 loopback/私有/链路本地地址，启动必须失败；Ferry 本身仍是监听地址和发布主机两者数值/私有地址的最终裁决者。
 - Compose 默认发布到 loopback；Mac mini 部署通过一个未跟踪的 `.env` 文件选择 `10.0.0.2`。
+- CI 构建两个架构，分别通过 `compose.yaml` 启动，断言启动日志里的浏览器访问地址，让设备、文字、文件和密码挺过一次重启，并把源码构建的部署切换到镜像而不丢失这些数据（`scripts/image-smoke.sh`）。
+- `scripts/ferry-data.sh self-test` 通过 `compose.build.yaml` 构建当前源码；它绝不能去测一个拉取来的镜像。
 - `git diff --check` 和一次完整文件的安全评审是发布门槛。
 
 ## 配对时代的历史检查清单

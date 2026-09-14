@@ -8,6 +8,7 @@
     <link rel="icon" type="image/png" sizes="64x64" href="/ferry-icon-64.png">
     <link rel="apple-touch-icon" sizes="256x256" href="/ferry-icon-256.png">
     <link rel="stylesheet" href="/app.css">
+    <script src="/qrcodegen-v1.8.0-es6.js" defer></script>
     <script src="/app.js" defer></script>
   </head>
   <body>
@@ -50,6 +51,10 @@
     <main class="conversation" id="conversation" aria-live="polite" hidden>
       <section class="welcome" id="welcome">
         <div class="welcome-brand"><img class="welcome-mark" src="/ferry-icon-256.png" alt=""><h1>Ferry</h1></div>
+        <div class="welcome-guide" id="welcome-guide" hidden>
+          <p>Paste text or a link, or choose a file to send to your devices.</p>
+          <button class="secondary welcome-connect" id="welcome-connect" type="button">Connect another device</button>
+        </div>
       </section>
       <div class="messages" id="messages"></div>
       <footer class="composer-shell" id="composer-shell" hidden>
@@ -99,6 +104,19 @@
           <h1>Devices</h1>
           <p id="current-device"></p>
         </header>
+        <section class="connect-device" aria-labelledby="connect-device-title">
+          <div class="connect-copy">
+            <h2 id="connect-device-title">Connect another device</h2>
+            <p>Open this address in a browser on your phone or another computer. That device must be on the same private network; no app is needed.</p>
+            <div class="connect-address">
+              <input id="server-address" type="text" readonly spellcheck="false" aria-label="Ferry server address">
+              <button class="secondary" id="copy-address" type="button">Copy</button>
+            </div>
+            <p class="connect-note" id="connect-status" role="status"></p>
+            <p class="connect-note" id="connect-hint"></p>
+          </div>
+          <div class="connect-qr" id="connect-qr" hidden></div>
+        </section>
         <section class="devices-section" aria-labelledby="connected-devices-title">
           <h2 id="connected-devices-title">Connected devices</h2>
           <div class="device-list" id="device-list" aria-live="polite"></div>

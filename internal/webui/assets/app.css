@@ -90,7 +90,12 @@ button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-off
 .form-error { min-height: 18px; margin: -5px 0 !important; color: #c52c20 !important; font-size: 13px; }
 
 .conversation { width: calc(100% - 257px); min-height: 100vh; margin-left: 257px; padding: 80px 24px 150px; }
-.welcome { position: fixed; inset: calc(50% - 177px) 0 auto 257px; display: grid; justify-items: center; pointer-events: none; }
+/* The top leaves room for the empty-timeline guide above the centered
+   composer, so the brand does not move when the guide appears. */
+.welcome { position: fixed; inset: calc(50% - 265px) 0 auto 257px; display: grid; justify-items: center; pointer-events: none; }
+.welcome-guide { display: grid; justify-items: center; gap: 14px; margin-top: 14px; padding: 0 20px; text-align: center; }
+.welcome-guide p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; }
+.welcome-connect { pointer-events: auto; }
 .welcome-brand { display: flex; align-items: center; gap: 13px; }
 .welcome-mark { width: 64px; height: 64px; border-radius: 20px; }
 .welcome h1 { margin: 0; font-size: 42px; font-weight: 650; letter-spacing: -.05em; }
@@ -186,6 +191,19 @@ textarea:disabled { color: var(--faint); }
 .devices-head h1 { font-size: 34px; letter-spacing: -.045em; }
 .devices-head #current-device { margin-top: 8px; color: var(--muted); font-size: 13px; }
 .devices-section h2, .access-settings h2 { margin: 0; font-size: 17px; letter-spacing: -.02em; }
+.connect-device { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 24px; margin-bottom: 36px; padding: 22px; background: var(--soft); border: 1px solid var(--border); border-radius: 22px; }
+.connect-copy { min-width: 0; display: grid; gap: 12px; }
+.connect-copy h2, .connect-copy p { margin: 0; }
+.connect-copy h2 { font-size: 17px; letter-spacing: -.02em; }
+.connect-copy p { color: var(--muted); font-size: 13px; line-height: 1.45; }
+.connect-address { min-width: 0; display: flex; gap: 8px; }
+.connect-address input { min-width: 0; min-height: 40px; flex: 1 1 auto; padding: 0 14px; color: inherit; background: var(--raised); border: 1px solid var(--border); border-radius: 20px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; }
+.connect-note:empty { display: none; }
+.connect-copy .connect-note.error { color: #c52c20; }
+/* The code keeps its own white ground and quiet zone in dark mode; scanners
+   expect dark modules on a light background. */
+.connect-qr { width: 168px; overflow: hidden; background: #ffffff; border: 1px solid var(--border); border-radius: 14px; }
+.connect-qr svg { display: block; width: 100%; height: auto; }
 .device-list { display: grid; margin-top: 12px; border-top: 1px solid var(--border); }
 .device-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 68px; padding: 10px 4px; border-bottom: 1px solid var(--border); }
 .device-row:hover { background: var(--soft); }
@@ -223,7 +241,7 @@ textarea:disabled { color: var(--faint); }
     --on-contrast: #080808;
   }
   .composer { box-shadow: 0 8px 32px rgba(0, 0, 0, .35); }
-  .form-error, .footnote.error { color: #ff7167 !important; }
+  .form-error, .footnote.error, .connect-copy .connect-note.error { color: #ff7167 !important; }
 }
 
 @media (max-width: 640px) {
@@ -237,8 +255,10 @@ textarea:disabled { color: var(--faint); }
   .devices-head { margin-bottom: 28px; }
   .devices-head h1 { font-size: 30px; }
   .access-settings { margin-top: 28px; padding: 18px; }
+  .connect-device { grid-template-columns: minmax(0, 1fr); margin-bottom: 28px; padding: 18px; }
+  .connect-qr { justify-self: center; width: min(220px, 100%); }
   .access-settings .secondary { justify-self: stretch; }
-  .welcome { inset: calc(50% - 140px) 0 auto 56px; }
+  .welcome { inset: calc(50% - 170px) 0 auto 56px; }
   .welcome-mark { width: 44px; height: 44px; border-radius: 14px; }
   .welcome h1 { font-size: 32px; }
   .messages { gap: 24px; }

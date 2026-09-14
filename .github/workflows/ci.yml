@@ -38,6 +38,82 @@ jobs:
           docker compose config
           scripts/ferry-data.sh self-test
 
+  image:
+    runs-on: ubuntu-24.04
+    services:
+      registry:
+        image: registry:3@sha256:1be55279f18a2fe1a74edf2664cac61c1bea305b7b4642dab412e7affdcb3e33
+        ports:
+          - 5000:5000
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        with:
+          driver-opts: network=host
+      - name: Prepare candidate directory
+        run: mkdir -p "$RUNNER_TEMP/candidate"
+      - name: Build the two-architecture candidate
+        id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          provenance: false
+          sbom: false
+          labels: org.opencontainers.image.revision=${{ github.sha }}
+          outputs: |
+            type=image,name=localhost:5000/ferry:candidate,push=true,registry.insecure=true,oci-mediatypes=true
+            type=oci,dest=${{ runner.temp }}/candidate/ferry-image.oci.tar,oci-mediatypes=true
+      - name: Verify one digest across registry and archive
+        id: verify
+        env:
+          BUILD_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -eu
+          cd "$RUNNER_TEMP"
+          curl -fsS -H 'Accept: application/vnd.oci.image.index.v1+json' \
+            -o registry-index.json http://localhost:5000/v2/ferry/manifests/candidate
+          digest="sha256:$(sha256sum registry-index.json | cut -d' ' -f1)"
+          tar -xOf candidate/ferry-image.oci.tar index.json >archive-index.json
+          echo "registry=$digest build=${BUILD_DIGEST:-none}"
+          jq -e --arg digest "$digest" '.manifests | length == 1 and .[0].digest == $digest' archive-index.json
+          [ -z "$BUILD_DIGEST" ] || [ "$BUILD_DIGEST" = "$digest" ]
+          jq -e '[.manifests[].platform | "\(.os)/\(.architecture)"] | sort == ["linux/amd64", "linux/arm64"]' registry-index.json
+          echo "digest=$digest" >>"$GITHUB_OUTPUT"
+      - name: Start each architecture and keep data across a restart
+        env:
+          DIGEST: ${{ steps.verify.outputs.digest }}
+        run: |
+          scripts/image-smoke.sh run "localhost:5000/ferry@$DIGEST" linux/amd64
+          scripts/image-smoke.sh run "localhost:5000/ferry@$DIGEST" linux/arm64
+      - name: Switch a source-built deployment to the candidate
+        env:
+          DIGEST: ${{ steps.verify.outputs.digest }}
+        run: scripts/image-smoke.sh upgrade "localhost:5000/ferry@$DIGEST"
+      - name: Package deployment bundle and candidate record
+        env:
+          DIGEST: ${{ steps.verify.outputs.digest }}
+        run: |
+          set -eu
+          candidate="$RUNNER_TEMP/candidate"
+          bundle="$RUNNER_TEMP/bundle/ferry"
+          mkdir -p "$bundle/scripts"
+          cp compose.yaml .env.example "$bundle/"
+          cp scripts/ferry-data.sh "$bundle/scripts/"
+          chmod 755 "$bundle/scripts/ferry-data.sh"
+          tar -C "$RUNNER_TEMP/bundle" --owner=0 --group=0 --numeric-owner -czf "$candidate/ferry-deploy.tar.gz" ferry
+          jq -n --arg commit "$GITHUB_SHA" --arg ref "$GITHUB_REF" --arg run "$GITHUB_RUN_ID" --arg digest "$DIGEST" \
+            '{commit: $commit, ref: $ref, ci_run_id: $run, image_digest: $digest, platforms: ["linux/amd64", "linux/arm64"]}' \
+            >"$candidate/candidate.json"
+          (cd "$candidate" && sha256sum ferry-image.oci.tar ferry-deploy.tar.gz candidate.json >SHA256SUMS)
+          cat "$candidate/candidate.json" "$candidate/SHA256SUMS"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ferry-candidate
+          path: ${{ runner.temp }}/candidate/
+          if-no-files-found: error
+
   android:
     runs-on: ubuntu-latest
     steps:

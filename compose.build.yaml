@@ -1,0 +1,11 @@
+# Build the current source instead of pulling the published image:
+#
+#   docker compose -f compose.yaml -f compose.build.yaml up --build -d
+#
+# The service, volume and data directory stay the same as compose.yaml, so a
+# deployment can switch between the two without moving its data.
+services:
+  ferry:
+    build:
+      context: .
+    image: ferry:local

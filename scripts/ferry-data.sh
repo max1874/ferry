@@ -187,6 +187,11 @@ restore_volume() {
 }
 
 self_test() {
+    # compose.yaml alone pulls the published image, which would test an older
+    # release instead of this checkout.
+    [ -f "$repo_root/compose.build.yaml" ] || fail "self-test builds the current source and needs compose.build.yaml from a Ferry checkout"
+    COMPOSE_FILE="$repo_root/compose.yaml:$repo_root/compose.build.yaml"
+    export COMPOSE_FILE
     test_directory=$(mktemp -d "${TMPDIR:-/tmp}/ferry-data-test.XXXXXX")
     SELF_TEST_DIRECTORY=$test_directory
     COMPOSE_PROJECT_NAME="ferry-data-test-$$"

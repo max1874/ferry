@@ -28,6 +28,20 @@ The first version sticks to deliberate sending. Automatically watching the syste
 
 - **Decided (Max, 2026-09-09)**: Ferry never reads or writes any device's clipboard on its own. Content enters Ferry through the system's own paste and leaves through the copy control on each message. Automatic synchronisation was implemented once and withdrawn in full; the reasons and measured evidence are in `docs/clipboard-sync.md`.
 
+## First-run journey
+
+- **Decided (Max, 2026-09-14)**: a first-time visitor to the GitHub repository must be able to use the README alone to deploy Ferry, join from a phone browser, copy a text and download a file. The default install pulls the published image with a small deployment bundle; cloning the repository or installing Go is not required.
+- **Decided (Max, 2026-09-14)**: a phone or computer needs only a browser. Native apps are optional and are described separately from the Web journey, without download links that do not exist.
+- **Decided (Max, 2026-09-14)**: an empty timeline tells the user what to send and offers **Connect another device**. The Devices page shows the server address, a copy control and a QR code generated locally in the browser. The code carries only the browser's current origin, never a device token or password, and it is not shown for a local-only address. The empty state follows the real message state, with no first-run flag or invented progress.
+- **Decided (Max, 2026-09-14)**: this journey keeps the existing boundaries: private network, deliberate sending, optional shared password, no new HTTP API or database field.
+
+Acceptance for the journey, recorded in `docs/release-process.md`:
+
+1. From an empty directory, following the README, a deployment starts and its log names the address to open.
+2. A real phone browser scans the QR code and joins, both without and with a password.
+3. Text sent from one device is copied on the other; an image previews and a file downloads.
+4. A restart keeps messages, files, device identities and the password; an existing source deployment moves to the image without losing them.
+
 ## Product principles
 
 - **Decided**: the user deploys only the Ferry Server; the Web app is served by the same service.

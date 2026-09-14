@@ -1,0 +1,169 @@
+name: Release
+
+# Publishes the image a successful CI run on main already built and exercised.
+# Nothing is rebuilt here, an existing version is never overwritten, and the
+# GitHub Release is left as a draft for the maintainer to publish.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version without the v prefix, for example 1.0.0
+        required: true
+        type: string
+      ci_run_id:
+        description: ID of the successful CI run on main whose candidate is released
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      packages: write
+      actions: read
+    env:
+      VERSION: ${{ inputs.version }}
+      CI_RUN_ID: ${{ inputs.ci_run_id }}
+      IMAGE: ghcr.io/max1874/ferry
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check inputs and the CI run
+        id: run
+        run: |
+          set -eu
+          printf '%s' "$VERSION" | grep -Eqx '[0-9]+\.[0-9]+\.[0-9]+' || { echo "version must look like 1.0.0" >&2; exit 1; }
+          printf '%s' "$CI_RUN_ID" | grep -Eqx '[0-9]+' || { echo "ci_run_id must be a number" >&2; exit 1; }
+          [ "$GITHUB_REPOSITORY" = max1874/ferry ] || { echo "releases publish only from max1874/ferry" >&2; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN_ID" >"$RUNNER_TEMP/run.json"
+          jq -e '.path == ".github/workflows/ci.yml" and .event == "push" and .head_branch == "main"
+            and .status == "completed" and .conclusion == "success"
+            and .head_repository.full_name == env.GITHUB_REPOSITORY' "$RUNNER_TEMP/run.json" >/dev/null ||
+            { echo "run $CI_RUN_ID is not a successful CI push run on main" >&2; exit 1; }
+          commit=$(jq -r .head_sha "$RUNNER_TEMP/run.json")
+          relation=$(gh api "repos/$GITHUB_REPOSITORY/compare/$commit...main" --jq .status)
+          case "$relation" in
+            identical|ahead) ;;
+            *) echo "commit $commit is not on main ($relation)" >&2; exit 1 ;;
+          esac
+          if gh release view "v$VERSION" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "a GitHub Release for v$VERSION already exists" >&2; exit 1
+          fi
+          if tag=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$VERSION" 2>/dev/null); then
+            echo "tag v$VERSION already exists: $tag" >&2; exit 1
+          fi
+          echo "commit=$commit" >>"$GITHUB_OUTPUT"
+          echo "Releasing $VERSION from $commit (CI run $CI_RUN_ID)"
+
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ steps.run.outputs.commit }}
+
+      - name: Download and verify the candidate
+        id: candidate
+        env:
+          COMMIT: ${{ steps.run.outputs.commit }}
+        run: |
+          set -eu
+          gh run download "$CI_RUN_ID" -R "$GITHUB_REPOSITORY" -n ferry-candidate -D "$RUNNER_TEMP/candidate"
+          cd "$RUNNER_TEMP/candidate"
+          sha256sum -c SHA256SUMS
+          jq -e --arg commit "$COMMIT" --arg run "$CI_RUN_ID" \
+            '.commit == $commit and .ci_run_id == $run and .ref == "refs/heads/main"
+              and .platforms == ["linux/amd64", "linux/arm64"]' candidate.json >/dev/null ||
+            { echo "candidate record does not match run $CI_RUN_ID at $COMMIT" >&2; exit 1; }
+          digest=$(jq -r .image_digest candidate.json)
+          tar -xOf ferry-image.oci.tar index.json |
+            jq -e --arg digest "$digest" '.manifests | length == 1 and .[0].digest == $digest' >/dev/null ||
+            { echo "image archive does not hold $digest" >&2; exit 1; }
+          tar -xOzf ferry-deploy.tar.gz ferry/compose.yaml | grep -Fq "image: \${FERRY_IMAGE:-$IMAGE:$VERSION}" ||
+            { echo "bundled compose.yaml does not default to $IMAGE:$VERSION" >&2; exit 1; }
+          tar -xOzf ferry-deploy.tar.gz ferry/.env.example | grep -Fxq "FERRY_IMAGE=$IMAGE:$VERSION" ||
+            { echo "bundled .env.example does not name $IMAGE:$VERSION" >&2; exit 1; }
+          tar -tzf ferry-deploy.tar.gz | sort >"$RUNNER_TEMP/bundle.txt"
+          printf '%s\n' ferry/ ferry/.env.example ferry/compose.yaml ferry/scripts/ ferry/scripts/ferry-data.sh |
+            sort | diff - "$RUNNER_TEMP/bundle.txt"
+          cd "$GITHUB_WORKSPACE"
+          [ -f "docs/releases/$VERSION.md" ] && [ -f "docs/releases/$VERSION.zh-Hans.md" ] ||
+            { echo "release notes docs/releases/$VERSION(.zh-Hans).md are missing at $COMMIT" >&2; exit 1; }
+          echo "digest=$digest" >>"$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Push the candidate image as the version
+        env:
+          DIGEST: ${{ steps.candidate.outputs.digest }}
+        run: |
+          set -eu
+          skopeo --version
+          # A re-run after making the package public finds its own push; any
+          # other image already under this version is a refusal, never an overwrite.
+          if existing=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' 2>"$RUNNER_TEMP/inspect.err"); then
+            existing_digest=$(printf '%s' "$existing" | jq -r .digest)
+            if [ "$existing_digest" != "$DIGEST" ]; then
+              echo "$IMAGE:$VERSION already exists as $existing_digest, not $DIGEST" >&2; exit 1
+            fi
+            echo "$IMAGE:$VERSION already holds $DIGEST"
+          elif grep -qi 'not found' "$RUNNER_TEMP/inspect.err"; then
+            printf '%s' "$GH_TOKEN" | skopeo login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+            skopeo copy --all --preserve-digests \
+              "oci-archive:$RUNNER_TEMP/candidate/ferry-image.oci.tar" "docker://$IMAGE:$VERSION"
+          else
+            cat "$RUNNER_TEMP/inspect.err" >&2
+            echo "cannot tell whether $IMAGE:$VERSION exists" >&2; exit 1
+          fi
+          pushed=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)
+          [ "$pushed" = "$DIGEST" ] || { echo "registry holds $pushed, expected $DIGEST" >&2; exit 1; }
+
+      - uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
+
+      - name: Pull both architectures without credentials
+        env:
+          DIGEST: ${{ steps.candidate.outputs.digest }}
+        run: |
+          set -eu
+          # An empty client configuration carries no registry credentials.
+          DOCKER_CONFIG=$(mktemp -d)
+          export DOCKER_CONFIG
+          for platform in linux/amd64 linux/arm64; do
+            if ! docker pull --quiet --platform "$platform" "$IMAGE:$VERSION"; then
+              echo "anonymous pull failed: make the package public at https://github.com/users/max1874/packages/container/package/ferry, then re-run this workflow" >&2
+              exit 1
+            fi
+            docker image inspect --format '{{json .RepoDigests}}' "$IMAGE:$VERSION" | jq -e --arg ref "$IMAGE@$DIGEST" 'index($ref) != null' >/dev/null
+            [ "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$IMAGE:$VERSION")" = "$platform" ]
+            docker image rm "$IMAGE:$VERSION" >/dev/null
+            scripts/image-smoke.sh run "$IMAGE:$VERSION" "$platform"
+          done
+
+      - name: Create the draft GitHub Release
+        env:
+          COMMIT: ${{ steps.run.outputs.commit }}
+          DIGEST: ${{ steps.candidate.outputs.digest }}
+        run: |
+          set -eu
+          assets="$RUNNER_TEMP/assets"
+          mkdir -p "$assets"
+          cp "$RUNNER_TEMP/candidate/ferry-deploy.tar.gz" "$assets/ferry-$VERSION-deploy.tar.gz"
+          (cd "$assets" && sha256sum "ferry-$VERSION-deploy.tar.gz" >"ferry-$VERSION-SHA256SUMS.txt")
+          {
+            sed '/^> English | \[简体中文\]/d; /^> \[English\](.*) | 简体中文/d' "docs/releases/$VERSION.md"
+            printf '\n---\n\n'
+            sed '/^> English | \[简体中文\]/d; /^> \[English\](.*) | 简体中文/d' "docs/releases/$VERSION.zh-Hans.md"
+            printf '\n---\n\n- Image: `%s:%s`\n- Digest: `%s`\n- Platforms: linux/amd64, linux/arm64\n- Commit: %s\n- CI run: %s/%s/actions/runs/%s\n' \
+              "$IMAGE" "$VERSION" "$DIGEST" "$COMMIT" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$CI_RUN_ID"
+          } >"$RUNNER_TEMP/notes.md"
+          gh release create "v$VERSION" -R "$GITHUB_REPOSITORY" --draft --target "$COMMIT" \
+            --title "Ferry $VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
+            "$assets/ferry-$VERSION-deploy.tar.gz" "$assets/ferry-$VERSION-SHA256SUMS.txt"

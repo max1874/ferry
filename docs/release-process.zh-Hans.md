@@ -1,0 +1,56 @@
+# 发布流程
+
+> [English](release-process.md) | 简体中文
+
+本文负责 Ferry 的发布身份、CI 候选如何成为正式版本，以及 1.0.0 的验收记录。账号密钥永远不写在这里。
+
+## 发布身份
+
+- **Decided（Max，2026-09-14）**：首个版本是 `1.0.0`，标签 `v1.0.0`。版本号固定、手动发布；不发布滚动的 `edge` 或 `latest` 标签。
+- **Decided（Max，2026-09-14）**：一次发布包含 Server + Web 镜像和部署包，不发布原生 App；iOS 仍只走内部 TestFlight，Android 从源码构建。
+- 镜像：`ghcr.io/max1874/ferry:<version>`，支持 `linux/amd64` 和 `linux/arm64`，是同一个多架构索引。镜像通过 `org.opencontainers.image.revision` 记录源码提交。
+- 部署包：`ferry-<version>-deploy.tar.gz`，内含 `ferry/` 目录，里面是 `compose.yaml`、`.env.example` 和 `scripts/ferry-data.sh`，另附 `ferry-<version>-SHA256SUMS.txt`。
+- 发布说明：`docs/releases/<version>.md` 及其中文版，合并成一份双语的 GitHub Release 正文。
+- 认证：只使用仓库的 `GITHUB_TOKEN`。所有 action 都固定到提交 SHA。
+
+## 从候选到正式发布
+
+1. **CI 构建候选。** 每次推送到 `main` 都会运行 `image` job：一次构建两个架构，检查本地 registry 和 OCI 归档里是同一个索引摘要，通过 `compose.yaml` 分别启动两个架构，让设备、文字、文件和密码挺过一次重启，并把源码构建的部署切换到镜像而不丢数据。它上传 `ferry-candidate`：OCI 归档、部署包、`candidate.json`（提交、ref、run、摘要、平台）和 `SHA256SUMS`。
+2. **版本文件已经写好版本号。** `compose.yaml` 和 `.env.example` 默认使用 `ghcr.io/max1874/ferry:<version>`，`scripts/check-repo.sh` 保证两者一致。选定候选之前，先用一个提交更新两者并加入发布说明。
+3. **在下方清单里记录验收证据**，并取得 Max 的明确发布授权。
+4. **运行 workflow**，传入版本号和 `main` 上成功的 CI run：
+
+   ```bash
+   gh workflow run release.yml -f version=1.0.0 -f ci_run_id=<run id>
+   ```
+
+   以下条件任一不满足，workflow 就会拒绝继续：该 run 是 `main` 上成功的 `CI` push run；它的提交仍在 `main` 上；该版本还没有 Release 或标签；产物校验值和摘要与记录一致；部署包指向所请求的镜像。它不重新构建，直接推送归档里的镜像并保留摘要，然后重新读取 registry 里的摘要。该版本已经以不同摘要存在时拒绝，不会覆盖；摘要相同则允许重跑继续。
+5. **仅首次发布：把包设为公开。** GitHub 新建的容器包默认是私有的。这时 workflow 会在匿名拉取一步失败，并给出包设置页的链接。把包设为 Public 后重跑 workflow。
+6. **匿名拉取。** workflow 使用空的 Docker 客户端配置，按标签拉取两个架构，确认都解析到发布的摘要，并在每个架构上跑一遍容器旅程。
+7. **Release 草稿。** workflow 在候选提交上创建 `v<version>` 的 Release 草稿，附带部署包、校验值、双语说明、镜像摘要和 CI run。发布草稿由 Max 完成，同时创建标签。
+8. **发布之后**，更新 `SECURITY.md`、`CONTRIBUTING.md` 及其中文版里关于受支持版本的表述。
+
+## 1.0.0 交付清单
+
+2026-09-14 冻结。状态取值：`done` 并附证据，`pending` 并注明负责人，或 `blocked`。
+
+| # | 项目 | 状态 |
+| --- | --- | --- |
+| 1 | Web：空时间线引导和 **Connect another device**；Devices 页的连接区域，包括地址、复制、本地二维码和私有网络说明；仅本机地址显示提示而不是二维码 | 已实现；浏览器验收待完成（第 9–10 项） |
+| 2 | 启动日志分别写出监听地址和浏览器访问地址 | 已实现；CI 容器旅程会断言 loopback 提示 |
+| 3 | `compose.yaml` 拉取镜像；`compose.build.yaml` 构建源码；`.env.example` 保存镜像和网络配置 | 已实现 |
+| 4 | CI 构建、启动并检查两个架构，针对当前源码检查源码到镜像的升级和备份恢复自检，并保留候选 | 已实现；等待 CI 通过 |
+| 5 | 发布 workflow：核对 run 和产物、不重新构建、不覆盖、匿名拉取、Release 草稿 | 已实现；尚未运行 |
+| 6 | README 和本文提供中英文；产品核心记录首次使用旅程 | done |
+| 7 | 隔离部署：按 README 从空目录安装，重启保留数据，现有源码部署切换到镜像，备份与恢复 | CI 覆盖重启、升级和自检；按 README 使用已发布部署包的完整走查，要等发布 workflow 生成部署包后进行 |
+| 8 | 取自最终候选的真实桌面和手机截图，以及约 15 秒的传送动图，单个文件小于 3 MiB | pending（需要真实手机） |
+| 9 | 真实电脑和手机浏览器：扫码加入、发送并复制文字、图片预览、文件下载，覆盖无密码和有密码；逐一记录设备和浏览器 | pending（Max 的设备） |
+| 10 | 仅本机提示、IPv4、IPv6、私有代理域名、复制失败、二维码失败、离线与重连 | pending |
+| 11 | 包设为 Public，匿名拉取两个架构 | 等待首次运行 workflow |
+| 12 | Max 授权并发布 Release 草稿 | pending |
+
+浏览器验收不是原生 App 验收，CI 里的容器运行也不是真机证据。
+
+## 1.0.0 之后
+
+三位新用户会各自按 README 独立部署 Ferry。记录每次部署的耗时和每个人卡住的具体位置。Ferry 不为此收集任何遥测。
