@@ -44,9 +44,9 @@ Frozen on 2026-09-14. Status values: `done` with evidence, `pending` with an own
 | 5 | Release workflow: verified run and artifact, no rebuild, no overwrite, anonymous pull, draft Release | implemented; not yet run |
 | 6 | README and this document in English and Chinese; product core records the first-run journey | done |
 | 7 | Isolated deployment from an empty directory following the README, restart keeping data, existing source deployment moved to the image, backup and restore | CI covers restart, upgrade and self-test; a README walk-through from the published bundle is pending after the release workflow creates it |
-| 8 | Real desktop and phone screenshots and a ~15 second transfer GIF from the final candidate, each file under 3 MiB | pending (needs a real phone) |
-| 9 | Real computer and phone browsers: QR join, text send and copy, image preview, file download, without and with a password; record each device and browser | pending (Max's devices) |
-| 10 | Local-only hint, IPv4, IPv6, private proxy domain, copy failure, QR failure, offline and reconnect | pending |
+| 8 | Real desktop and phone screenshots and a ~15 second transfer GIF from the final candidate, each file under 3 MiB | deferred (Max, 2026-09-14); the README keeps the existing screenshot |
+| 9 | Real computer and phone browsers: QR join, text send and copy, image preview, file download, without and with a password; record each device and browser | done (Max, 2026-09-14): on the macmini deployment of `84c355b` with host networking, an iPhone camera scan opened Safari and joined; text send and copy, image preview and file download passed without and with a password, with a Mac browser as the other device. Exact iPhone model, iOS version and desktop browser were not recorded. The native apps have no scan entry; scanning always joins through Safari |
+| 10 | Local-only hint, IPv4, IPv6, private proxy domain, copy failure, QR failure, offline and reconnect | skipped by Max's decision (2026-09-14); unverified |
 | 11 | Package Public and anonymous pull of both architectures | pending the first workflow run |
 | 12 | Max authorizes and publishes the draft Release | pending |
 | 13 | README quick start switches from the source build to the bundle after the image pulls anonymously and the bundle URL answers; until then the README must not point at unpublished downloads | pending (after 11–12) |
