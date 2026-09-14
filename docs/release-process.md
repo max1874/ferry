@@ -9,8 +9,8 @@ This document owns Ferry's release identity, how a CI candidate becomes a publis
 - **Decided (Max, 2026-09-14)**: the first version is `1.0.0`, tagged `v1.0.0`. Versions are fixed and published by hand; there is no rolling `edge` or `latest` tag.
 - **Decided (Max, 2026-09-14)**: a release publishes the Server + Web image and a deployment bundle. It does not release the native apps; iOS stays on internal TestFlight and Android is built from source.
 - Image: `ghcr.io/max1874/ferry:<version>` for `linux/amd64` and `linux/arm64`, one multi-architecture index. The image carries `org.opencontainers.image.revision` with the source commit.
-- Bundle: `ferry-<version>-deploy.tar.gz`, a `ferry/` directory holding `compose.yaml`, `.env.example` and `scripts/ferry-data.sh`, with `ferry-<version>-SHA256SUMS.txt`.
-- Release notes: `docs/releases/<version>.md` and its Chinese sibling, joined into one bilingual GitHub Release body.
+- Compose download: `ferry-<version>-docker-compose.tar.gz`, the only uploaded asset: a `ferry/` directory holding `compose.yaml`, `.env.example` and `scripts/ferry-data.sh`. It is configuration, not the program; the runnable program is the image. GitHub shows each asset's SHA-256, so there is no separate checksum file.
+- **Decided (Max, 2026-09-14)**: the GitHub Release body is English: `docs/releases/<version>.md` without its title and language line, then a link to the Chinese notes and one small line with the image digest, commit and CI run. The notes open by saying which file to download.
 - Authentication: the repository's `GITHUB_TOKEN` only. Every action is pinned to a commit SHA.
 
 ## From candidate to release
@@ -27,7 +27,7 @@ This document owns Ferry's release identity, how a CI candidate becomes a publis
    The workflow refuses to continue unless the run is a successful `CI` push run on `main`, its commit is still on `main`, no Release or tag exists for the version, the artifact checksums and digest match the record, and the bundle names the requested image. It pushes the archived image without rebuilding, keeping its digest, and re-reads the registry digest. An existing version under a different digest is a refusal, not an overwrite; the same digest lets a re-run continue.
 5. **First release only: make the package public.** GitHub creates a new container package as private. The workflow then fails at the anonymous pull with a link to the package settings. Set the package to Public and re-run the workflow.
 6. **Anonymous pull.** With an empty Docker client configuration, the workflow pulls both architectures by tag, checks they resolve to the released digest, and runs the container journey on each.
-7. **Draft release.** The workflow creates a draft `v<version>` Release on the candidate commit with the bundle, checksums, bilingual notes, image digest and CI run. Publishing the draft is Max's step and creates the tag.
+7. **Draft release.** The workflow creates a draft `v<version>` Release on the candidate commit with the Compose download, English notes linking the Chinese notes, image digest and CI run. Publishing the draft is Max's step and creates the tag.
 8. **Switch the README entry point.** Until the image pulls anonymously and the bundle URL answers, the README quick start builds from source. Once both are confirmed, switch both READMEs to the bundle download, `docker compose up -d` and version-only upgrades.
 9. **After publishing**, update the supported-version wording in `SECURITY.md` and `CONTRIBUTING.md` and their Chinese siblings.
 

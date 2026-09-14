@@ -155,15 +155,17 @@ jobs:
           set -eu
           assets="$RUNNER_TEMP/assets"
           mkdir -p "$assets"
-          cp "$RUNNER_TEMP/candidate/ferry-deploy.tar.gz" "$assets/ferry-$VERSION-deploy.tar.gz"
-          (cd "$assets" && sha256sum "ferry-$VERSION-deploy.tar.gz" >"ferry-$VERSION-SHA256SUMS.txt")
+          # GitHub shows a SHA-256 for every asset, so no separate checksum file.
+          cp "$RUNNER_TEMP/candidate/ferry-deploy.tar.gz" "$assets/ferry-$VERSION-docker-compose.tar.gz"
+          # The body is the English notes without their title, which repeats the
+          # Release name, and without the language line; the Chinese notes are linked.
           {
-            sed '/^> English | \[简体中文\]/d; /^> \[English\](.*) | 简体中文/d' "docs/releases/$VERSION.md"
-            printf '\n---\n\n'
-            sed '/^> English | \[简体中文\]/d; /^> \[English\](.*) | 简体中文/d' "docs/releases/$VERSION.zh-Hans.md"
-            printf '\n---\n\n- Image: `%s:%s`\n- Digest: `%s`\n- Platforms: linux/amd64, linux/arm64\n- Commit: %s\n- CI run: %s/%s/actions/runs/%s\n' \
-              "$IMAGE" "$VERSION" "$DIGEST" "$COMMIT" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$CI_RUN_ID"
+            sed '1{/^# /d;}; /^> English | \[简体中文\]/d' "docs/releases/$VERSION.md" | sed '/./,$!d'
+            printf '\n简体中文：%s/%s/blob/v%s/docs/releases/%s.zh-Hans.md\n' \
+              "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$VERSION" "$VERSION"
+            printf '\n<sub>Image digest `%s` · commit %s · [CI run](%s/%s/actions/runs/%s)</sub>\n' \
+              "$DIGEST" "$COMMIT" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$CI_RUN_ID"
           } >"$RUNNER_TEMP/notes.md"
           gh release create "v$VERSION" -R "$GITHUB_REPOSITORY" --draft --target "$COMMIT" \
             --title "Ferry $VERSION" --notes-file "$RUNNER_TEMP/notes.md" \
-            "$assets/ferry-$VERSION-deploy.tar.gz" "$assets/ferry-$VERSION-SHA256SUMS.txt"
+            "$assets/ferry-$VERSION-docker-compose.tar.gz"

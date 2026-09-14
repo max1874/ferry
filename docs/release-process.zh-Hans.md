@@ -9,8 +9,8 @@
 - **Decided（Max，2026-09-14）**：首个版本是 `1.0.0`，标签 `v1.0.0`。版本号固定、手动发布；不发布滚动的 `edge` 或 `latest` 标签。
 - **Decided（Max，2026-09-14）**：一次发布包含 Server + Web 镜像和部署包，不发布原生 App；iOS 仍只走内部 TestFlight，Android 从源码构建。
 - 镜像：`ghcr.io/max1874/ferry:<version>`，支持 `linux/amd64` 和 `linux/arm64`，是同一个多架构索引。镜像通过 `org.opencontainers.image.revision` 记录源码提交。
-- 部署包：`ferry-<version>-deploy.tar.gz`，内含 `ferry/` 目录，里面是 `compose.yaml`、`.env.example` 和 `scripts/ferry-data.sh`，另附 `ferry-<version>-SHA256SUMS.txt`。
-- 发布说明：`docs/releases/<version>.md` 及其中文版，合并成一份双语的 GitHub Release 正文。
+- Compose 下载包：`ferry-<version>-docker-compose.tar.gz`，是唯一上传的附件，内含 `ferry/` 目录，里面是 `compose.yaml`、`.env.example` 和 `scripts/ferry-data.sh`。它是配置文件，不是程序本身；可以运行的程序是镜像。GitHub 会显示每个附件的 SHA-256，所以不再单独提供校验值文件。
+- **Decided（Max，2026-09-14）**：GitHub Release 正文使用英文：`docs/releases/<version>.md` 去掉标题和语言切换行，后面附上中文说明的链接，以及一行写有镜像摘要、提交和 CI run 的小字。说明开头先讲清楚该下载哪个文件。
 - 认证：只使用仓库的 `GITHUB_TOKEN`。所有 action 都固定到提交 SHA。
 
 ## 从候选到正式发布
@@ -27,7 +27,7 @@
    以下条件任一不满足，workflow 就会拒绝继续：该 run 是 `main` 上成功的 `CI` push run；它的提交仍在 `main` 上；该版本还没有 Release 或标签；产物校验值和摘要与记录一致；部署包指向所请求的镜像。它不重新构建，直接推送归档里的镜像并保留摘要，然后重新读取 registry 里的摘要。该版本已经以不同摘要存在时拒绝，不会覆盖；摘要相同则允许重跑继续。
 5. **仅首次发布：把包设为公开。** GitHub 新建的容器包默认是私有的。这时 workflow 会在匿名拉取一步失败，并给出包设置页的链接。把包设为 Public 后重跑 workflow。
 6. **匿名拉取。** workflow 使用空的 Docker 客户端配置，按标签拉取两个架构，确认都解析到发布的摘要，并在每个架构上跑一遍容器旅程。
-7. **Release 草稿。** workflow 在候选提交上创建 `v<version>` 的 Release 草稿，附带部署包、校验值、双语说明、镜像摘要和 CI run。发布草稿由 Max 完成，同时创建标签。
+7. **Release 草稿。** workflow 在候选提交上创建 `v<version>` 的 Release 草稿，附带 Compose 下载包、链接到中文说明的英文正文、镜像摘要和 CI run。发布草稿由 Max 完成，同时创建标签。
 8. **切换 README 入口。** 在镜像能匿名拉取、部署包地址能访问之前，README 快速开始从源码构建。两者都确认之后，把中英文 README 切换为下载部署包、`docker compose up -d` 和只改版本号的升级方式。
 9. **发布之后**，更新 `SECURITY.md`、`CONTRIBUTING.md` 及其中文版里关于受支持版本的表述。
 
