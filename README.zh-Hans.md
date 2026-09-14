@@ -41,25 +41,23 @@ iOS 和 Android 原生 App 已经有了，但它们是可选的，也不属于 1
 
 ## 快速开始
 
-你需要一台常开的电脑，装有 Git、Docker 和 Docker Compose v2。不需要安装 Go；Docker 会从本仓库构建 Ferry。
+你需要一台常开的电脑，装有 Docker 和 Docker Compose v2，系统是 64 位 x86（`amd64`）或 ARM（`arm64`）。不需要克隆本仓库，也不需要安装 Go。
 
-> 已发布镜像 `ghcr.io/max1874/ferry:1.0.0` 和对应的部署包目前还不可用。在它们可用之前，请按下面的步骤从源码构建。
-
-1. **获取源码**并进入目录：
+1. 从[最新版本](https://github.com/max1874/ferry/releases/latest)**下载 Compose 文件**并进入目录：
 
    ```bash
-   git clone https://github.com/max1874/ferry.git
+   curl -fLO https://github.com/max1874/ferry/releases/download/v1.0.0/ferry-1.0.0-docker-compose.tar.gz
+   tar -xzf ferry-1.0.0-docker-compose.tar.gz
    cd ferry
    ```
 
-2. **创建配置文件**，并让 Compose 构建源码而不是拉取镜像：
+   下载包里有 `compose.yaml`、`.env.example` 和用于备份的 `scripts/ferry-data.sh`，请保持这个目录结构。它不是程序本身：Ferry 启动时，Compose 会拉取公开镜像 `ghcr.io/max1874/ferry:1.0.0`。
+
+2. **创建配置文件：**
 
    ```bash
    cp .env.example .env
-   echo 'COMPOSE_FILE=compose.yaml:compose.build.yaml' >> .env
    ```
-
-   Compose 会从 `.env` 读取 `COMPOSE_FILE`，所以之后的每条 `docker compose` 命令和备份脚本都使用同一组文件。在 Windows 上，文件之间用 `;` 分隔，而不是 `:`。
 
 3. **查到这台电脑的局域网 IP。** 它通常以 `192.168.`、`10.` 或 `172.16.`–`172.31.` 开头。
 
@@ -80,7 +78,7 @@ iOS 和 Android 原生 App 已经有了，但它们是可选的，也不属于 1
 5. **启动 Ferry：**
 
    ```bash
-   docker compose up --build -d
+   docker compose up -d
    docker compose logs ferry
    ```
 
@@ -106,11 +104,11 @@ iOS 和 Android 原生 App 已经有了，但它们是可选的，也不属于 1
 scripts/ferry-data.sh backup ../ferry-backup-$(date +%F).tar.gz
 ```
 
-然后更新源码并重新构建：
+然后只修改 `.env` 里 `FERRY_IMAGE` 末尾的版本号，拉取镜像并重建容器：
 
 ```bash
-git pull --ff-only
-docker compose up --build -d
+docker compose pull
+docker compose up -d
 docker compose logs --tail=100 ferry
 ```
 
@@ -122,18 +120,19 @@ scripts/ferry-data.sh restore ../ferry-backup-2026-09-14.tar.gz ../before-restor
 
 这个工具会短暂停止正在运行的 Ferry，让 SQLite 和 blob 一起归档；归档里如果有 Ferry 数据之外的东西，它会拒绝。恢复时先写好安全备份再替换数据卷，并且只有在恢复成功、且操作前 Ferry 本来在运行时才重启它。请把备份拷到服务器以外的地方；备份里有消息、文件、设备 token 的 hash 和密码校验值。
 
-### 早于 `compose.build.yaml` 的部署
+### 把现有的源码部署切换到镜像
 
-`compose.yaml` 不再自己构建源码，而是指定镜像。如果你检出目录里的 `.env` 没有 `COMPOSE_FILE` 这一行，请在拉取代码前加上，然后在同一个目录里升级，这样 Compose 会继续使用同一个数据卷：
+如果你之前用 `git clone` 和 `docker compose up --build` 部署 Ferry，请在同一个目录里升级，这样 Compose 会继续使用同一个数据卷：
 
 ```bash
-scripts/ferry-data.sh backup ../ferry-backup-$(date +%F).tar.gz
-echo 'COMPOSE_FILE=compose.yaml:compose.build.yaml' >> .env
+scripts/ferry-data.sh backup ../ferry-backup-before-1.0.0.tar.gz
 git pull --ff-only
-docker compose up --build -d
+docker compose pull
+docker compose up -d
+docker compose logs --tail=100 ferry
 ```
 
-消息、文件、设备身份和密码都会保留。镜像发布之后，部署可以原地切换过去：先备份，删掉 `COMPOSE_FILE` 这一行（如果其中有 override 文件，要保留它，见下文），把 `FERRY_IMAGE` 设为对应版本，然后运行 `docker compose pull` 和 `docker compose up -d`。
+如果你的 `.env` 里 `COMPOSE_FILE` 包含 `compose.build.yaml`，请先从这一行里去掉它（保留 override 文件），否则 Compose 会继续构建源码，而不是使用镜像。消息、文件、设备身份和密码都会保留。如果想继续从源码构建，见[从源码构建镜像](#从源码构建镜像)。
 
 ## 其他部署方式
 
@@ -186,7 +185,7 @@ ferry.example.com {
 
 ### 从源码构建镜像
 
-在本仓库的克隆里，`compose.build.yaml` 会构建当前检出的源码，而不是拉取已发布的镜像。服务、数据卷和配置都保持不变。快速开始通过 `.env` 里的 `COMPOSE_FILE` 选择它；一次性的等价写法是：
+在本仓库的克隆里，`compose.build.yaml` 会构建当前检出的源码，而不是拉取已发布的镜像。服务、数据卷和配置都保持不变。要让每条命令（包括备份脚本）都使用它，在 `.env` 里加上 `COMPOSE_FILE=compose.yaml:compose.build.yaml`（Windows 上用 `;` 分隔），然后运行 `docker compose up --build -d`。一次性的等价写法是：
 
 ```bash
 docker compose -f compose.yaml -f compose.build.yaml up --build -d

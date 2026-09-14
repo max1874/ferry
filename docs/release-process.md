@@ -47,9 +47,9 @@ Frozen on 2026-09-14. Status values: `done` with evidence, `pending` with an own
 | 8 | Real desktop and phone screenshots and a ~15 second transfer GIF from the final candidate, each file under 3 MiB | deferred (Max, 2026-09-14); the README keeps the existing screenshot |
 | 9 | Real computer and phone browsers: QR join, text send and copy, image preview, file download, without and with a password; record each device and browser | done (Max, 2026-09-14): on the macmini deployment of `84c355b` with host networking, an iPhone camera scan opened Safari and joined; text send and copy, image preview and file download passed without and with a password, with a Mac browser as the other device. Exact iPhone model, iOS version and desktop browser were not recorded. The native apps have no scan entry; scanning always joins through Safari |
 | 10 | Local-only hint, IPv4, IPv6, private proxy domain, copy failure, QR failure, offline and reconnect | skipped by Max's decision (2026-09-14); unverified |
-| 11 | Package Public and anonymous pull of both architectures | pending the first workflow run |
-| 12 | Max authorizes and publishes the draft Release | pending |
-| 13 | README quick start switches from the source build to the bundle after the image pulls anonymously and the bundle URL answers; until then the README must not point at unpublished downloads | pending (after 11–12) |
+| 11 | Package Public and anonymous pull of both architectures | done (2026-09-14): the package was already public. Release run [34818862090](https://github.com/max1874/ferry/actions/runs/34818862090) pulled both architectures without credentials and ran the container journey on each, and an anonymous manifest request from outside CI returned `linux/amd64` and `linux/arm64` under `sha256:3eba51a1d91902543afd91c8f2c3eed85deb450d291a20d6b5599402e41a5bce`, the CI candidate's digest |
+| 12 | Max authorizes and publishes the draft Release | done (Max, 2026-09-14T11:27Z): `v1.0.0` points to `84c355b`. After publishing, the asset was renamed `ferry-1.0.0-docker-compose.tar.gz`, the checksum file removed and the body switched to English; the new URL answers anonymously and the old one no longer exists |
+| 13 | README quick start switches from the source build to the bundle after the image pulls anonymously and the bundle URL answers; until then the README must not point at unpublished downloads | done (2026-09-14) |
 
 Browser acceptance is not native-app acceptance, and CI container runs are not real-device evidence.
 

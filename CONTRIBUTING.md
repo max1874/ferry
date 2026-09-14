@@ -2,7 +2,7 @@
 
 > English | [简体中文](CONTRIBUTING.zh-Hans.md)
 
-Ferry is a public repository with no tagged release. Treat every change as publicly visible, and see `README.md` for what is still unaccepted.
+Ferry is a public repository; its Server and Web app are published as versioned [releases](https://github.com/max1874/ferry/releases). Treat every change as publicly visible, and see `README.md` for what is still unaccepted.
 
 ## Before changing code
 

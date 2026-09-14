@@ -2,7 +2,7 @@
 
 > [English](CONTRIBUTING.md) | 简体中文
 
-Ferry 是一个公开仓库，还没有打过版本 tag。请把每一处改动都当作公开可见，还没验收的部分见 `README.md`。
+Ferry 是一个公开仓库；它的 Server 和 Web 应用以带版本号的 [Release](https://github.com/max1874/ferry/releases) 发布。请把每一处改动都当作公开可见，还没验收的部分见 `README.md`。
 
 ## 改代码之前
 
