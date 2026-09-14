@@ -124,9 +124,15 @@ func run(ctx context.Context, value config) error {
 		IdleTimeout:       60 * time.Second,
 	}
 
+	// A wildcard listener resolves to [::] on dual-stack hosts even when the
+	// deployer asked for 0.0.0.0, so report the address as configured.
+	shownAddress := listener.Addr().String()
+	if address.IP.IsUnspecified() {
+		shownAddress = value.listen
+	}
 	result := make(chan error, 1)
 	go func() {
-		log.Printf("Ferry is running at http://%s", listener.Addr())
+		log.Printf("Ferry is running at http://%s", shownAddress)
 		result <- server.Serve(listener)
 	}()
 
