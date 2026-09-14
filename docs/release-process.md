@@ -28,7 +28,8 @@ This document owns Ferry's release identity, how a CI candidate becomes a publis
 5. **First release only: make the package public.** GitHub creates a new container package as private. The workflow then fails at the anonymous pull with a link to the package settings. Set the package to Public and re-run the workflow.
 6. **Anonymous pull.** With an empty Docker client configuration, the workflow pulls both architectures by tag, checks they resolve to the released digest, and runs the container journey on each.
 7. **Draft release.** The workflow creates a draft `v<version>` Release on the candidate commit with the bundle, checksums, bilingual notes, image digest and CI run. Publishing the draft is Max's step and creates the tag.
-8. **After publishing**, update the supported-version wording in `SECURITY.md` and `CONTRIBUTING.md` and their Chinese siblings.
+8. **Switch the README entry point.** Until the image pulls anonymously and the bundle URL answers, the README quick start builds from source. Once both are confirmed, switch both READMEs to the bundle download, `docker compose up -d` and version-only upgrades.
+9. **After publishing**, update the supported-version wording in `SECURITY.md` and `CONTRIBUTING.md` and their Chinese siblings.
 
 ## 1.0.0 ship checklist
 
@@ -48,6 +49,7 @@ Frozen on 2026-09-14. Status values: `done` with evidence, `pending` with an own
 | 10 | Local-only hint, IPv4, IPv6, private proxy domain, copy failure, QR failure, offline and reconnect | pending |
 | 11 | Package Public and anonymous pull of both architectures | pending the first workflow run |
 | 12 | Max authorizes and publishes the draft Release | pending |
+| 13 | README quick start switches from the source build to the bundle after the image pulls anonymously and the bundle URL answers; until then the README must not point at unpublished downloads | pending (after 11–12) |
 
 Browser acceptance is not native-app acceptance, and CI container runs are not real-device evidence.
 

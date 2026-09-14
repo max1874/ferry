@@ -41,23 +41,25 @@ Native iOS and Android apps exist, but they are optional and are not part of the
 
 ## Quick start
 
-You need one computer that stays on, with Docker and Docker Compose v2, on a 64-bit x86 (`amd64`) or ARM (`arm64`) system. You do not need to clone this repository or install Go.
+You need one computer that stays on, with Git, Docker and Docker Compose v2. You do not need to install Go; Docker builds Ferry from this repository.
 
-1. **Download the deployment bundle** and enter its directory:
+> The published image `ghcr.io/max1874/ferry:1.0.0` and its deployment bundle are not available yet. Until they are, build from source as below.
+
+1. **Get the source** and enter its directory:
 
    ```bash
-   curl -fLO https://github.com/max1874/ferry/releases/download/v1.0.0/ferry-1.0.0-deploy.tar.gz
-   tar -xzf ferry-1.0.0-deploy.tar.gz
+   git clone https://github.com/max1874/ferry.git
    cd ferry
    ```
 
-   The bundle holds `compose.yaml`, `.env.example` and `scripts/ferry-data.sh` for backups. Keep that layout.
-
-2. **Create your settings file:**
+2. **Create your settings file** and tell Compose to build the source instead of pulling the image:
 
    ```bash
    cp .env.example .env
+   echo 'COMPOSE_FILE=compose.yaml:compose.build.yaml' >> .env
    ```
+
+   Compose reads `COMPOSE_FILE` from `.env`, so every later `docker compose` command and the backup script use the same files. On Windows, separate the files with `;` instead of `:`.
 
 3. **Find this computer's LAN IP address.** It usually starts with `192.168.`, `10.` or `172.16.`–`172.31.`.
 
@@ -78,7 +80,7 @@ You need one computer that stays on, with Docker and Docker Compose v2, on a 64-
 5. **Start Ferry:**
 
    ```bash
-   docker compose up -d
+   docker compose up --build -d
    docker compose logs ferry
    ```
 
@@ -104,11 +106,11 @@ Back up before every upgrade. From the deployment directory:
 scripts/ferry-data.sh backup ../ferry-backup-$(date +%F).tar.gz
 ```
 
-Then change only the version at the end of `FERRY_IMAGE` in `.env`, pull and recreate the container:
+Then update the source and rebuild:
 
 ```bash
-docker compose pull
-docker compose up -d
+git pull --ff-only
+docker compose up --build -d
 docker compose logs --tail=100 ferry
 ```
 
@@ -120,19 +122,18 @@ scripts/ferry-data.sh restore ../ferry-backup-2026-09-14.tar.gz ../before-restor
 
 The tool briefly stops a running Ferry so SQLite and blobs are archived together, and refuses archives that contain anything other than Ferry's data. Restore writes the safety backup before it replaces the volume, and restarts Ferry only after a successful restore that began with Ferry running. Copy backups off the server; they contain messages, files, hashed device tokens and the password verifier.
 
-### Moving an existing source deployment to the image
+### Deployments from before `compose.build.yaml`
 
-If you deployed an earlier commit with `git clone` and `docker compose up --build`, upgrade in the same directory so Compose keeps the same volume:
+`compose.yaml` no longer builds the source by itself; it names the image. If your checkout's `.env` has no `COMPOSE_FILE` line, add it before pulling, then upgrade in the same directory so Compose keeps the same volume:
 
 ```bash
-scripts/ferry-data.sh backup ../ferry-backup-before-1.0.0.tar.gz
+scripts/ferry-data.sh backup ../ferry-backup-$(date +%F).tar.gz
+echo 'COMPOSE_FILE=compose.yaml:compose.build.yaml' >> .env
 git pull --ff-only
-docker compose pull
-docker compose up -d
-docker compose logs --tail=100 ferry
+docker compose up --build -d
 ```
 
-Your existing `.env`, messages, files, device identities and password carry over. `compose.yaml` defaults to `ghcr.io/max1874/ferry:1.0.0`; add `FERRY_IMAGE` to `.env` to pin a version. To keep building from source instead, see [Build the image from source](#build-the-image-from-source).
+Messages, files, device identities and the password carry over. Once the image is published, a deployment can switch to it in place: back up, remove the `COMPOSE_FILE` line (keep any override file in it, see below), set `FERRY_IMAGE` to the version, then run `docker compose pull` and `docker compose up -d`.
 
 ## Other ways to deploy
 
@@ -164,7 +165,7 @@ ferry.example.com {
 }
 ```
 
-**Proxy in its own bridge container.** Inside that container `127.0.0.1` is the proxy itself, so attach Ferry to the proxy's Docker network and use the service name. Ferry then has two IP addresses, so set both `FERRY_TRUSTED_ORIGIN=https://ferry.example.com` and `FERRY_LISTEN_HOST=0.0.0.0` in `.env`, and add a `compose.override.yaml` next to `compose.yaml`:
+**Proxy in its own bridge container.** Inside that container `127.0.0.1` is the proxy itself, so attach Ferry to the proxy's Docker network and use the service name. Ferry then has two IP addresses, so set both `FERRY_TRUSTED_ORIGIN=https://ferry.example.com` and `FERRY_LISTEN_HOST=0.0.0.0` in `.env`, and add a `compose.override.yaml` next to `compose.yaml`. Compose loads that file automatically only when no files are named; with `COMPOSE_FILE` or `-f`, list it last, as in `COMPOSE_FILE=compose.yaml:compose.build.yaml:compose.override.yaml`, or the container loses the proxy network.
 
 ```yaml
 services:
@@ -185,10 +186,16 @@ ferry.example.com {
 
 ### Build the image from source
 
-From a clone of this repository, `compose.build.yaml` builds the current checkout instead of pulling the published image. It uses the same service, volume and settings:
+From a clone of this repository, `compose.build.yaml` builds the current checkout instead of pulling the published image. It uses the same service, volume and settings. The quick start selects it through `COMPOSE_FILE` in `.env`; the one-off equivalent is:
 
 ```bash
 docker compose -f compose.yaml -f compose.build.yaml up --build -d
+```
+
+Naming files turns off automatic loading of `compose.override.yaml`. If you use one, such as the proxy network above, name it too:
+
+```bash
+docker compose -f compose.yaml -f compose.build.yaml -f compose.override.yaml up --build -d
 ```
 
 ### Run from source without Docker
