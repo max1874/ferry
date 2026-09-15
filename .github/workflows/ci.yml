@@ -124,6 +124,10 @@ jobs:
           java-version: '17'
           cache: gradle
       - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          # The default also installs the obsolete `tools` package, which the SDK
+          # repository no longer serves.
+          packages: platform-tools
       - name: Android SDK 35
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - name: Android tests, lint and debug APK
