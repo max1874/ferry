@@ -12,10 +12,11 @@ This document owns Ferry's release identity, how a CI candidate becomes a publis
 - Compose download: `ferry-<version>-docker-compose.tar.gz`, the only uploaded asset: a `ferry/` directory holding `compose.yaml`, `.env.example` and `scripts/ferry-data.sh`. It is configuration, not the program; the runnable program is the image. GitHub shows each asset's SHA-256, so there is no separate checksum file.
 - **Decided (Max, 2026-09-14)**: the GitHub Release body is English: `docs/releases/<version>.md` without its title and language line, then a link to the Chinese notes and one small line with the image digest, commit and CI run. The notes open by saying which file to download.
 - Authentication: the repository's `GITHUB_TOKEN` only. Every action is pinned to a commit SHA.
+- **Decided (Max, 2026-09-15)**: CI runs only when started by hand (`workflow_dispatch`), never on a push or pull request.
 
 ## From candidate to release
 
-1. **CI builds the candidate.** Every push to `main` runs the `image` job: it builds both architectures once, checks that the local registry and the OCI archive hold the same index digest, starts each architecture through `compose.yaml`, keeps a device, text, file and password across a restart, and moves a source-built deployment to the image without losing that data. It uploads `ferry-candidate`: the OCI archive, the bundle, `candidate.json` (commit, ref, run, digest, platforms) and `SHA256SUMS`.
+1. **CI builds the candidate.** Start CI on `main` by hand with `gh workflow run ci.yml --ref main`. Its `image` job builds both architectures once, checks that the local registry and the OCI archive hold the same index digest, starts each architecture through `compose.yaml`, keeps a device, text, file and password across a restart, and moves a source-built deployment to the image without losing that data. It uploads `ferry-candidate`: the OCI archive, the bundle, `candidate.json` (commit, ref, run, digest, platforms) and `SHA256SUMS`.
 2. **The version files already name the version.** `compose.yaml` and `.env.example` default to `ghcr.io/max1874/ferry:<version>`, and `scripts/check-repo.sh` keeps the two equal. Bump both, and add the release notes, in a commit before choosing a candidate.
 3. **Acceptance evidence is recorded** in the checklist below, and Max explicitly authorizes the release.
 4. **Run the workflow** with the version and the successful CI run on `main`:
@@ -24,7 +25,7 @@ This document owns Ferry's release identity, how a CI candidate becomes a publis
    gh workflow run release.yml -f version=1.0.0 -f ci_run_id=<run id>
    ```
 
-   The workflow refuses to continue unless the run is a successful `CI` push run on `main`, its commit is still on `main`, no Release or tag exists for the version, the artifact checksums and digest match the record, and the bundle names the requested image. It pushes the archived image without rebuilding, keeping its digest, and re-reads the registry digest. An existing version under a different digest is a refusal, not an overwrite; the same digest lets a re-run continue.
+   The workflow refuses to continue unless the run is a successful `CI` run on `main` (started by hand, or a push run from before 2026-09-15), its commit is still on `main`, no Release or tag exists for the version, the artifact checksums and digest match the record, and the bundle names the requested image. It pushes the archived image without rebuilding, keeping its digest, and re-reads the registry digest. An existing version under a different digest is a refusal, not an overwrite; the same digest lets a re-run continue.
 5. **First release only: make the package public.** GitHub creates a new container package as private. The workflow then fails at the anonymous pull with a link to the package settings. Set the package to Public and re-run the workflow.
 6. **Anonymous pull.** With an empty Docker client configuration, the workflow pulls both architectures by tag, checks they resolve to the released digest, and runs the container journey on each.
 7. **Draft release.** The workflow creates a draft `v<version>` Release on the candidate commit with the Compose download, English notes linking the Chinese notes, image digest and CI run. Publishing the draft is Max's step and creates the tag.

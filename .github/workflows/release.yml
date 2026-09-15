@@ -43,10 +43,11 @@ jobs:
           printf '%s' "$CI_RUN_ID" | grep -Eqx '[0-9]+' || { echo "ci_run_id must be a number" >&2; exit 1; }
           [ "$GITHUB_REPOSITORY" = max1874/ferry ] || { echo "releases publish only from max1874/ferry" >&2; exit 1; }
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN_ID" >"$RUNNER_TEMP/run.json"
-          jq -e '.path == ".github/workflows/ci.yml" and .event == "push" and .head_branch == "main"
-            and .status == "completed" and .conclusion == "success"
+          # CI is started by hand since 2026-09-15; earlier candidates came from push runs.
+          jq -e '.path == ".github/workflows/ci.yml" and (.event == "workflow_dispatch" or .event == "push")
+            and .head_branch == "main" and .status == "completed" and .conclusion == "success"
             and .head_repository.full_name == env.GITHUB_REPOSITORY' "$RUNNER_TEMP/run.json" >/dev/null ||
-            { echo "run $CI_RUN_ID is not a successful CI push run on main" >&2; exit 1; }
+            { echo "run $CI_RUN_ID is not a successful CI run on main" >&2; exit 1; }
           commit=$(jq -r .head_sha "$RUNNER_TEMP/run.json")
           relation=$(gh api "repos/$GITHUB_REPOSITORY/compare/$commit...main" --jq .status)
           case "$relation" in

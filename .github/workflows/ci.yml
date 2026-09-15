@@ -1,9 +1,9 @@
 name: CI
 
+# Runs only when the maintainer starts it, for example before a release:
+#   gh workflow run ci.yml --ref main
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read

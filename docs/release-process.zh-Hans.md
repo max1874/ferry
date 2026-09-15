@@ -12,10 +12,11 @@
 - Compose 下载包：`ferry-<version>-docker-compose.tar.gz`，是唯一上传的附件，内含 `ferry/` 目录，里面是 `compose.yaml`、`.env.example` 和 `scripts/ferry-data.sh`。它是配置文件，不是程序本身；可以运行的程序是镜像。GitHub 会显示每个附件的 SHA-256，所以不再单独提供校验值文件。
 - **Decided（Max，2026-09-14）**：GitHub Release 正文使用英文：`docs/releases/<version>.md` 去掉标题和语言切换行，后面附上中文说明的链接，以及一行写有镜像摘要、提交和 CI run 的小字。说明开头先讲清楚该下载哪个文件。
 - 认证：只使用仓库的 `GITHUB_TOKEN`。所有 action 都固定到提交 SHA。
+- **Decided（Max，2026-09-15）**：CI 只在手动启动（`workflow_dispatch`）时运行，推送和 pull request 都不会触发。
 
 ## 从候选到正式发布
 
-1. **CI 构建候选。** 每次推送到 `main` 都会运行 `image` job：一次构建两个架构，检查本地 registry 和 OCI 归档里是同一个索引摘要，通过 `compose.yaml` 分别启动两个架构，让设备、文字、文件和密码挺过一次重启，并把源码构建的部署切换到镜像而不丢数据。它上传 `ferry-candidate`：OCI 归档、部署包、`candidate.json`（提交、ref、run、摘要、平台）和 `SHA256SUMS`。
+1. **CI 构建候选。** 用 `gh workflow run ci.yml --ref main` 在 `main` 上手动启动 CI。它的 `image` job 会一次构建两个架构，检查本地 registry 和 OCI 归档里是同一个索引摘要，通过 `compose.yaml` 分别启动两个架构，让设备、文字、文件和密码挺过一次重启，并把源码构建的部署切换到镜像而不丢数据。它上传 `ferry-candidate`：OCI 归档、部署包、`candidate.json`（提交、ref、run、摘要、平台）和 `SHA256SUMS`。
 2. **版本文件已经写好版本号。** `compose.yaml` 和 `.env.example` 默认使用 `ghcr.io/max1874/ferry:<version>`，`scripts/check-repo.sh` 保证两者一致。选定候选之前，先用一个提交更新两者并加入发布说明。
 3. **在下方清单里记录验收证据**，并取得 Max 的明确发布授权。
 4. **运行 workflow**，传入版本号和 `main` 上成功的 CI run：
@@ -24,7 +25,7 @@
    gh workflow run release.yml -f version=1.0.0 -f ci_run_id=<run id>
    ```
 
-   以下条件任一不满足，workflow 就会拒绝继续：该 run 是 `main` 上成功的 `CI` push run；它的提交仍在 `main` 上；该版本还没有 Release 或标签；产物校验值和摘要与记录一致；部署包指向所请求的镜像。它不重新构建，直接推送归档里的镜像并保留摘要，然后重新读取 registry 里的摘要。该版本已经以不同摘要存在时拒绝，不会覆盖；摘要相同则允许重跑继续。
+   以下条件任一不满足，workflow 就会拒绝继续：该 run 是 `main` 上成功的 `CI` run（手动启动的，或 2026-09-15 之前由推送触发的）；它的提交仍在 `main` 上；该版本还没有 Release 或标签；产物校验值和摘要与记录一致；部署包指向所请求的镜像。它不重新构建，直接推送归档里的镜像并保留摘要，然后重新读取 registry 里的摘要。该版本已经以不同摘要存在时拒绝，不会覆盖；摘要相同则允许重跑继续。
 5. **仅首次发布：把包设为公开。** GitHub 新建的容器包默认是私有的。这时 workflow 会在匿名拉取一步失败，并给出包设置页的链接。把包设为 Public 后重跑 workflow。
 6. **匿名拉取。** workflow 使用空的 Docker 客户端配置，按标签拉取两个架构，确认都解析到发布的摘要，并在每个架构上跑一遍容器旅程。
 7. **Release 草稿。** workflow 在候选提交上创建 `v<version>` 的 Release 草稿，附带 Compose 下载包、链接到中文说明的英文正文、镜像摘要和 CI run。发布草稿由 Max 完成，同时创建标签。
