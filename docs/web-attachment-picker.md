@@ -24,7 +24,7 @@
 3. Either choice keeps only one current attachment and reuses the existing send and clear flow.
 4. Outside click, Escape and entering the access state all close the menu.
 5. Go tests, race, vet, JavaScript syntax, Docker build and `git diff --check` pass.
-6. Both current HEAD and the macmini deployment pass a real browser journey.
+6. Both current HEAD and the test server deployment pass a real browser journey.
 7. The 13-item adversarial self-review and one independent focused review are complete before push.
 
 ## Verification
@@ -49,7 +49,7 @@ Conclusion: **ship candidate after independent review and deployment proof**. Pa
 10. Contract-level attacks — N/A: no network, persistence, authorization or cross-client contract changed.
 11. Predicate producers — all producers of menu hidden/expanded and both file counts are enumerated by the item 1 grep; initial HTML state is hidden/false and every runtime menu transition uses `setAttachmentMenuOpen`.
 12. Reversed findings — removing ARIA `menu/menuitem` retained normal button accessibility; moving close outside the credential-clear branch covers every `showAccess` caller listed by `rg -n 'showAccess\\(' internal/webui/assets/app.js`.
-13. Pass limit — author review does not self-certify; independent focused review and macmini current-deployment replay remain explicit checklist gates.
+13. Pass limit — author review does not self-certify; independent focused review and the test server current-deployment replay remain explicit checklist gates.
 
 ## Independent focused review
 
@@ -60,9 +60,9 @@ Conclusion: **ship candidate after independent review and deployment proof**. Pa
 ## Deployment
 
 - Source commit `30372f0` was pushed to `origin/main`.
-- macmini rebuilt and runs image `sha256:b83c6c…` at `http://10.0.0.2:42817`; Compose recreated the container/network without removing the named data volume, and the live timeline retained its historical text and file messages.
+- The test server rebuilt and runs image `sha256:b83c6c…` at `http://192.168.1.20:42817`; Compose recreated the container/network without removing the named data volume, and the live timeline retained its historical text and file messages.
 - Direct LAN checks returned `{"status":"ok"}` and served HTML containing the Photos button and `accept="image/*,video/*"` contract.
-- Live 390×844 browser replay observed two inline SVG icons, Photos-only then Files-only routing `{photo:1,file:1}`, focus restored to `attach` after both choices, and no cross-trigger. Recording: `<browser-harness recordings>/ferry-web-attachment-picker-macmini` (6 frames, repository-external).
+- Live 390×844 browser replay observed two inline SVG icons, Photos-only then Files-only routing `{photo:1,file:1}`, focus restored to `attach` after both choices, and no cross-trigger. Recording: `<browser-harness recordings>/ferry-web-attachment-picker-test-server` (6 frames, repository-external).
 - Known verification boundary: mobile Chromium emulation proves Ferry's responsive UI, DOM contract and routing; the actual iOS system photo-library sheet still requires the user's physical-iPhone tap test.
 
 ## Clipboard image paste — 2026-09-01
@@ -72,7 +72,7 @@ Conclusion: **ship candidate after independent review and deployment proof**. Pa
 - Frozen checks: native Cmd-V image shows `image.png`, disables text mode and enables Send; sending produces a file message and clears the chip; native Cmd-V text inserts exact text without a chip; existing Photos/Files replacement and remove behavior remain.
 - Local final-tree Chromium used the real system clipboard and native Paste command: a PNG produced `{chip:true,name:image.png,textDisabled:true,sendDisabled:false}`, sent as a visible `image.png` file message, then plain text produced `{chip:false,text:"plain clipboard text"}`. Recording: `ferry-paste-image-local` (9 frames).
 - Author adversarial pass: all attachment producers were enumerated; cancellation preserves the prior attachment, picker selection replaces paste, remove/success clear it, non-image paste returns before `preventDefault`, first image only matches Ferry's existing single-file contract, and Server limits/errors remain shared. No protocol/schema/auth change; no subagent per Max's standing decision.
-- Shipped: source `36527dd`; full Go tests/vet, JS syntax, repository policy and diff checks passed. Mac mini runs image `sha256:5e5118848901e902216929c47ae974889988cc458235deda2adb9c51d27c5ef9` with retained `ferry_ferry-data:/data`; `/healthz` returned 200. Deployed Chromium accepted `deployed-paste.png` into the chip, enabled Send, and remove restored empty text mode without posting a test message. Recording: `ferry-paste-image-macmini` (5 frames).
+- Shipped: source `36527dd`; full Go tests/vet, JS syntax, repository policy and diff checks passed. The test server runs image `sha256:5e5118848901e902216929c47ae974889988cc458235deda2adb9c51d27c5ef9` with retained `ferry_ferry-data:/data`; `/healthz` returned 200. Deployed Chromium accepted `deployed-paste.png` into the chip, enabled Send, and remove restored empty text mode without posting a test message. Recording: `ferry-paste-image-test-server` (5 frames).
 
 ## Grok-style attachment presentation — 2026-09-01
 
@@ -81,8 +81,8 @@ Conclusion: **ship candidate after independent review and deployment proof**. Pa
 - Decision: Ferry uses the same geometry and type-specific presentation, with an always discoverable scaled remove control on touch. Object URLs are revoked whenever attachment identity changes; large images are not copied into base64.
 - Root cause/contract: the first real render exposed CSP blocking `blob:` in `img-src`. The policy now permits `blob:` for images only while script/style/connect/object/base/frame/form directives remain byte-for-byte pinned by `TestStaticWebAndSecurityHeadersShareHandler`.
 - Local final-tree journey: image `{chip:40×40,preview:34×34,natural:1794×364,composer:752×111}`; ordinary file `{chip:248.45×40,remove:24×24,composer:752×111}`; 390 px file view stayed inside composer x=64…382 with overflow 0. Record: `ferry-grok-attachment-style-local` (8 frames).
-- Frozen closure: image and file selection, pasted image, remove, successful send cleanup, desktop/mobile geometry, CSP exact test, full repository gates, push and Mac mini replay. Author review only and no subagent per Max's standing decision.
-- Shipped: source `c186afc`; Mac mini image `sha256:ae5f4d37183971f9a7fd93bc1c48d86d88e5c27a0d85a28ca5556b913aae416b` runs with retained `ferry_ferry-data:/data`, exact CSP and `/healthz` 200. Live image measured `40×40`/preview `34×34` and live file `248.45×40`/remove `24×24`; both made the 752 px composer 111 px high with overflow 0, then were removed without sending. Recording: `ferry-grok-attachment-style-macmini` (6 frames).
+- Frozen closure: image and file selection, pasted image, remove, successful send cleanup, desktop/mobile geometry, CSP exact test, full repository gates, push and the test server replay. Author review only and no subagent per Max's standing decision.
+- Shipped: source `c186afc`; the test server image `sha256:ae5f4d37183971f9a7fd93bc1c48d86d88e5c27a0d85a28ca5556b913aae416b` runs with retained `ferry_ferry-data:/data`, exact CSP and `/healthz` 200. Live image measured `40×40`/preview `34×34` and live file `248.45×40`/remove `24×24`; both made the 752 px composer 111 px high with overflow 0, then were removed without sending. Recording: `ferry-grok-attachment-style-test-server` (6 frames).
 
 ## Readable image preview correction — 2026-09-01
 
@@ -110,22 +110,22 @@ Conclusion: **ship candidate after independent review and deployment proof**. Pa
 10. Contract-level attacks — N/A: no external protocol, persistence, authorization or universal boundary changed.
 11. Predicate producers — `rg -n 'previewAttachment|previewURL|previewFailed|fileChip|filePreview' internal/webui/assets/app.js` enumerates selection-change reset, error producer, rendering consumers and cleanup.
 12. Reversed findings — enlarging the preview raised corrupt-image collapse as a new question; it now falls back to the existing ordinary-file presentation, and ordinary files were separately replayed.
-13. Pass limit — author full pass only; no subagent per Max's standing decision. Mac mini deployment and live browser replay provide the required user-surface closure.
+13. Pass limit — author full pass only; no subagent per Max's standing decision. The test server deployment and live browser replay provide the required user-surface closure.
 
 ### Deployment closure
 
-- Source `571df86` was pushed to `origin/main`; Mac mini runs retained-volume image `sha256:a484a4401d5e9404f0341df60f15d1f2ebf1162136f534d8c7923cba0922455f`, and `/healthz` returned `{"status":"ok"}`.
-- On `http://10.0.0.2:42817`, the exact reported PNG again measured preview 220×48.57, chip 228×56.57, visible remove control and desktop overflow 0. Removing it restored text focus and disabled Send.
-- At deployed 390×844, the chip stayed x=77…305 inside composer x=64…382 with overflow 0. Re-pasting and sending created one real 50.5 KB timeline item with the exact filename, cleared the pending chip and returned the normal privacy status. Recording: `ferry-readable-image-preview-macmini-final` (6 frames).
+- Source `571df86` was pushed to `origin/main`; the test server runs retained-volume image `sha256:a484a4401d5e9404f0341df60f15d1f2ebf1162136f534d8c7923cba0922455f`, and `/healthz` returned `{"status":"ok"}`.
+- On `http://192.168.1.20:42817`, the exact reported PNG again measured preview 220×48.57, chip 228×56.57, visible remove control and desktop overflow 0. Removing it restored text focus and disabled Send.
+- At deployed 390×844, the chip stayed x=77…305 inside composer x=64…382 with overflow 0. Re-pasting and sending created one real 50.5 KB timeline item with the exact filename, cleared the pending chip and returned the normal privacy status. Recording: `ferry-readable-image-preview-test-server-final` (6 frames).
 
-Status: shipped and visually exercised on the deployed Mac mini instance.
+Status: shipped and visually exercised on the deployed test-server instance.
 
 ## Attachment composer radius correction — 2026-09-01
 
 - Requested after final screenshot review: a taller attachment composer must not retain the text-only `999px` capsule radius and balloon into a large empty pill.
 - Root cause: the preview size fix changed composer height from about 60 to 132 px, but the unconditional radius stayed at `999px`; overflow checks passed while the silhouette was still visually wrong.
 - Decision: text-only composer remains a pill; any selected attachment derives a `has-attachment` class and uses a 32 px panel radius. Clearing or sending the attachment removes the class through the same `updateComposer` state derivation.
-- Frozen journey: paste the reported screenshot on desktop and mobile, inspect radius and silhouette, remove it and prove the pill returns, then re-paste and send successfully on the deployed Mac mini.
+- Frozen journey: paste the reported screenshot on desktop and mobile, inspect radius and silhouette, remove it and prove the pill returns, then re-paste and send successfully on the deployed test-server.
 
 ### Local candidate evidence and adversarial review
 
@@ -145,12 +145,12 @@ Status: shipped and visually exercised on the deployed Mac mini instance.
 10. Contract-level attacks — N/A: no boundary contract changed.
 11. Predicate producers — `rg -n 'has-attachment|updateComposer\\('` found the sole class producer and every recomputation caller.
 12. Reversed findings — preview size remained valid; the missed question was the parent silhouette, now checked independently from child bounds.
-13. Pass limit — author full pass only; no subagent per Max's standing decision. Final Mac mini replay supplies user-surface closure.
+13. Pass limit — author full pass only; no subagent per Max's standing decision. Final test-server replay supplies user-surface closure.
 
 ### Deployment closure
 
-- Source `040c300` was pushed to `origin/main`; Mac mini runs retained-volume image `sha256:0c5183aa08ff1f832231b47da74d031f3ca8b42a65041868cbf9f0c7ccb101ce`, and `/healthz` returned `{"status":"ok"}`.
+- Source `040c300` was pushed to `origin/main`; the test server runs retained-volume image `sha256:0c5183aa08ff1f832231b47da74d031f3ca8b42a65041868cbf9f0c7ccb101ce`, and `/healthz` returned `{"status":"ok"}`.
 - Deployed desktop and 390×844 screenshots were visually inspected with the exact reported PNG. Attachment state measured radius 32 px; mobile panel was `318×132.19` with overflow 0.
-- Remove restored class `composer`, height 60, radius 999 px and text focus. Re-paste used 32 px, a real 64.2 KB message sent successfully, and completion restored the normal pill/status. Recording: `ferry-attachment-radius-macmini-final` (6 frames).
+- Remove restored class `composer`, height 60, radius 999 px and text focus. Re-paste used 32 px, a real 64.2 KB message sent successfully, and completion restored the normal pill/status. Recording: `ferry-attachment-radius-test-server-final` (6 frames).
 
-Status: shipped and visually exercised on the deployed Mac mini instance.
+Status: shipped and visually exercised on the deployed test-server instance.

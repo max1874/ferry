@@ -10,7 +10,7 @@
 - **REPO_REQUIRED**：保留设备 token 以支持记住会话和撤销、严格的请求解码、私有监听边界、不记录/不持久化明文密码、完整的 Go/iOS 测试、真实 Web/iPhone 旅程、对抗式评审和零上下文评审。
 - **深度**：contract — 在 Server、Web、iOS、OpenAPI 和 Docker 之间替换公开的设备准入 API 和鉴权旅程。
 - **预算**：已有的 Server/鉴权/客户端界面、一张单例 SQLite 接入设置表、一份接入文档；不加账号/角色 schema，不加第二个服务。
-- **边界计划**：macmini 上真实的 Docker Server、真实浏览器、签名的 iPhone 构建；单元测试只关闭错误/边界合约。
+- **边界计划**：测试服务器上真实的 Docker Server、真实浏览器、签名的 iPhone 构建；单元测试只关闭错误/边界合约。
 - **扩张触发**：如果实现需要账号/角色、TLS、第二个服务，或改动已有的消息/设备行，就 HALT。
 
 ## 决策
@@ -57,7 +57,7 @@ remembered revocable device token -> chat/files
 - 一次当前 HEAD 的浏览器竞态探针在没有凭据的表单打开时开启了设置；加入返回 `invalid_password`，显示 `password is incorrect`，并露出密码输入框。它的 kill probe 注入网络中断，观察到 `Offline` 且密码框仍隐藏，证明 UI 能区分协议状态和传输失败。
 - SQLite 关闭/重新打开的测试证明校验值在重启后保留、可以干净地关闭，且原始测试密码不出现在数据库、WAL 和共享内存文件中。
 - 最终本地检查通过：Go race/vet、JavaScript 语法、shell 语法、Compose config、Docker 镜像构建（`sha256:ceb764…`）、`git diff --check`、四轮作者评审，以及全新验证者 SHIP 且 P0/P1/P2 全为零。
-- macmini 部署在 `http://10.0.0.2:42817` 通过：镜像重建为 `sha256:773904…`；对运行中的容器断言了 health、免密码加入、`invalid_password`、正确密码加入、旧 token 保持有效、重启持久化，以及最终关闭密码。探针结束后撤销了密码路径产生的额外设备。
+- 测试服务器部署在 `http://192.168.1.20:42817` 通过：镜像重建为 `sha256:773904…`；对运行中的容器断言了 health、免密码加入、`invalid_password`、正确密码加入、旧 token 保持有效、重启持久化，以及最终关闭密码。探针结束后撤销了密码路径产生的额外设备。
 - 部署后的 Chromium 进入时间线显示 `Local`，打开 Devices，观察到 Access password 可见且处于关闭状态。签名的真机构建以 `com.max1874.ferry` 安装到 iPhone `9B234E1E…`；自动启动被拒绝，只是因为手机锁着。
 - 源码 commit `54570ef` 已推送到 `origin/main`；部署记录在线上验证后单独提交。
 
@@ -77,6 +77,6 @@ remembered revocable device token -> chat/files
 10. **七类攻击** — 双裁判（OpenAPI/严格 Go）、极值、等价拼写、默认免密码模式、旁路路由、已鉴权设置门禁和非作者的浏览器证据都逐一演练过；Docker 文件里不存在其他产品密码环境变量的 producer。
 11. **断言 producer** — grep 了每一个 `password_required`、401 映射、设置写入、token 持久化写入和 phase 转换；公开的 join 401 仍是 Server 拒绝，而 Bearer 401 在 iOS/Web 上变成被撤销设备的状态。
 12. **被推翻的发现** — 去掉配对后，重新追问了它的恢复、撤销、过期请求和多标签页问题：明确的可信局域网边界接受首个客户端拥有控制权，而不是发明一个所有者 bootstrap；设置写入在事务内复查请求者是否存在；token 仍可单独撤销；只有成功的加入才写共享的 Web 存储。
-13. **轮次上限** — 作者评审没有自我认证：最终全新验证者返回 SHIP，P0/P1/P2 全为零；macmini 和真机证据仍是单独的部署门槛。
+13. **轮次上限** — 作者评审没有自我认证：最终全新验证者返回 SHIP，P0/P1/P2 全为零；测试服务器和真机证据仍是单独的部署门槛。
 
 第一轮全新评审返回 NO-SHIP，有两条可信局域网威胁模型上的反对意见和两个具体的 P2。后续又发现两个同类 P2，也都固化为测试：Web 只把 Server 发出的 `invalid_password` 归类为密码门槛，iOS 在加入过程中地址变化时让旧 generation 失效。两条局域网敌手的发现在用户决定的威胁模型之外，而不是被悄悄接受的实现缺陷：Ferry 目前信任已准入的局域网设备，并有意不设管理员 bootstrap 和针对敌意客户端的限流。最终全新评审返回 SHIP，范围内没有 P0/P1/P2。

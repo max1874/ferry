@@ -16,7 +16,7 @@
 2. HTML contains exactly one top-bar and two welcome `<img>` references and no old letter placeholder — same test plus `rg 'ferry-icon|>F<' internal/webui`.
 3. Real browser proves loaded natural dimensions, 28/48 px rendered dimensions, and no letter placeholders — browser-harness current-worktree transcript.
 4. Both passwordless timeline and password-required connection card render the icon in dark mode — `/tmp/ferry-icon-qa.png` and `/tmp/ferry-icon-access-qa.png` visual checks.
-5. Go tests, JavaScript syntax, `git diff --check`, independent focused review, push, macmini Docker rebuild, and deployed browser check pass.
+5. Go tests, JavaScript syntax, `git diff --check`, independent focused review, push, the test server Docker rebuild, and deployed browser check pass.
 
 ## Adversarial author review
 
@@ -39,5 +39,5 @@ Verdict after two passes: **ship candidate; no unresolved author-known P0/P1/P2*
 ## Closure
 
 - Independent focused review: **SHIP**, P0/P1/P2 all zero after the dimension-test fix and repeated kill probe.
-- Source commit `c80c994` pushed to `origin/main`; macmini rebuilt image `sha256:2adbe7…` and restarted Ferry at `http://10.0.0.2:42817`.
+- Source commit `c80c994` pushed to `origin/main`; the test server rebuilt image `sha256:2adbe7…` and restarted Ferry at `http://192.168.1.20:42817`.
 - Deployed browser observed `Local`, favicon/touch paths, a visible 64→28 px top-bar mark, and both embedded 256 px welcome assets with no letter text. Existing messages correctly kept the two welcome variants hidden; their visible states were proven in the final local production-handler journey.

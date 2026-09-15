@@ -17,7 +17,7 @@
 3. Device list and password status load; enabling then disabling a local test password produces truthful terminal statuses.
 4. Clicking Timeline restores its content/composer and keeps keyboard focus on the selected navigation item.
 5. Desktop 1383×997 and mobile 390×844 have no horizontal overflow; rows, revoke control and password card remain inside content bounds.
-6. Full Go tests/vet, JS parse, repository policy, diff check, push, retained-volume Mac mini build, and deployed click-through pass.
+6. Full Go tests/vet, JS parse, repository policy, diff check, push, retained-volume test-server build, and deployed click-through pass.
 
 Local final-tree evidence at base `e13b71a`: desktop sidebar ended x=257 and Devices page began x=257; content was 760 px centered at x=440. Devices click produced `{timelineHidden:true,devicesHidden:false,composerHidden:true,devicesActive:page}` with two rows and `No password is required.` Password enable/disable both reached truthful success text. Timeline click reversed every view predicate. At 390 px, page x=56…390, content/card/rows x=72…374, overflow 0. Recording: `ferry-devices-page-local` (18 frames).
 
@@ -40,9 +40,9 @@ Local final-tree evidence at base `e13b71a`: desktop sidebar ended x=257 and Dev
 ## Shipped evidence
 
 - Source commit: `6dd8416` (`fix: make Devices a main navigation view`).
-- Mac mini image: `sha256:fa26f3aa4cf616adcdbd4abe1fe3f5d869f282c1552c703ae2d361d11a74b186`; container `ferry` is running and `/healthz` returned `{"status":"ok"}`.
+- The test server image: `sha256:fa26f3aa4cf616adcdbd4abe1fe3f5d869f282c1552c703ae2d361d11a74b186`; container `ferry` is running and `/healthz` returned `{"status":"ok"}`.
 - Desktop 1383×997: the Devices page starts at x=257 immediately after the sidebar, its 760 px content column is centered, all eight retained devices render, there is one `This device`, no dialog exists, and horizontal overflow is 0.
 - Mobile 390×844: the page is x=56…390, content and every row are x=72…374, the password card follows the list, and horizontal overflow is 0. Returning to Timeline restores the message list and composer, puts focus on Timeline, and resets scroll to the top.
-- Deployed interaction recording: `ferry-devices-page-macmini` (10 frames). Final screenshots: `/private/tmp/ferry-devices-page-macmini-desktop.png`, `/private/tmp/ferry-devices-page-macmini-mobile.png`, and `/private/tmp/ferry-devices-page-macmini-mobile-return-timeline.png`.
+- Deployed interaction recording: `ferry-devices-page-test-server` (10 frames). Final screenshots: `/private/tmp/ferry-devices-page-test-server-desktop.png`, `/private/tmp/ferry-devices-page-test-server-mobile.png`, and `/private/tmp/ferry-devices-page-test-server-mobile-return-timeline.png`.
 
-Status: shipped and visually exercised on the deployed Mac mini instance.
+Status: shipped and visually exercised on the deployed test-server instance.

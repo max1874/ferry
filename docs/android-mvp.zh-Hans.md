@@ -4,19 +4,19 @@
 
 ## S0 — Confirmed scope
 
-- **REQUESTED（Max，2026-08-30）**：完成尚未开发的 Android App；构建环境只能使用 Mac mini 已有 Android 环境，不在当前 Mac 安装工具。
+- **REQUESTED（Max，2026-08-30）**：完成尚未开发的 Android App；构建环境只能使用测试服务器已有 Android 环境，不在当前 Mac 安装工具。
 - **Target acceptance**：真实 Android 设备可连接现有 Ferry Server、恢复凭据、显示时间线、发送和复制文字、从相册或文件选择器发送文件，并把收到的文件保存到用户选择的位置；APK 真机安装与启动已由用户确认，其余局域网旅程尚未完成。
 - **DESIGN_NECESSARY**：Server origin 与设备名持久化；token 使用 Android Keystore 加密后持久化；否则重启后入口或身份丢失。
 - **DESIGN_NECESSARY**：会话 generation 与 coroutine cancellation 隔离旧连接、轮询、发送和下载；否则切换 Server 或被撤销后旧任务可回写。
 - **DESIGN_NECESSARY**：照片使用系统 Photo Picker、普通文件使用 Storage Access Framework、下载使用 Create Document；否则需要宽泛存储权限或不能完成文件共享。
 - **REPO_REQUIRED**：Jetpack Compose、Android 原生/AndroidX 优先、同一 OpenAPI 0.4 合约、有限测试、完整错误状态、攻击式自审和独立完整代码复核。
-- **Decided（Max 对 scope card 的修订）**：本机不安装 JDK/SDK/Gradle；复用 Mac mini `android-sms-forward/.codex-build` 中的 JDK 17、SDK/Build Tools 35、Gradle 8.9 基线。
+- **Decided（Max 对 scope card 的修订）**：本机不安装 JDK/SDK/Gradle；复用测试服务器上一个早期项目构建目录中的 JDK 17、SDK/Build Tools 35、Gradle 8.9 基线。
 - **Decided（Max 对其余 scope card 未反对并修订单一项）**：最低 Android 8（API 26），compile/target API 35；当前不开 Play Store 发布。
 - **Non-goals**：自动监听剪贴板、后台传输、mDNS/二维码发现、设备管理/密码设置、TLS/public Internet、推送通知、离线消息数据库、Play Store 发布。
 - **Depth**：full；新增原生客户端和跨进程用户旅程，但不修改 Server、OpenAPI 或 SQLite。
 - **Budget**：最多 20 个 production Kotlin/XML/Gradle files、production 净新增 1,600 行；一个 Android application module、一个 Keystore credential mechanism、零新增 Server/API/DB mechanism。
 - **Artifact budget**：本文件是 S0–S7 唯一过程记录，最多 260 行。
-- **Boundary plan**：Mac mini 完成 assemble/lint/JVM tests；真实 Server API 提供支持证据；Android 设备旅程必须使用真实 App。安装与启动已有真机证据；其余 LAN 旅程在用户回到家庭局域网前标记 `BLOCKED (external)`，不得由单测替代。
+- **Boundary plan**：测试服务器完成 assemble/lint/JVM tests；真实 Server API 提供支持证据；Android 设备旅程必须使用真实 App。安装与启动已有真机证据；其余 LAN 旅程在用户回到家庭局域网前标记 `BLOCKED (external)`，不得由单测替代。
 - **Expansion triggers**：需要安装新工具、修改 API、后台 worker、本地数据库、分享扩展或超过预算时 HALT。
 
 Status: `device_launch_candidate`; subject: commit `888547f`; pending gate: real Android LAN journey; review round: 4 complete; invalidations: 19 builder/reviewer findings closed.
@@ -26,7 +26,7 @@ Status: `device_launch_candidate`; subject: commit `888547f`; pending gate: real
 ### Evidence and candidates
 
 - **Observed**：现有 iOS client 已证明“一个会话状态所有者 + 窄手写 HTTP client + 安全 token store + generation/cancel”的形状；Android 应复用契约与生命周期原则，不复制 Swift 代码结构。
-- **Observed**：Mac mini 只有 API/Build Tools 35、JDK 17、AGP 8.7.3 / Kotlin 2.0.21 / Gradle 8.9 缓存，没有 emulator 或连接设备。
+- **Observed**：测试服务器只有 API/Build Tools 35、JDK 17、AGP 8.7.3 / Kotlin 2.0.21 / Gradle 8.9 缓存，没有 emulator 或连接设备。
 - **Observed**：Ferry API 使用 JSON、multipart 和 Bearer；Android 平台的 `HttpURLConnection`、`org.json` 与 ContentResolver 足以实现，不需要 Retrofit/OkHttp/JSON generator。
 - **Observed**：Android 官方 Photo Picker 在不可用设备上回退到 `ACTION_OPEN_DOCUMENT`；Storage Access Framework 可在不申请宽泛存储权限时打开/创建文件。
 
@@ -64,7 +64,7 @@ Counterexample: Server A 的轮询或慢上传在用户切到 Server B 后完成
 | Rule | Mechanism | Counterexample |
 | --- | --- | --- |
 | token 不进入明文 preferences/log | Keystore AES-GCM；prefs 只存 IV+ciphertext | 搜索 token value writer 只能到 cipher input |
-| origin 是单一 HTTP(S) origin | URI normalize/reject userinfo/path/query/fragment | `http://user@10.0.0.2/x?q=1` 失败 |
+| origin 是单一 HTTP(S) origin | URI normalize/reject userinfo/path/query/fragment | `http://user@192.168.1.20/x?q=1` 失败 |
 | Android 类型显式报告 | join header `X-Ferry-Device-Kind: android`，JSON 保持不变 | old Server 仍接受两字段 JSON |
 | unknown/mismatched message fail closed | finite decoder validates kind/payload pair | `kind:link` 或 text+file 同时存在失败 |
 | 文件最多 64 MiB | metadata preflight + streaming byte counter | reported size 0 but actual 64 MiB+1 仍失败 |
@@ -73,14 +73,14 @@ Counterexample: Server A 的轮询或慢上传在用户切到 Server B 后完成
 
 ## S2 — Frozen ship checklist
 
-1. **REQUESTED** — APK 使用 Ferry icon，可在 API 26+ 启动，setup 输入 Server/name/password 并连接；Mac mini `assembleDebug` + real-device journey。
+1. **REQUESTED** — APK 使用 Ferry icon，可在 API 26+ 启动，setup 输入 Server/name/password 并连接；测试服务器 `assembleDebug` + real-device journey。
 2. **REQUESTED** — 真实时间线显示 text/file 和设备图标；文字可复制；poll 后新增消息出现；real-device journey。
 3. **REQUESTED** — 真实设备发送 text、Photo Picker media 和 OpenDocument file，Server API 返回 exact sender/type/bytes；real-device journey。
 4. **REQUESTED** — 点击 file 通过 CreateDocument 保存，保存 bytes 与 Server blob 相等；real-device journey。
 5. **DESIGN_NECESSARY** — endpoint/decode/error/credential/generation/revision/64 MiB/401 均有 JVM contract tests；invalid input 不发 request、不留假成功。
-6. **REPO_REQUIRED** — Mac mini assemble/test/lint、`git diff --check`、attack record、自审、独立 full-code review 全部通过；Android device journey 若仍无设备则保持 `BLOCKED (external)`，整体不得宣称最终 SHIP。
+6. **REPO_REQUIRED** — 测试服务器 assemble/test/lint、`git diff --check`、attack record、自审、独立 full-code review 全部通过；Android device journey 若仍无设备则保持 `BLOCKED (external)`，整体不得宣称最终 SHIP。
 
-Frozen journey: launch → enter `http://10.0.0.2:42817`, Android device name, optional password → connected timeline contains existing Mac/iPhone/Android rows → send exact text → pick one photo and one ordinary file → Web/API observes Android sender and exact bytes → save an existing file to a new document and compare bytes → revoke this Android device → next poll returns setup with visible revoked message.
+Frozen journey: launch → enter `http://192.168.1.20:42817`, Android device name, optional password → connected timeline contains existing Mac/iPhone/Android rows → send exact text → pick one photo and one ordinary file → Web/API observes Android sender and exact bytes → save an existing file to a new document and compare bytes → revoke this Android device → next poll returns setup with visible revoked message.
 
 ## S3 — Builder attack record
 
@@ -115,7 +115,7 @@ Confirmed counterexamples include automatic redirects, JSON wire expansion, loca
 ## S5–S6 — Independent verification and machine evidence
 
 - Fresh full-code verifier complete: P0 0、P1 0、P2 0 after four repair rounds. It read the complete Android module, OpenAPI and Go contract; no finding was accepted by assertion alone.
-- Mac mini used only its pre-existing JDK 17、SDK/Build Tools 35 and Gradle cache. Final offline command `./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon --rerun-tasks` completed all 51 tasks.
+- The test server used only its pre-existing JDK 17、SDK/Build Tools 35 and Gradle cache. Final offline command `./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon --rerun-tasks` completed all 51 tasks.
 - 28 JVM tests: Cipher 2、Client 8、JSON 5、ViewModel 10、Endpoint 3；0 failure/error/skip. They include canonical credential, redirect kill, blocking-I/O cancel, 64 MiB+1 streamed upload, cleanup failure, cursor race, selection race, retry, 401 and lifecycle cases.
 - Android lint: 0 errors、7 warnings（pinned cached dependency updates, packaged license, launcher-shape guidance）；Go `go test ./...` passed；tracked and untracked whitespace checks passed。
 - APK: `com.max1874.ferry` v0.1.0, min API 26, target/compile API 35, only INTERNET plus AndroidX's non-exported receiver permission. SHA-256 `b11a4024a035d8c120104820154084d99f5e94d0d48942289b9360296d41720f`.

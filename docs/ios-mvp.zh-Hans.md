@@ -48,7 +48,7 @@ flowchart LR
 1. **Observed**：仓库没有 Xcode project 或 Swift source，现有 AppIcon 资产只有 mac idiom，不能直接成为 iOS AppIcon。
 2. **Observed**：API 已提供 public claim、Bearer session/messages/text/file；iOS 无需新增 Server endpoint。
 3. **Observed**：Xcode 26.6 SDK 提供 `.glassEffect(...)`、`GlassEffectContainer`、`.buttonStyle(.glass/.glassProminent)`；本机有 iOS 26.5 runtime。
-4. **Observed**：avocado/swipe 均使用 objectVersion 77 + file-system synchronized root group；Ferry 采用相同工程形状，但不复制其 Team、Bundle ID 或业务架构。
+4. **Observed**：两个早期项目均使用 objectVersion 77 + file-system synchronized root group；Ferry 采用相同工程形状，但不复制其 Team、Bundle ID 或业务架构。
 
 ### Candidates
 

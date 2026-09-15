@@ -16,7 +16,7 @@
 2. HTML 恰好包含一个顶栏和两个欢迎页 `<img>` 引用，没有旧的字母占位 — 同一个测试加 `rg 'ferry-icon|>F<' internal/webui`。
 3. 真实浏览器证明加载后的原始尺寸、28/48 px 的渲染尺寸，且没有字母占位 — browser-harness 当前工作树记录。
 4. 免密码时间线和需要密码的连接卡片在深色模式下都渲染出图标 — `/tmp/ferry-icon-qa.png` 和 `/tmp/ferry-icon-access-qa.png` 视觉检查。
-5. Go tests、JavaScript 语法、`git diff --check`、独立的聚焦评审、push、macmini Docker 重建和部署后的浏览器检查都通过。
+5. Go tests、JavaScript 语法、`git diff --check`、独立的聚焦评审、push、测试服务器 Docker 重建和部署后的浏览器检查都通过。
 
 ## 作者对抗式评审
 
@@ -39,5 +39,5 @@
 ## 收口
 
 - 独立聚焦评审：在修复尺寸测试并重复 kill probe 之后为 **SHIP**，P0/P1/P2 全为零。
-- 源码 commit `c80c994` 已推送到 `origin/main`；macmini 重建镜像 `sha256:2adbe7…` 并在 `http://10.0.0.2:42817` 重启 Ferry。
+- 源码 commit `c80c994` 已推送到 `origin/main`；测试服务器重建镜像 `sha256:2adbe7…` 并在 `http://192.168.1.20:42817` 重启 Ferry。
 - 部署后的浏览器观察到 `Local`、favicon/touch 路径、一个可见的 64→28 px 顶栏图标，以及两张内嵌的 256 px 欢迎页资源，都没有字母文字。已有消息时两个欢迎页变体正确地保持隐藏；它们的可见状态在最终的本地生产 handler 旅程中已证明。

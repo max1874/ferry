@@ -4,19 +4,19 @@
 
 ## S0 — Confirmed scope
 
-- **REQUESTED (Max, 2026-08-30)**: build the Android App that had not been developed yet; the build may use only the Android environment already on the Mac mini, with no tools installed on the current Mac.
+- **REQUESTED (Max, 2026-08-30)**: build the Android App that had not been developed yet; the build may use only the Android environment already on the test server, with no tools installed on the current Mac.
 - **Target acceptance**: a real Android device connects to an existing Ferry Server, restores credentials, shows the timeline, sends and copies text, sends files from the photo picker or file chooser, and saves received files to a user-chosen location. Real-device APK install and launch have been confirmed by the user; the rest of the LAN journey is not yet done.
 - **DESIGN_NECESSARY**: persist the Server origin and device name; persist the token encrypted with Android Keystore; otherwise the entry point or identity is lost after a restart.
 - **DESIGN_NECESSARY**: a session generation plus coroutine cancellation isolates old connections, polling, sends and downloads; otherwise old tasks can write back after switching Servers or being revoked.
 - **DESIGN_NECESSARY**: photos use the system Photo Picker, ordinary files use the Storage Access Framework and downloads use Create Document; otherwise broad storage permissions are needed or file sharing cannot be completed.
 - **REPO_REQUIRED**: Jetpack Compose, Android native/AndroidX first, the same OpenAPI 0.4 contract, bounded tests, complete error states, adversarial self-review and an independent full-code review.
-- **Decided (Max's revision to the scope card)**: install no JDK/SDK/Gradle on this machine; reuse the JDK 17, SDK/Build Tools 35 and Gradle 8.9 baseline in the Mac mini's `android-sms-forward/.codex-build`.
+- **Decided (Max's revision to the scope card)**: install no JDK/SDK/Gradle on this machine; reuse the JDK 17, SDK/Build Tools 35 and Gradle 8.9 baseline in the test server's an earlier project's build directory.
 - **Decided (Max did not object to the rest of the scope card and revised a single item)**: minimum Android 8 (API 26), compile/target API 35; no Play Store release for now.
 - **Non-goals**: automatic clipboard watching, background transfer, mDNS/QR-code discovery, device management/password settings, TLS/public Internet, push notifications, an offline message database, Play Store release.
 - **Depth**: full; a new native client and a cross-process user journey, without changing the Server, OpenAPI or SQLite.
 - **Budget**: at most 20 production Kotlin/XML/Gradle files and 1,600 net new production lines; one Android application module, one Keystore credential mechanism, zero new Server/API/DB mechanisms.
 - **Artifact budget**: this file is the only process record for S0–S7, at most 260 lines.
-- **Boundary plan**: the Mac mini runs assemble/lint/JVM tests; the real Server API provides supporting evidence; the Android device journey must use the real App. Install and launch have real-device evidence; the remaining LAN journey is marked `BLOCKED (external)` until the user is back on the home LAN and must not be replaced by unit tests.
+- **Boundary plan**: the test server runs assemble/lint/JVM tests; the real Server API provides supporting evidence; the Android device journey must use the real App. Install and launch have real-device evidence; the remaining LAN journey is marked `BLOCKED (external)` until the user is back on the home LAN and must not be replaced by unit tests.
 - **Expansion triggers**: HALT if new tools, API changes, a background worker, a local database, a share extension or going over budget are needed.
 
 Status: `device_launch_candidate`; subject: commit `888547f`; pending gate: real Android LAN journey; review round: 4 complete; invalidations: 19 builder/reviewer findings closed.
@@ -26,7 +26,7 @@ Status: `device_launch_candidate`; subject: commit `888547f`; pending gate: real
 ### Evidence and candidates
 
 - **Observed**: the existing iOS client already proved the shape "one session state owner + a narrow hand-written HTTP client + a secure token store + generation/cancel"; Android should reuse the contract and lifecycle principles, not copy the Swift code structure.
-- **Observed**: the Mac mini has only API/Build Tools 35, JDK 17 and AGP 8.7.3 / Kotlin 2.0.21 / Gradle 8.9 caches, with no emulator or connected device.
+- **Observed**: the test server has only API/Build Tools 35, JDK 17 and AGP 8.7.3 / Kotlin 2.0.21 / Gradle 8.9 caches, with no emulator or connected device.
 - **Observed**: the Ferry API uses JSON, multipart and Bearer; Android's `HttpURLConnection`, `org.json` and ContentResolver are enough to implement it, with no need for Retrofit/OkHttp/a JSON generator.
 - **Observed**: the official Android Photo Picker falls back to `ACTION_OPEN_DOCUMENT` on devices where it is unavailable; the Storage Access Framework can open and create files without requesting broad storage permissions.
 
@@ -64,7 +64,7 @@ Counterexample: a poll or slow upload for Server A completes after the user has 
 | Rule | Mechanism | Counterexample |
 | --- | --- | --- |
 | The token never enters plain preferences or logs | Keystore AES-GCM; prefs store only IV+ciphertext | A search for token value writers reaches only the cipher input |
-| The origin is a single HTTP(S) origin | URI normalize/reject userinfo/path/query/fragment | `http://user@10.0.0.2/x?q=1` fails |
+| The origin is a single HTTP(S) origin | URI normalize/reject userinfo/path/query/fragment | `http://user@192.168.1.20/x?q=1` fails |
 | The Android kind is reported explicitly | join header `X-Ferry-Device-Kind: android`, JSON unchanged | an old Server still accepts the two-field JSON |
 | Unknown or mismatched messages fail closed | finite decoder validates the kind/payload pair | `kind:link` or text and file both present fails |
 | Files are at most 64 MiB | metadata preflight + streaming byte counter | reported size 0 but an actual 64 MiB+1 still fails |
@@ -73,14 +73,14 @@ Counterexample: a poll or slow upload for Server A completes after the user has 
 
 ## S2 — Frozen ship checklist
 
-1. **REQUESTED** — the APK uses the Ferry icon, launches on API 26+, and setup takes Server/name/password and connects; Mac mini `assembleDebug` + real-device journey.
+1. **REQUESTED** — the APK uses the Ferry icon, launches on API 26+, and setup takes Server/name/password and connects; the test server `assembleDebug` + real-device journey.
 2. **REQUESTED** — the real timeline shows text/file and device icons; text can be copied; new messages appear after polling; real-device journey.
 3. **REQUESTED** — a real device sends text, Photo Picker media and an OpenDocument file, and the Server API returns the exact sender/type/bytes; real-device journey.
 4. **REQUESTED** — tapping a file saves it through CreateDocument, and the saved bytes equal the Server blob; real-device journey.
 5. **DESIGN_NECESSARY** — endpoint/decode/error/credential/generation/revision/64 MiB/401 all have JVM contract tests; invalid input sends no request and leaves no false success.
-6. **REPO_REQUIRED** — Mac mini assemble/test/lint, `git diff --check`, the attack record, self-review and an independent full-code review all pass; if there is still no device, the Android device journey stays `BLOCKED (external)` and the whole must not be declared a final SHIP.
+6. **REPO_REQUIRED** — The test server assemble/test/lint, `git diff --check`, the attack record, self-review and an independent full-code review all pass; if there is still no device, the Android device journey stays `BLOCKED (external)` and the whole must not be declared a final SHIP.
 
-Frozen journey: launch → enter `http://10.0.0.2:42817`, Android device name, optional password → connected timeline contains existing Mac/iPhone/Android rows → send exact text → pick one photo and one ordinary file → Web/API observes Android sender and exact bytes → save an existing file to a new document and compare bytes → revoke this Android device → next poll returns setup with visible revoked message.
+Frozen journey: launch → enter `http://192.168.1.20:42817`, Android device name, optional password → connected timeline contains existing Mac/iPhone/Android rows → send exact text → pick one photo and one ordinary file → Web/API observes Android sender and exact bytes → save an existing file to a new document and compare bytes → revoke this Android device → next poll returns setup with visible revoked message.
 
 ## S3 — Builder attack record
 
@@ -115,7 +115,7 @@ Confirmed counterexamples include automatic redirects, JSON wire expansion, loca
 ## S5–S6 — Independent verification and machine evidence
 
 - Fresh full-code verifier complete: P0 0, P1 0, P2 0 after four repair rounds. It read the complete Android module, OpenAPI and Go contract; no finding was accepted by assertion alone.
-- The Mac mini used only its pre-existing JDK 17, SDK/Build Tools 35 and Gradle cache. The final offline command `./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon --rerun-tasks` completed all 51 tasks.
+- The test server used only its pre-existing JDK 17, SDK/Build Tools 35 and Gradle cache. The final offline command `./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon --rerun-tasks` completed all 51 tasks.
 - 28 JVM tests: Cipher 2, Client 8, JSON 5, ViewModel 10, Endpoint 3; 0 failure/error/skip. They include canonical credential, redirect kill, blocking-I/O cancel, 64 MiB+1 streamed upload, cleanup failure, cursor race, selection race, retry, 401 and lifecycle cases.
 - Android lint: 0 errors, 7 warnings (pinned cached dependency updates, packaged license, launcher-shape guidance); Go `go test ./...` passed; tracked and untracked whitespace checks passed.
 - APK: `com.max1874.ferry` v0.1.0, min API 26, target/compile API 35, only INTERNET plus AndroidX's non-exported receiver permission. SHA-256 `b11a4024a035d8c120104820154084d99f5e94d0d48942289b9360296d41720f`.

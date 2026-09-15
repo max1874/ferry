@@ -53,14 +53,14 @@ The first delivery, its compatibility repair and the composer-focus repair remai
 ## Actual-chat redesign — S0 scope card
 
 - **REQUESTED (Max)**: `你觉和 grok 不像呢` (“don't you think it doesn't look like Grok?”), followed by `go` to continue.
-- **Done**: the populated page of the Ferry deployed on the Mac mini presents, at first glance, the information hierarchy of Grok's actual chat page: right-side sent bubbles, an avatar-free content stream, subdued metadata, a narrow body column and a bottom-pinned composer; text, file, device and password features remain usable.
+- **Done**: the populated page of the Ferry deployed on the test server presents, at first glance, the information hierarchy of Grok's actual chat page: right-side sent bubbles, an avatar-free content stream, subdued metadata, a narrow body column and a bottom-pinned composer; text, file, device and password features remain usable.
 - **Non-goals**: no copying of Grok's trademark, copy or proprietary assets; no fake AI replies, model picker, search, conversation list or account features; no changes to Server/API, auth, iOS, Android or persisted data.
 - **INFERRED (excluded)**: a full left conversation sidebar, hidden features of signed-in Grok, theme switching and message editing.
 - **REPO_REQUIRED**: keep Ferry/device icons, Photos and Files entries, and observable errors; real desktop/mobile browser journeys; relevant tests, diff check, complete-file review and adversarial self-review.
 - **Depth**: full; existing messages, file cards, empty state, composer, devices panel and responsive layout must be rebuilt as one page system, with no external contract change.
 - **Budget**: at most 3 production files, no more than 350 net added lines, 0 new persistent mechanisms; reuse this process file, at most 220 lines total.
-- **Execution budget**: 60 minutes; at most 2 ineffective browser acceptance attempts; external actions limited to comparison with Grok's anonymous UI, the `origin/main` push and the existing Mac mini Ferry container deployment.
-- **Boundary plan**: on a real local Ferry Server, verify desktop empty/populated states, file cards, devices panel and 390×844 mobile layout, then re-verify at the real entry point after the Mac mini deployment. Content behind the anonymous Grok login wall is not guessed at.
+- **Execution budget**: 60 minutes; at most 2 ineffective browser acceptance attempts; external actions limited to comparison with Grok's anonymous UI, the `origin/main` push and the existing test-server Ferry container deployment.
+- **Boundary plan**: on a real local Ferry Server, verify desktop empty/populated states, file cards, devices panel and 390×844 mobile layout, then re-verify at the real entry point after the test server deployment. Content behind the anonymous Grok login wall is not guessed at.
 - **Expansion triggers**: stop immediately if the work needs API/data-model changes, a fourth production file, a new dependency, proprietary assets, or goes over budget.
 
 Read-only evidence: Grok anonymous desktop and mobile chat state captured in `/private/tmp/grok-live-chat-result.png` and `/private/tmp/grok-live-chat-mobile.png`; recording `grok-actual-chat-study` (18 frames). The login wall blocked assistant-response inspection, so only directly observed user-bubble, content-card, typography, spacing and responsive behavior enter the design.
@@ -83,7 +83,7 @@ Counterexample: if the avatar column, bold sender heading or full-width left-ali
 2. **REQUESTED** — file messages use the same compact bubble language while filename, size and download behavior remain; static contract plus real populated-page inspection.
 3. **DESIGN_NECESSARY** — device kind/name/time remain visible as quiet provenance below each message, preventing the requested icon work from disappearing; DOM assertion for SVG plus metadata.
 4. **REPO_REQUIRED** — empty state, composer focus, Photos/Files, device/password panel, light/dark and 390×844 layout remain usable; existing tests plus real browser journeys.
-5. **REPO_REQUIRED** — full repository gates, author attack/self-review, complete-file fresh pass, final-HEAD Mac mini browser replay, then commit/push/deploy.
+5. **REPO_REQUIRED** — full repository gates, author attack/self-review, complete-file fresh pass, final-HEAD the test server browser replay, then commit/push/deploy.
 
 Frozen journeys: desktop populated timeline checks bubble geometry and metadata; a new text send moves through the real API into that shape; attachment menu and Devices dialog remain operable; 390×844 populated light/dark pages have no horizontal overflow and keep the composer reachable. Expected failure witness: restoring `.message { grid-template-columns: 34px ... }` or appending `.avatar` must fail the new asset regression.
 
@@ -129,9 +129,9 @@ Builder seven-pattern record:
 
 ### Actual-chat redesign — S7 deployed closure
 
-- Subject `3b59eee` was pushed to `origin/main`, archived to the existing Mac mini deployment directory, built as `ferry:local` image `sha256:5394083373c3512b0b732c3e1884ee3831117630fe0860b3aa58f5b8e47e7200`, and restarted without removing the named data volume. `http://10.0.0.2:42817/` returned 200.
+- Subject `3b59eee` was pushed to `origin/main`, archived to the existing test-server deployment directory, built as `ferry:local` image `sha256:5394083373c3512b0b732c3e1884ee3831117630fe0860b3aa58f5b8e47e7200`, and restarted without removing the named data volume. `http://192.168.1.20:42817/` returned 200.
 - Deployed desktop browser loaded 5 retained historical messages: all had right-aligned `.message-body`, 0 `.avatar`, and 5 device SVG provenance rows; the existing Android file rendered in a `{right:1087.5,w:491.63}` bubble, composer was `{w:760,bottom:959}`, connection `Local`, overflow 0.
-- Deployed Devices showed 8 retained devices, `Current device: Mac browser`, and `No password is required.` Mobile 390×844 light/dark rendered the file bubble at `{x:66.13,w:307.88,right:374}`, composer `{x:8,w:374,bottom:815}`, overflow 0. Recording: `ferry-actual-chat-macmini` (10 frames).
+- Deployed Devices showed 8 retained devices, `Current device: Mac browser`, and `No password is required.` Mobile 390×844 light/dark rendered the file bubble at `{x:66.13,w:307.88,right:374}`, composer `{x:8,w:374,bottom:815}`, overflow 0. Recording: `ferry-actual-chat-test-server` (10 frames).
 - Checklist closure: S2 items 1–4 have final-subject browser evidence plus permanent asset tests; item 5 has full gates, author fresh-pass provenance, push and live deployment. No contract-class S6 gate applies. Journey script: deleted, transcript above.
 - Final status: `shipped`; exact production subject `3b59eee`; review rounds 1 author fresh pass; semantic invalidations 0; planned/current production scope `3 files / -1 net line / 0 persistent mechanisms`.
 
@@ -172,7 +172,7 @@ Author adversarial review, pass 4 (author fresh pass, not independent):
 
 ### Authenticated correction — S7 deployed closure
 
-- Subject `3158cea` was pushed, built on Mac mini as image `sha256:70d8ef9a9494d10cf364b53c1300f3268fa029c8bdb12df13f6d7aa82ef1539d`, and restarted with its existing data volume; `http://10.0.0.2:42817/` returned 200.
+- Subject `3158cea` was pushed, built on the test server as image `sha256:70d8ef9a9494d10cf364b53c1300f3268fa029c8bdb12df13f6d7aa82ef1539d`, and restarted with its existing data volume; `http://192.168.1.20:42817/` returned 200.
 - Live desktop measured sidebar/main `257/1126`, message column 704, composer `{x:444,y:899,w:752,h:60}`, 5 retained messages, Local and overflow 0. Live mobile measured rail/main `56/334`, composer `{x:64,y:755,w:318,h:60}`, right bubble ending x=378 and overflow 0.
 - Live Devices showed 8 retained devices, `Current device: Mac browser` and `No password is required.` Recording: `ferry-authenticated-grok-rebuild` (52 frames). Final status: `shipped`; one authenticated-reference semantic invalidation; review provenance: author fresh pass, no subagent per user decision.
 
@@ -209,5 +209,5 @@ Author adversarial review (fresh final tree, not independent):
 
 ### Current-device alignment — S7 deployed closure
 
-- Subject `c572b98` was pushed and deployed on Mac mini as image `sha256:1daba82f8096757c33975e41d42ecadb153c682c08a3d250d3ef2b86a6065b18`; container is running on the retained `ferry_ferry-data:/data` volume and `http://10.0.0.2:42817/healthz` returned 200.
-- Live Chromium retained the five historical messages, then sent `deployed right-side check c572b98`; its bubble was current/right `{x:893.25,right:1172}` with overflow 0. A temporary same-kind peer observed `is_current_device:false`, `Cache-Control:no-store`, and no raw sender ID, then was revoked. Recording: `ferry-current-device-alignment-macmini` (7 frames); screenshot: `/private/tmp/ferry-current-device-alignment-macmini.png`.
+- Subject `c572b98` was pushed and deployed on the test server as image `sha256:1daba82f8096757c33975e41d42ecadb153c682c08a3d250d3ef2b86a6065b18`; container is running on the retained `ferry_ferry-data:/data` volume and `http://192.168.1.20:42817/healthz` returned 200.
+- Live Chromium retained the five historical messages, then sent `deployed right-side check c572b98`; its bubble was current/right `{x:893.25,right:1172}` with overflow 0. A temporary same-kind peer observed `is_current_device:false`, `Cache-Control:no-store`, and no raw sender ID, then was revoked. Recording: `ferry-current-device-alignment-test-server` (7 frames); screenshot: `/private/tmp/ferry-current-device-alignment-test-server.png`.

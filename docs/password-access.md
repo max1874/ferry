@@ -10,7 +10,7 @@
 - **REPO_REQUIRED**: keep device tokens for remembered sessions/revocation, strict request decoding, private-listener boundary, no password logging/persistence, full Go/iOS tests, real Web/iPhone journey, adversarial and zero-context review.
 - **Depth**: contract — replaces the public device-admission API and authentication journey across Server, Web, iOS, OpenAPI, and Docker.
 - **Budget**: existing Server/auth/client surfaces, one singleton SQLite access-setting table, and one access document; no account/role schema or second service.
-- **Boundary plan**: real Docker Server on macmini, real browser, signed iPhone build; unit tests close only error/edge contracts.
+- **Boundary plan**: real Docker Server on the test server, real browser, signed iPhone build; unit tests close only error/edge contracts.
 - **Expansion triggers**: HALT if implementation requires accounts/roles, TLS, a second service, or alteration of existing message/device rows.
 
 ## Decision
@@ -57,7 +57,7 @@ Plain brief: Ferry no longer asks users to understand pairing codes. The deploye
 - A current-HEAD browser race probe enabled the setting while a credential-less form was open; the join returned `invalid_password`, displayed `password is incorrect`, and revealed the password field. Its kill probe injected network loss and observed `Offline` with the password field still hidden, proving the UI distinguishes protocol state from transport failure.
 - SQLite close/reopen test proves the verifier survives restart, disables cleanly, and the raw test password is absent from the database, WAL, and shared-memory files.
 - Final local gates pass: Go race/vet, JavaScript syntax, shell syntax, Compose config, Docker image build (`sha256:ceb764…`), `git diff --check`, four author passes, and fresh verifier SHIP with P0/P1/P2 all zero.
-- macmini deployment passes at `http://10.0.0.2:42817`: image rebuilt as `sha256:773904…`; health, passwordless join, `invalid_password`, exact-password join, old-token survival, restart persistence, and final password disable were asserted against the running container. Extra password-path devices were revoked after the probe.
+- The test server deployment passes at `http://192.168.1.20:42817`: image rebuilt as `sha256:773904…`; health, passwordless join, `invalid_password`, exact-password join, old-token survival, restart persistence, and final password disable were asserted against the running container. Extra password-path devices were revoked after the probe.
 - Deployed Chromium reached the timeline with `Local`, opened Devices, and observed Access password as visible and disabled. The signed physical build installed on iPhone `9B234E1E…` as `com.max1874.ferry`; automatic launch was denied only because the phone was locked.
 - Source commit `54570ef` was pushed to `origin/main`; the deployment record is committed separately after live verification.
 
@@ -77,6 +77,6 @@ Verdict after four passes: **ship candidate; no unresolved author-known P0/P1/P2
 10. **Seven attacks** — dual judges (OpenAPI/strict Go), extremes, equivalent spellings, default passwordless mode, side routes, authenticated settings gate, and non-author browser evidence were each exercised; no alternate product password environment producer exists in Docker files.
 11. **Predicate producers** — every `password_required`, 401 mapping, setting write, token persistence write, and phase transition was grepped; public join 401 remains a Server rejection while Bearer 401 becomes revoked-device state on iOS/Web.
 12. **Reversed findings** — removing pairing re-asked its recovery, revocation, stale-request, and multi-tab questions: the explicit trusted-LAN boundary accepts first-client control rather than inventing an owner bootstrap, settings writes recheck requester existence transactionally, tokens remain independently revocable, and only successful join writes shared Web storage.
-13. **Pass limit** — author review did not self-certify: the final fresh verifier returned SHIP with P0/P1/P2 all zero; macmini and physical-device evidence remain separate deployment gates.
+13. **Pass limit** — author review did not self-certify: the final fresh verifier returned SHIP with P0/P1/P2 all zero; the test server and physical-device evidence remain separate deployment gates.
 
 The first fresh pass returned NO-SHIP with two trusted-LAN threat-model objections and two concrete P2s. The follow-up found two sibling P2s, which were also fossilized: Web classifies only Server-issued `invalid_password` as a password gate, and iOS invalidates the old generation when its address changes mid-join. The two LAN-adversary findings are outside the user-decided threat model rather than silently accepted implementation bugs: Ferry currently trusts admitted LAN devices and intentionally has no administrator bootstrap or hostile-client throttling. The final fresh pass returned SHIP with no in-scope P0/P1/P2.

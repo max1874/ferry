@@ -8,7 +8,7 @@ This is the authoritative record for the repository-preparation milestone. It do
 
 - **REQUESTED (Max, 2026-08-31)**: finish the existing TODO items other than verification; Codex chooses the most suitable license.
 - **Done**：the repository has accurate public-facing documentation, one CI gate for Go/Web/iOS/Android, a recoverable Docker data workflow, release-signing templates, and open-source contribution/security files.
-- **Non-goals**：physical-device exchange, Mac mini restore drill, store submission, public deployment, TLS, API/schema/database/product behavior changes, or committing secrets.
+- **Non-goals**：physical-device exchange, the test server restore drill, store submission, public deployment, TLS, API/schema/database/product behavior changes, or committing secrets.
 - **Recommended and selected under user delegation**：Apache License 2.0, because its permissive terms include an explicit patent grant and patent-termination protection.
 - **Depth**：full; this spans four deliverable surfaces but does not change an external product contract.
 - **Budget**：at most 14 added/modified files and about 900 authored lines; no runtime dependency or persistent mechanism.
@@ -72,7 +72,7 @@ Author pre-filter verdict: `ship candidate`; this is not an independent review.
 4. **Contract surfaces** — `git diff -- api/openapi.yaml cmd internal ios/Ferry/Ferry android/app/src` is empty; no HTTP, SQLite, UI or runtime environment contract changed.
 5. **Original reproduction** — broad `xcodebuild test -scheme Ferry` reproduced two clean-machine UI-test failures while 20 unit tests passed; the same command with `-only-testing:FerryTests` ended `TEST SUCCEEDED`, 20/20.
 6. **Current journey** — the final working-tree Docker self-test reread exact database/blob bytes after restore; later changes touch only CI/docs/check policy, so that transcript remains runtime-current. Physical Web/iOS/Android LAN journeys stay `BLOCKED (external)`.
-7. **Mechanism discrimination** — Mac mini `./gradlew build` without signing produced the exact configuration rejection; a one-day test keystore then produced `bundleRelease` and `jarsigner -verify` success. Docker restore success and three invalid archive classes were observed in one isolated project.
+7. **Mechanism discrimination** — The test server `./gradlew build` without signing produced the exact configuration rejection; a one-day test keystore then produced `bundleRelease` and `jarsigner -verify` success. Docker restore success and three invalid archive classes were observed in one isolated project.
 8. **Regression scan** — candidate risk was silently dropping UI coverage; full-file read confirmed both UI journeys remain in `FerryUITests.swift`, while CI explicitly names only unit tests because those journeys require real external Servers and remain separately gated.
 9. **Scale/edge** — zero/absent signing, complete signing, occupied archive path, unsupported source volume, corrupt archive and link entry are covered; backup streams through tar and does not buffer the 64 MiB product file limit in shell memory.
 10. **Contract attacks** — S3 records dual judges, archive spellings/defaults/side doors, policy enforcement and non-self-certification; final probes additionally made shell tar failures explicit instead of relying on context-sensitive `set -e`.

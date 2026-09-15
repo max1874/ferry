@@ -5,7 +5,7 @@
 ## S0 — Scope card
 
 - **REQUESTED — Max, 2026-08-30**: “icon 也按之前的讨论补上” (“add the icons as discussed earlier”); the earlier explicit example was an iPhone showing an iPhone and a Mac showing a Mac.
-- **Done**: the Web timeline and Devices panel show the matching device icon for `iphone / ipad / mac / android / windows / browser`; existing macmini history no longer shows name initials either.
+- **Done**: the Web timeline and Devices panel show the matching device icon for `iphone / ipad / mac / android / windows / browser`; existing test-server history no longer shows name initials either.
 - **Non-goals**: no specific model detection, no hardware serial/fingerprint collection, no full icon pack, no change to the account or permission model, no change to the iOS timeline visuals.
 - **INFERRED (excluded)**: device kind is not a security identity and must not be used for authentication or device-ownership decisions.
 - **REPO_REQUIRED**: old databases upgrade in place; new clients can connect to old Servers; old clients can use new Servers; API/OpenAPI/SQLite/Web/iOS join stay consistent; the Tabler MIT notice ships with the release.
@@ -13,7 +13,7 @@
 - **Budget**: at most 9 production files, 1 SQLite migration mechanism, 0 dependencies; no new endpoint/table/service.
 - **Artifact budget**: this file is the only S0–S7 status record.
 - **Execution budget**: finish in this round; at most 2 ineffective browser acceptance attempts.
-- **Boundary plan**: Go contract/migration tests prove compatibility; a real Web page proves the user-visible icons; a macmini rebuild proves old data is retained.
+- **Boundary plan**: Go contract/migration tests prove compatibility; a real Web page proves the user-visible icons; a test-server rebuild proves old data is retained.
 - **Expansion triggers**: HALT immediately if the work needs device fingerprints, a model database, a destructive migration or API v2.
 - **Confirmation**: after seeing the earlier “explicit device kind + historical name fallback” recommendation, Max asked to “add them as discussed”, and this scope card restated the execution boundary.
 
@@ -58,7 +58,7 @@ Plain brief: Ferry learns only a broad UI category such as iPhone or Mac, not a 
 2. **REQUESTED** — real Devices panel renders the corresponding device icons.
 3. **DESIGN_NECESSARY** — old DB migrates without data loss; old/null iPhone and Mac rows infer correctly; unknown falls back to browser.
 4. **DESIGN_NECESSARY** — missing/valid header joins succeed, invalid/duplicate header fails without creating a device; unchanged JSON remains old-Server compatible.
-5. **REPO_REQUIRED** — OpenAPI, Go/iOS/Web tests, full build/race/vet, Docker build, license notice, adversarial review, independent sealed contract review and final macmini journey pass.
+5. **REPO_REQUIRED** — OpenAPI, Go/iOS/Web tests, full build/race/vet, Docker build, license notice, adversarial review, independent sealed contract review and final test-server journey pass.
 
 Status: `shipped`; source: `cf9f3af`; deployed image: `sha256:c67deffa1aad731f5783ddab0962e918cd31857e335c5ab14f7deb454d23f06f`; review round: 2; invalidations: 1.
 
@@ -105,7 +105,7 @@ Known compatibility boundary: API 0.4 adds required response properties, so an e
 3. **Unchanged consumers** — Full caller grep found Go store/server/tests and Swift decoding. Swift `Device`/`MessagePayload` omit the new keys and `JSONDecoder` ignores unknown keys; real old commit accepted the unchanged join JSON plus header with 201.
 4. **Contract surfaces** — OpenAPI 0.4, two nullable checked SQLite columns, optional header, and MIT asset were enumerated. `ruby YAML.safe_load` parsed the schema; the 2×2 contract matrix above has declaration and implementation witnesses.
 5. **Original behavior** — Local browser at 390×844 showed distinct phone/desktop paths in the original avatar locations, empty avatar text, and three icon-bearing device rows; screenshots recorded under `/private/tmp`.
-6. **Journey freshness** — No production code changed after that journey; only this evidence document changed. Final macmini replay remains an S7 gate.
+6. **Journey freshness** — No production code changed after that journey; only this evidence document changed. Final test-server replay remains an S7 gate.
 7. **Mechanism discrimination** — Same-run API responses contained `sender_kind: iphone/mac`; same-run DOM paths differed and avatar text was empty. The unknown-kind DOM fallback is separately pinned by `DEVICE_ICON_PATHS[kind] || ...browser` and Web asset tests.
 8. **Regression scan** — Candidate regression was old-client/new-server decoding and new-client/old-server strict join. Swift ignores new response keys; old commit 65adc74 returned 201 to the new header; complete Go/race/iOS suites passed.
 9. **Scale/edge** — Device kind is constant-size and validated before storage; absent/empty/duplicate/extreme-equivalent inputs are covered. Empty timelines/device arrays remain handled by existing render loops. Tenant isolation is N/A for one self-host instance.
@@ -141,16 +141,16 @@ Fresh zero-context verifier verdict: code-level **SHIP**, P0/P1/P2 = 0; overall 
 - Confirmed explicit and legacy NULL owners, positive and forged paths, blob cleanup, in-flight revoke, and cross-revoke behavior; seven targeted tests passed for 20 consecutive runs.
 - Independently ran Go, race, vet, Node syntax, OpenAPI enum parse, and diff-check successfully.
 - Confirmed S0 scope/budget, S1 mechanism, S2 items 1–4, and S4 repair parity. No code or design deviation remains.
-- The verifier intentionally did not run Xcode or deploy; the recorded 20-test iOS pass remains the iOS evidence, and the macmini journey remains the release gate.
+- The verifier intentionally did not run Xcode or deploy; the recorded 20-test iOS pass remains the iOS evidence, and the test server journey remains the release gate.
 
-## S7 — Mac mini deployment journey
+## S7 — The test server deployment journey
 
 - Pushed source commit `cf9f3af` to `origin/main`, synchronized the reviewed runtime files, and rebuilt the existing Docker Compose service in place.
-- Container `ferry` is up on `10.0.0.2:42817` with image `sha256:c67deffa1aad731f5783ddab0962e918cd31857e335c5ab14f7deb454d23f06f`; startup completed without migration error.
+- Container `ferry` is up on `192.168.1.20:42817` with image `sha256:c67deffa1aad731f5783ddab0962e918cd31857e335c5ab14f7deb454d23f06f`; startup completed without migration error.
 - Live `/healthz` returned 200 with `{"status":"ok"}`; the embedded Tabler license endpoint returned the upstream title, URL, MIT notice, and copyright.
 - Existing five-message history remained present after migration. A live authenticated API read returned sender kinds in order: `mac, iphone, mac, android, android`, including the existing file message.
 - Real deployed Web at 390×844 rendered five SVG avatars with empty text and distinct desktop, phone, and Android paths. The Devices panel rendered seven SVG icons with empty text, including existing Mac, iPhone, Android, and unknown-name browser fallback devices.
-- Evidence screenshots: `/private/tmp/ferry-device-icons-macmini-cf9f3af-timeline.png`, `/private/tmp/ferry-device-icons-macmini-cf9f3af-devices.png`.
-- Recording: `<browser-harness recordings>/ferry-device-icons-macmini-cf9f3af`.
+- Evidence screenshots: `/private/tmp/ferry-device-icons-test-server-cf9f3af-timeline.png`, `/private/tmp/ferry-device-icons-test-server-cf9f3af-devices.png`.
+- Recording: `<browser-harness recordings>/ferry-device-icons-test-server-cf9f3af`.
 
 Final verdict: **SHIP**. All five frozen checklist items passed; P0/P1/P2 = 0 after the repaired side-door re-review.

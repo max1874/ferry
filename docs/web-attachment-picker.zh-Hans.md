@@ -24,7 +24,7 @@
 3. 两种选择只保留一个当前附件，并复用原发送与清除流程。
 4. 点击外部、Escape、进入 access 状态都会关闭菜单。
 5. Go tests、race、vet、JavaScript 语法、Docker build 与 `git diff --check` 通过。
-6. 当前 HEAD 和 macmini 部署均通过真实浏览器旅程。
+6. 当前 HEAD 和测试服务器部署均通过真实浏览器旅程。
 7. 推送前完成 13 项对抗式自审与一次独立 focused review。
 
 ## 验证
@@ -49,7 +49,7 @@
 10. 合约级攻击 — 不适用：没有改动网络、持久化、授权或跨客户端合约。
 11. 断言 producer — 菜单 hidden/expanded 和两个文件计数的所有 producer 都由第 1 项的 grep 列出；初始 HTML 状态是 hidden/false，运行时每次菜单切换都走 `setAttachmentMenuOpen`。
 12. 被推翻的发现 — 去掉 ARIA `menu/menuitem` 后保留了普通按钮的无障碍语义；把关闭动作挪到清除凭据的分支之外，覆盖了 `rg -n 'showAccess\\(' internal/webui/assets/app.js` 列出的每个 `showAccess` 调用方。
-13. 轮次上限 — 作者评审不自我认证；独立聚焦评审和 macmini 当前部署的重放仍是显式的检查清单门禁。
+13. 轮次上限 — 作者评审不自我认证；独立聚焦评审和测试服务器当前部署的重放仍是显式的检查清单门禁。
 
 ## 独立聚焦评审
 
@@ -60,9 +60,9 @@
 ## 部署
 
 - 源码 commit `30372f0` 已推送到 `origin/main`。
-- macmini 重建并在 `http://10.0.0.2:42817` 运行镜像 `sha256:b83c6c…`；Compose 重建了容器/网络，没有删除命名数据卷，线上时间线保留了历史的文字和文件消息。
+- 测试服务器重建并在 `http://192.168.1.20:42817` 运行镜像 `sha256:b83c6c…`；Compose 重建了容器/网络，没有删除命名数据卷，线上时间线保留了历史的文字和文件消息。
 - 直接的局域网检查返回 `{"status":"ok"}`，返回的 HTML 包含 Photos 按钮和 `accept="image/*,video/*"` 合约。
-- 线上 390×844 浏览器重放观察到两个内联 SVG 图标，先 Photos-only 再 Files-only 的路由 `{photo:1,file:1}`，两次选择后焦点都回到 `attach`，没有交叉触发。录制：`<browser-harness recordings>/ferry-web-attachment-picker-macmini`（6 帧，仓库外）。
+- 线上 390×844 浏览器重放观察到两个内联 SVG 图标，先 Photos-only 再 Files-only 的路由 `{photo:1,file:1}`，两次选择后焦点都回到 `attach`，没有交叉触发。录制：`<browser-harness recordings>/ferry-web-attachment-picker-test-server`（6 帧，仓库外）。
 - 已知验证边界：移动 Chromium 模拟证明了 Ferry 的响应式 UI、DOM 合约和路由；真实的 iOS 系统相册面板仍需要用户在实体 iPhone 上点按测试。
 
 ## 剪贴板图片粘贴 — 2026-09-01
@@ -72,7 +72,7 @@
 - 冻结检查：原生 Cmd-V 粘贴图片显示 `image.png`，禁用文字模式并启用 Send；发送产生一条文件消息并清掉 chip；原生 Cmd-V 粘贴文字插入完全相同的文字且不出现 chip；既有的 Photos/Files 替换和移除行为保持不变。
 - 本地最终工作树的 Chromium 使用真实系统剪贴板和原生 Paste 命令：PNG 得到 `{chip:true,name:image.png,textDisabled:true,sendDisabled:false}`，发送后显示为可见的 `image.png` 文件消息；随后纯文字得到 `{chip:false,text:"plain clipboard text"}`。录制：`ferry-paste-image-local`（9 帧）。
 - 作者对抗式一轮：列出了所有附件 producer；取消保留之前的附件，选择器选择替换粘贴，移除/成功会清掉它，非图片粘贴在 `preventDefault` 之前就返回，只取第一张图片符合 Ferry 既有的单文件合约，Server 的上限/错误保持共用。没有协议/schema/鉴权改动；按 Max 的长期决定不用 subagent。
-- 已发布：源码 `36527dd`；完整 Go tests/vet、JS 语法、仓库策略和 diff 检查通过。Mac mini 以保留的 `ferry_ferry-data:/data` 运行镜像 `sha256:5e5118848901e902216929c47ae974889988cc458235deda2adb9c51d27c5ef9`；`/healthz` 返回 200。部署后的 Chromium 把 `deployed-paste.png` 放进了 chip，启用了 Send，移除后恢复为空的文字模式，没有发出测试消息。录制：`ferry-paste-image-macmini`（5 帧）。
+- 已发布：源码 `36527dd`；完整 Go tests/vet、JS 语法、仓库策略和 diff 检查通过。测试服务器以保留的 `ferry_ferry-data:/data` 运行镜像 `sha256:5e5118848901e902216929c47ae974889988cc458235deda2adb9c51d27c5ef9`；`/healthz` 返回 200。部署后的 Chromium 把 `deployed-paste.png` 放进了 chip，启用了 Send，移除后恢复为空的文字模式，没有发出测试消息。录制：`ferry-paste-image-test-server`（5 帧）。
 
 ## Grok 风格的附件展示 — 2026-09-01
 
@@ -81,8 +81,8 @@
 - 决策：Ferry 使用相同的几何尺寸和按类型区分的展示，触屏上移除控件始终可见并适当缩放。附件身份每次变化都会 revoke object URL；大图不会复制成 base64。
 - 根因/合约：第一次真实渲染暴露出 CSP 的 `img-src` 拦截了 `blob:`。策略现在只对图片放行 `blob:`，而 script/style/connect/object/base/frame/form 指令仍由 `TestStaticWebAndSecurityHeadersShareHandler` 逐字节固定。
 - 本地最终工作树旅程：图片 `{chip:40×40,preview:34×34,natural:1794×364,composer:752×111}`；普通文件 `{chip:248.45×40,remove:24×24,composer:752×111}`；390 px 下文件视图保持在 composer x=64…382 之内，溢出为 0。记录：`ferry-grok-attachment-style-local`（8 帧）。
-- 冻结收口：图片和文件选择、粘贴图片、移除、发送成功后的清理、桌面/手机几何、CSP 精确测试、完整仓库门禁、push 和 Mac mini 重放。只有作者评审，按 Max 的长期决定不用 subagent。
-- 已发布：源码 `c186afc`；Mac mini 以保留的 `ferry_ferry-data:/data` 运行镜像 `sha256:ae5f4d37183971f9a7fd93bc1c48d86d88e5c27a0d85a28ca5556b913aae416b`，CSP 精确一致，`/healthz` 为 200。线上图片测得 `40×40`/预览 `34×34`，线上文件测得 `248.45×40`/移除 `24×24`；两者都让 752 px 的 composer 高 111 px 且溢出为 0，之后未发送就移除。录制：`ferry-grok-attachment-style-macmini`（6 帧）。
+- 冻结收口：图片和文件选择、粘贴图片、移除、发送成功后的清理、桌面/手机几何、CSP 精确测试、完整仓库门禁、push 和测试服务器重放。只有作者评审，按 Max 的长期决定不用 subagent。
+- 已发布：源码 `c186afc`；测试服务器以保留的 `ferry_ferry-data:/data` 运行镜像 `sha256:ae5f4d37183971f9a7fd93bc1c48d86d88e5c27a0d85a28ca5556b913aae416b`，CSP 精确一致，`/healthz` 为 200。线上图片测得 `40×40`/预览 `34×34`，线上文件测得 `248.45×40`/移除 `24×24`；两者都让 752 px 的 composer 高 111 px 且溢出为 0，之后未发送就移除。录制：`ferry-grok-attachment-style-test-server`（6 帧）。
 
 ## 可读图片预览修正 — 2026-09-01
 
@@ -110,22 +110,22 @@
 10. 合约级攻击 — 不适用：没有改动外部协议、持久化、授权或普遍性边界。
 11. 断言 producer — `rg -n 'previewAttachment|previewURL|previewFailed|fileChip|filePreview' internal/webui/assets/app.js` 列出了选择变化时的重置、错误 producer、渲染消费者和清理。
 12. 被推翻的发现 — 放大预览带出了一个新问题：损坏图片会塌掉；现在它回退到既有的普通文件展示，普通文件也单独重放过。
-13. 轮次上限 — 只有作者完整一轮；按 Max 的长期决定不用 subagent。Mac mini 部署和线上浏览器重放提供了所需的用户界面收口。
+13. 轮次上限 — 只有作者完整一轮；按 Max 的长期决定不用 subagent。测试服务器部署和线上浏览器重放提供了所需的用户界面收口。
 
 ### 部署收口
 
-- 源码 `571df86` 已推送到 `origin/main`；Mac mini 以保留的数据卷运行镜像 `sha256:a484a4401d5e9404f0341df60f15d1f2ebf1162136f534d8c7923cba0922455f`，`/healthz` 返回 `{"status":"ok"}`。
-- 在 `http://10.0.0.2:42817` 上，反馈的那张 PNG 再次测得预览 220×48.57、chip 228×56.57、移除控件可见，桌面溢出为 0。移除后文字输入恢复焦点，Send 被禁用。
-- 在部署环境 390×844 下，chip 保持在 x=77…305，位于 composer x=64…382 之内，溢出为 0。再次粘贴并发送，产生一条真实的 50.5 KB 时间线条目，文件名一致，待发送 chip 被清掉，恢复正常的隐私状态提示。录制：`ferry-readable-image-preview-macmini-final`（6 帧）。
+- 源码 `571df86` 已推送到 `origin/main`；测试服务器以保留的数据卷运行镜像 `sha256:a484a4401d5e9404f0341df60f15d1f2ebf1162136f534d8c7923cba0922455f`，`/healthz` 返回 `{"status":"ok"}`。
+- 在 `http://192.168.1.20:42817` 上，反馈的那张 PNG 再次测得预览 220×48.57、chip 228×56.57、移除控件可见，桌面溢出为 0。移除后文字输入恢复焦点，Send 被禁用。
+- 在部署环境 390×844 下，chip 保持在 x=77…305，位于 composer x=64…382 之内，溢出为 0。再次粘贴并发送，产生一条真实的 50.5 KB 时间线条目，文件名一致，待发送 chip 被清掉，恢复正常的隐私状态提示。录制：`ferry-readable-image-preview-test-server-final`（6 帧）。
 
-状态：已发布，并在部署的 Mac mini 实例上做过视觉走查。
+状态：已发布，并在部署的测试服务器实例上做过视觉走查。
 
 ## 附件 composer 圆角修正 — 2026-09-01
 
 - 最终截图评审之后的需求：带附件而变高的 composer 不能沿用纯文字时 `999px` 的胶囊圆角，鼓成一个很大的空胶囊。
 - 根因：预览尺寸修复让 composer 高度从约 60 px 变成 132 px，但无条件的圆角仍是 `999px`；溢出检查通过了，轮廓在视觉上却仍然不对。
 - 决策：纯文字 composer 保持胶囊形；只要选了附件，就派生出 `has-attachment` class 并使用 32 px 的面板圆角。清除或发送附件后，通过同一个 `updateComposer` 状态派生去掉这个 class。
-- 冻结旅程：在桌面和手机上粘贴反馈的截图，检查圆角和轮廓，移除并证明胶囊形恢复，然后在部署的 Mac mini 上再次粘贴并成功发送。
+- 冻结旅程：在桌面和手机上粘贴反馈的截图，检查圆角和轮廓，移除并证明胶囊形恢复，然后在部署的测试服务器上再次粘贴并成功发送。
 
 ### 本地候选证据与对抗式评审
 
@@ -145,12 +145,12 @@
 10. 合约级攻击 — 不适用：没有改动边界合约。
 11. 断言 producer — `rg -n 'has-attachment|updateComposer\\('` 找到了唯一的 class producer 和每个重新计算的调用方。
 12. 被推翻的发现 — 预览尺寸仍然成立；漏掉的问题是父容器的轮廓，现在它独立于子元素边界单独检查。
-13. 轮次上限 — 只有作者完整一轮；按 Max 的长期决定不用 subagent。最终的 Mac mini 重放提供用户界面收口。
+13. 轮次上限 — 只有作者完整一轮；按 Max 的长期决定不用 subagent。最终的测试服务器重放提供用户界面收口。
 
 ### 部署收口
 
-- 源码 `040c300` 已推送到 `origin/main`；Mac mini 以保留的数据卷运行镜像 `sha256:0c5183aa08ff1f832231b47da74d031f3ca8b42a65041868cbf9f0c7ccb101ce`，`/healthz` 返回 `{"status":"ok"}`。
+- 源码 `040c300` 已推送到 `origin/main`；测试服务器以保留的数据卷运行镜像 `sha256:0c5183aa08ff1f832231b47da74d031f3ca8b42a65041868cbf9f0c7ccb101ce`，`/healthz` 返回 `{"status":"ok"}`。
 - 用反馈的 PNG 对部署后的桌面和 390×844 截图做了肉眼检查。附件状态测得圆角 32 px；手机面板为 `318×132.19`，溢出为 0。
-- 移除后恢复 class `composer`、高度 60、圆角 999 px 和文字焦点。再粘贴使用 32 px，一条真实的 64.2 KB 消息发送成功，完成后恢复正常的胶囊形和状态。录制：`ferry-attachment-radius-macmini-final`（6 帧）。
+- 移除后恢复 class `composer`、高度 60、圆角 999 px 和文字焦点。再粘贴使用 32 px，一条真实的 64.2 KB 消息发送成功，完成后恢复正常的胶囊形和状态。录制：`ferry-attachment-radius-test-server-final`（6 帧）。
 
-状态：已发布，并在部署的 Mac mini 实例上做过视觉走查。
+状态：已发布，并在部署的测试服务器实例上做过视觉走查。

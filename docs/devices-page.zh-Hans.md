@@ -17,7 +17,7 @@
 3. 设备列表和密码状态加载出来；先开启再关闭一个本地测试密码，都给出真实的终态提示。
 4. 点击 Timeline 恢复内容和 composer，并让键盘焦点留在选中的导航项上。
 5. 桌面 1383×997 和手机 390×844 都没有横向溢出；各行、撤销控件和密码卡片都在内容边界内。
-6. 完整 Go tests/vet、JS 语法解析、仓库策略、diff check、push、保留数据卷的 Mac mini 构建，以及部署后的点击走查都通过。
+6. 完整 Go tests/vet、JS 语法解析、仓库策略、diff check、push、保留数据卷的测试服务器构建，以及部署后的点击走查都通过。
 
 本地最终工作树证据，基线 `e13b71a`：桌面端侧边栏结束于 x=257，Devices 页面从 x=257 开始；内容宽 760 px，居中于 x=440。点击 Devices 得到 `{timelineHidden:true,devicesHidden:false,composerHidden:true,devicesActive:page}`，有两行设备和 `No password is required.`。开启和关闭密码都得到真实的成功文案。点击 Timeline 让每个视图断言都反转回来。在 390 px 下，页面 x=56…390，内容/卡片/行 x=72…374，溢出 0。录制：`ferry-devices-page-local`（18 帧）。
 
@@ -40,9 +40,9 @@
 ## 发布证据
 
 - 源码 commit：`6dd8416`（`fix: make Devices a main navigation view`）。
-- Mac mini 镜像：`sha256:fa26f3aa4cf616adcdbd4abe1fe3f5d869f282c1552c703ae2d361d11a74b186`；容器 `ferry` 在运行，`/healthz` 返回 `{"status":"ok"}`。
+- 测试服务器镜像：`sha256:fa26f3aa4cf616adcdbd4abe1fe3f5d869f282c1552c703ae2d361d11a74b186`；容器 `ferry` 在运行，`/healthz` 返回 `{"status":"ok"}`。
 - 桌面 1383×997：Devices 页面紧接侧边栏从 x=257 开始，760 px 内容列居中，保留下来的八台设备全部显示，只有一个 `This device`，不存在对话框，横向溢出为 0。
 - 手机 390×844：页面 x=56…390，内容和每一行都在 x=72…374，密码卡片跟在列表后面，横向溢出为 0。回到 Timeline 会恢复消息列表和 composer，焦点落在 Timeline 上，滚动位置回到顶部。
-- 部署后交互录制：`ferry-devices-page-macmini`（10 帧）。最终截图：`/private/tmp/ferry-devices-page-macmini-desktop.png`、`/private/tmp/ferry-devices-page-macmini-mobile.png` 和 `/private/tmp/ferry-devices-page-macmini-mobile-return-timeline.png`。
+- 部署后交互录制：`ferry-devices-page-test-server`（10 帧）。最终截图：`/private/tmp/ferry-devices-page-test-server-desktop.png`、`/private/tmp/ferry-devices-page-test-server-mobile.png` 和 `/private/tmp/ferry-devices-page-test-server-mobile-return-timeline.png`。
 
-状态：已发布，并在部署的 Mac mini 实例上做过视觉走查。
+状态：已发布，并在部署的测试服务器实例上做过视觉走查。

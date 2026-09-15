@@ -48,7 +48,7 @@ flowchart LR
 1. **Observed**: the repository has no Xcode project or Swift source, and the existing AppIcon asset has only the mac idiom, so it cannot become the iOS AppIcon directly.
 2. **Observed**: the API already provides public claim and Bearer session/messages/text/file; iOS needs no new Server endpoint.
 3. **Observed**: the Xcode 26.6 SDK provides `.glassEffect(...)`, `GlassEffectContainer` and `.buttonStyle(.glass/.glassProminent)`; this machine has the iOS 26.5 runtime.
-4. **Observed**: avocado/swipe both use objectVersion 77 + a file-system synchronized root group; Ferry adopts the same project shape without copying their Team, Bundle ID or business architecture.
+4. **Observed**: two earlier projects both use objectVersion 77 + a file-system synchronized root group; Ferry adopts the same project shape without copying their Team, Bundle ID or business architecture.
 
 ### Candidates
 

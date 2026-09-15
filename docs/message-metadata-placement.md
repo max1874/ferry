@@ -16,11 +16,11 @@
 2. Metadata has a six-pixel gap above the bubble — static CSS contract plus browser rectangles.
 3. Current/peer left-right ownership is unchanged — real Chromium with two authenticated identities.
 4. Desktop and 390×844 have no horizontal overflow — real Chromium geometry.
-5. Go/JS/repository/diff gates pass before push; Mac mini is rebuilt without removing its named data volume.
+5. Go/JS/repository/diff gates pass before push; the test server is rebuilt without removing its named data volume.
 
 Local journey: final working tree at base `9def952`; `Mac Web` current/right had metadata bottom 93.20 and body top 99.20, while `Other Mac` peer/left had 182.89/188.89. At 390 px the same gaps were 6 px, right bubble ended x=378, left began x=68, and overflow was 0. Recording: `ferry-message-meta-above-local` (5 frames).
 
-Deployed closure: source `1a2aaab`; Mac mini image `sha256:93826046150c0b8593f2ef6e0206ba7243e6d4d56061898ea9ad62182fec66d0` is running with retained `ferry_ferry-data:/data`, and `/healthz` returned 200. Live desktop and 390×844 Chromium both rendered the user's exact `Mac Web · 11:16 AM` row 6 px above its bubble with overflow 0. Recording: `ferry-message-meta-above-macmini` (4 frames).
+Deployed closure: source `1a2aaab`; the test server image `sha256:93826046150c0b8593f2ef6e0206ba7243e6d4d56061898ea9ad62182fec66d0` is running with retained `ferry_ferry-data:/data`, and `/healthz` returned 200. Live desktop and 390×844 Chromium both rendered the user's exact `Mac Web · 11:16 AM` row 6 px above its bubble with overflow 0. Recording: `ferry-message-meta-above-test-server` (4 frames).
 
 ## Author adversarial review
 

@@ -53,14 +53,14 @@
 ## 实际聊天页重做 — S0 范围卡
 
 - **REQUESTED（Max）**：`你觉和 grok 不像呢`，随后要求 `go` 继续处理。
-- **完成标准**：部署在 Mac mini 的 Ferry 已有消息页，第一眼呈现 Grok 实际聊天页的信息层级：右侧发送气泡、无头像内容流、弱化元信息、窄正文列与贴底 composer；文字、文件、设备和密码功能保持可用。
+- **完成标准**：部署在测试服务器的 Ferry 已有消息页，第一眼呈现 Grok 实际聊天页的信息层级：右侧发送气泡、无头像内容流、弱化元信息、窄正文列与贴底 composer；文字、文件、设备和密码功能保持可用。
 - **不做**：不复制 Grok 商标、文案或专有资产；不伪造 AI 回复、模型选择、搜索、会话列表或账号功能；不修改 Server/API、认证、iOS、Android 或持久化数据。
 - **INFERRED（不纳入）**：完整左侧会话栏、登录态 Grok 的隐藏功能、主题切换与消息编辑。
 - **REPO_REQUIRED**：保留 Ferry/设备图标、照片与文件入口、可观察错误；真实桌面/手机浏览器旅程；相关测试、diff check、完整文件复核与对抗式自审。
 - **深度**：full；已有消息、文件卡片、空状态、composer、设备面板与响应式布局需要作为一个页面系统重做，但无外部合约变化。
 - **预算**：最多 3 个生产文件、净新增不超过 350 行、0 个新持久机制；沿用本过程文件，总行数不超过 220 行。
-- **执行预算**：60 分钟；最多 2 次无效浏览器验收；外部动作限 Grok 匿名 UI 对照、`origin/main` push 和既有 Mac mini Ferry 容器部署。
-- **边界计划**：真实本地 Ferry Server 上验证桌面空/有消息、文件卡、设备面板与 390×844 手机布局，再在 Mac mini 部署后的真实入口复验。匿名 Grok 登录墙后的内容不作臆测。
+- **执行预算**：60 分钟；最多 2 次无效浏览器验收；外部动作限 Grok 匿名 UI 对照、`origin/main` push 和既有测试服务器 Ferry 容器部署。
+- **边界计划**：真实本地 Ferry Server 上验证桌面空/有消息、文件卡、设备面板与 390×844 手机布局，再在测试服务器部署后的真实入口复验。匿名 Grok 登录墙后的内容不作臆测。
 - **扩张触发**：需要 API/数据模型变化、第四个生产文件、新依赖、专有资产或超预算时立即停止。
 
 只读证据：Grok 匿名状态下的桌面和手机聊天页截图在 `/private/tmp/grok-live-chat-result.png` 和 `/private/tmp/grok-live-chat-mobile.png`；录制 `grok-actual-chat-study`（18 帧）。登录墙挡住了对助手回复的检查，所以只有直接观察到的用户气泡、内容卡片、字体、间距和响应式行为进入设计。
@@ -83,7 +83,7 @@
 2. **REQUESTED** — 文件消息使用同样紧凑的气泡语言，同时保留文件名、大小和下载行为；静态合约加真实有消息页面的检查。
 3. **DESIGN_NECESSARY** — 设备类型/名字/时间作为低调的来源信息保留在每条消息下方，避免之前要求的图标工作消失；对 SVG 和元信息的 DOM 断言。
 4. **REPO_REQUIRED** — 空状态、composer 焦点、Photos/Files、设备/密码面板、明暗模式和 390×844 布局保持可用；既有测试加真实浏览器旅程。
-5. **REPO_REQUIRED** — 完整仓库门禁、作者攻击/自审、完整文件全新一轮、最终 HEAD 的 Mac mini 浏览器重放，然后 commit/push/部署。
+5. **REPO_REQUIRED** — 完整仓库门禁、作者攻击/自审、完整文件全新一轮、最终 HEAD 的测试服务器浏览器重放，然后 commit/push/部署。
 
 冻结旅程：桌面有消息的时间线检查气泡几何和元信息；一条新的文字发送通过真实 API 呈现为这种形状；附件菜单和 Devices 弹窗保持可操作；390×844 明暗两种有消息页面没有横向溢出，composer 可触达。预期的失败见证：恢复 `.message { grid-template-columns: 34px ... }` 或追加 `.avatar` 必须让新的资源回归测试失败。
 
@@ -129,9 +129,9 @@
 
 ### 实际聊天页重做 — S7 部署收口
 
-- 对象 `3b59eee` 已推送到 `origin/main`，归档到既有的 Mac mini 部署目录，构建为 `ferry:local` 镜像 `sha256:5394083373c3512b0b732c3e1884ee3831117630fe0860b3aa58f5b8e47e7200`，重启时没有删除命名数据卷。`http://10.0.0.2:42817/` 返回 200。
+- 对象 `3b59eee` 已推送到 `origin/main`，归档到既有的测试服务器部署目录，构建为 `ferry:local` 镜像 `sha256:5394083373c3512b0b732c3e1884ee3831117630fe0860b3aa58f5b8e47e7200`，重启时没有删除命名数据卷。`http://192.168.1.20:42817/` 返回 200。
 - 部署后的桌面浏览器加载了保留下来的 5 条历史消息：全部是右对齐的 `.message-body`，0 个 `.avatar`，5 行设备 SVG 来源信息；原有的 Android 文件渲染在 `{right:1087.5,w:491.63}` 的气泡里，composer 为 `{w:760,bottom:959}`，连接状态 `Local`，溢出 0。
-- 部署后的 Devices 显示保留下来的 8 台设备、`Current device: Mac browser` 和 `No password is required.`。手机 390×844 明/暗模式下文件气泡为 `{x:66.13,w:307.88,right:374}`，composer `{x:8,w:374,bottom:815}`，溢出 0。录制：`ferry-actual-chat-macmini`（10 帧）。
+- 部署后的 Devices 显示保留下来的 8 台设备、`Current device: Mac browser` 和 `No password is required.`。手机 390×844 明/暗模式下文件气泡为 `{x:66.13,w:307.88,right:374}`，composer `{x:8,w:374,bottom:815}`，溢出 0。录制：`ferry-actual-chat-test-server`（10 帧）。
 - 检查清单收口：S2 第 1–4 项有最终对象的浏览器证据加长期资源测试；第 5 项有完整门禁、作者全新一轮来源、push 和线上部署。不适用合约类 S6 门禁。旅程脚本：已删除，记录见上。
 - 最终状态：`shipped`；确切的生产对象 `3b59eee`；评审轮次 1 次作者全新一轮；语义失效 0；计划/当前生产范围 `3 files / -1 net line / 0 persistent mechanisms`。
 
@@ -172,7 +172,7 @@ Max 指出匿名/登录墙状态下的证据不够，并完成了 Grok 登录交
 
 ### 登录后修正 — S7 部署收口
 
-- 对象 `3158cea` 已推送，在 Mac mini 上构建为镜像 `sha256:70d8ef9a9494d10cf364b53c1300f3268fa029c8bdb12df13f6d7aa82ef1539d`，用既有数据卷重启；`http://10.0.0.2:42817/` 返回 200。
+- 对象 `3158cea` 已推送，在测试服务器上构建为镜像 `sha256:70d8ef9a9494d10cf364b53c1300f3268fa029c8bdb12df13f6d7aa82ef1539d`，用既有数据卷重启；`http://192.168.1.20:42817/` 返回 200。
 - 线上桌面测得侧边栏/主区域 `257/1126`，消息列 704，composer `{x:444,y:899,w:752,h:60}`，保留 5 条消息，Local，溢出 0。线上手机测得窄栏/主区域 `56/334`，composer `{x:64,y:755,w:318,h:60}`，右侧气泡结束于 x=378，溢出 0。
 - 线上 Devices 显示保留下来的 8 台设备、`Current device: Mac browser` 和 `No password is required.`。录制：`ferry-authenticated-grok-rebuild`（52 帧）。最终状态：`shipped`；一次登录后参照导致的语义失效；评审来源：作者全新一轮，按用户决定不用 subagent。
 
@@ -209,5 +209,5 @@ Max 指出匿名/登录墙状态下的证据不够，并完成了 Grok 登录交
 
 ### 当前设备对齐 — S7 部署收口
 
-- 对象 `c572b98` 已推送，并在 Mac mini 上部署为镜像 `sha256:1daba82f8096757c33975e41d42ecadb153c682c08a3d250d3ef2b86a6065b18`；容器在保留的 `ferry_ferry-data:/data` 数据卷上运行，`http://10.0.0.2:42817/healthz` 返回 200。
-- 线上 Chromium 保留了五条历史消息，然后发送 `deployed right-side check c572b98`；它的气泡是当前设备/右侧 `{x:893.25,right:1172}`，溢出 0。一个临时的同类型对端观察到 `is_current_device:false`、`Cache-Control:no-store`，且没有原始发送者 ID，随后被撤销。录制：`ferry-current-device-alignment-macmini`（7 帧）；截图：`/private/tmp/ferry-current-device-alignment-macmini.png`。
+- 对象 `c572b98` 已推送，并在测试服务器上部署为镜像 `sha256:1daba82f8096757c33975e41d42ecadb153c682c08a3d250d3ef2b86a6065b18`；容器在保留的 `ferry_ferry-data:/data` 数据卷上运行，`http://192.168.1.20:42817/healthz` 返回 200。
+- 线上 Chromium 保留了五条历史消息，然后发送 `deployed right-side check c572b98`；它的气泡是当前设备/右侧 `{x:893.25,right:1172}`，溢出 0。一个临时的同类型对端观察到 `is_current_device:false`、`Cache-Control:no-store`，且没有原始发送者 ID，随后被撤销。录制：`ferry-current-device-alignment-test-server`（7 帧）；截图：`/private/tmp/ferry-current-device-alignment-test-server.png`。

@@ -35,7 +35,7 @@
 6. **Observed（2026-09-09 实测，Chrome 152）**：在**纯 HTTP** 的局域网页面上，带用户手势的 `document.execCommand('copy')` 可用，返回 `true`，内容确实进了 macOS 系统剪贴板。
 
    ```
-   页面 http://10.0.0.2:42817   isSecureContext: false   navigator.clipboard: undefined
+   页面 http://192.168.1.20:42817   isSecureContext: false   navigator.clipboard: undefined
    点击后 navigator.userActivation.isActive: true
    document.execCommand('copy') -> true
    pbpaste -> FERRY-EXECCOMMAND-GESTURE-TEST-20260909

@@ -30,7 +30,7 @@ Plain brief: Ferry will show a short PIN that is easy to type on a phone. Only t
 3. Existing expiry, collision retry, reservation rollback, concurrent single winner, and issuer revocation tests remain green.
 4. OpenAPI, Web constraints, Server, and iOS numeric keyboard agree on four ASCII digits.
 5. Full Go tests, race tests, vet, signed iOS tests/build, Docker build, and `git diff --check` pass.
-6. Final Docker image on `macmini:42817` emits a four-digit code; real Web and iPhone can claim it once and replay fails.
+6. Final Docker image on `test-server:42817` emits a four-digit code; real Web and iPhone can claim it once and replay fails.
 7. Seven-pattern attack record, 13-item author review, and fresh zero-context contract verdict contain no unresolved P0/P1/P2.
 
 ## Contract matrix
@@ -45,8 +45,8 @@ Plain brief: Ferry will show a short PIN that is easy to type on a phone. Only t
 - `env GOCACHE=/private/tmp/ferry-go-cache go test -race -count=1 ./...` — passed for all Go packages; `go vet ./...` and `git diff --check` also passed.
 - Signed Simulator run — all 20 `FerryTests` passed, including invalid PIN paste rejection and proof that a short PIN makes zero client calls. A prior run with `CODE_SIGNING_ALLOWED=NO` failed only the Keychain integration with OSStatus `-34018`; rerunning with normal Simulator signing passed and confirmed the test command, not product code, was at fault.
 - Signed device build — `** BUILD SUCCEEDED **`, deep/strict signature verification passed, no `.xctest` bundle was present, and `devicectl` installed/launched `com.max1874.ferry` on the connected iPhone.
-- Docker — local image `sha256:7c6d6f…` built; macmini rebuilt `ferry:local`, runs as UID 10001 on container IP `192.168.148.2`, publishes only `10.0.0.2:42817`, and `/` returns HTTP 200.
-- Real Web — after the container rebuild, the paired Web identity and old exact messages remained present; Web generated `5045`, proving the deployed Server/Web candidate emits exactly four digits. Leading-zero preservation is covered by the `0000` generator test. Local browser-harness recording: `ferry-four-digit-macmini` (not committed).
+- Docker — local image `sha256:7c6d6f…` built; the test server rebuilt `ferry:local`, runs as UID 10001 on container IP `192.168.148.2`, publishes only `192.168.1.20:42817`, and `/` returns HTTP 200.
+- Real Web — after the container rebuild, the paired Web identity and old exact messages remained present; Web generated `5045`, proving the deployed Server/Web candidate emits exactly four digits. Leading-zero preservation is covered by the `0000` generator test. Local browser-harness recording: `ferry-four-digit-test-server` (not committed).
 - Real iPhone — the old iPhone identity was revoked and the updated App launched, so the next claim exercises the new four-digit field. Claim/single-use replay remains pending user input because physical-device UI automation was denied by iOS before test execution.
 
 ## Seven contract attacks
@@ -66,7 +66,7 @@ Plain brief: Ferry will show a short PIN that is easy to type on a phone. Only t
 3. Unchanged consumers — full-repo `rg` checked all `NewCode`/`Reserve` and UI/API consumers; no live 16-character constraint remains.
 4. Contract surfaces — OpenAPI, Web, Swift, Server, README, and deployment docs changed together; SQLite/device tokens/routes did not change.
 5. Original reproduction — deployed Web shows `5045`, replacing the long entry the user rejected.
-6. Current journey — macmini was rebuilt from the candidate and Web/body/persistence were reread after recreation; iPhone manual claim remains open.
+6. Current journey — The test server was rebuilt from the candidate and Web/body/persistence were reread after recreation; iPhone manual claim remains open.
 7. Mechanism discrimination — `0000`, `9999`, rejection sampling, replay rejection, and invalid alphabet each have distinct tests rather than a shared status-only assertion.
 8. Regression scan — candidate regression was modulo bias and smaller collision space; rejection sampling plus collision retry tests clear the first, while the smaller space is the user's accepted tradeoff.
 9. Scale/edge — zero/upper boundaries, 32 concurrent claims, collisions, expired values, and 16 unusable samples are covered.

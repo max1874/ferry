@@ -16,11 +16,11 @@
 2. 元信息与气泡之间有 6 像素间距 — 静态 CSS 合约加浏览器矩形测量。
 3. 当前设备/其他设备的左右归属不变 — 用两个已鉴权身份的真实 Chromium。
 4. 桌面和 390×844 都没有横向溢出 — 真实 Chromium 几何测量。
-5. push 前 Go/JS/仓库/diff 检查都通过；Mac mini 重建时不删除命名数据卷。
+5. push 前 Go/JS/仓库/diff 检查都通过；测试服务器重建时不删除命名数据卷。
 
 本地旅程：最终工作树，基线 `9def952`；当前设备/靠右的 `Mac Web` 元信息底边 93.20、正文顶边 99.20，其他设备/靠左的 `Other Mac` 为 182.89/188.89。在 390 px 下间距同样是 6 px，右侧气泡结束于 x=378，左侧开始于 x=68，溢出为 0。录制：`ferry-message-meta-above-local`（5 帧）。
 
-部署收口：源码 `1a2aaab`；Mac mini 镜像 `sha256:93826046150c0b8593f2ef6e0206ba7243e6d4d56061898ea9ad62182fec66d0` 以保留的 `ferry_ferry-data:/data` 运行，`/healthz` 返回 200。线上桌面和 390×844 Chromium 都把用户那一行 `Mac Web · 11:16 AM` 显示在气泡上方 6 px，溢出为 0。录制：`ferry-message-meta-above-macmini`（4 帧）。
+部署收口：源码 `1a2aaab`；测试服务器镜像 `sha256:93826046150c0b8593f2ef6e0206ba7243e6d4d56061898ea9ad62182fec66d0` 以保留的 `ferry_ferry-data:/data` 运行，`/healthz` 返回 200。线上桌面和 390×844 Chromium 都把用户那一行 `Mac Web · 11:16 AM` 显示在气泡上方 6 px，溢出为 0。录制：`ferry-message-meta-above-test-server`（4 帧）。
 
 ## 作者对抗式评审
 

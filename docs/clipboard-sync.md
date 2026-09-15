@@ -35,7 +35,7 @@ This document exists so the next proposal does not have to rerun the same measur
 6. **Observed (measured 2026-09-09, Chrome 152)**: on a **plain HTTP** LAN page, `document.execCommand('copy')` with a user gesture works, returns `true`, and the content really lands in the macOS system clipboard.
 
    ```
-   page http://10.0.0.2:42817   isSecureContext: false   navigator.clipboard: undefined
+   page http://192.168.1.20:42817   isSecureContext: false   navigator.clipboard: undefined
    after click navigator.userActivation.isActive: true
    document.execCommand('copy') -> true
    pbpaste -> FERRY-EXECCOMMAND-GESTURE-TEST-20260909

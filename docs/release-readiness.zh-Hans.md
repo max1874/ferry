@@ -8,7 +8,7 @@
 
 - **REQUESTED（Max，2026-08-31）**：完成现有 TODO 中除验证外的工作；License 由 Codex 选择最合适的类型。
 - **完成标准**：仓库有准确的对外文档、一个覆盖 Go/Web/iOS/Android 的 CI 门禁、可恢复的 Docker 数据流程、release 签名模板，以及开源的贡献/安全文件。
-- **不做**：真机互传、Mac mini 恢复演练、商店提审、公网部署、TLS、API/schema/数据库/产品行为改动，以及提交任何秘密。
+- **不做**：真机互传、测试服务器恢复演练、商店提审、公网部署、TLS、API/schema/数据库/产品行为改动，以及提交任何秘密。
 - **在用户授权下推荐并选定**：Apache License 2.0，因为它的宽松条款包含明确的专利授权和专利终止保护。
 - **深度**：full；涉及四个交付面，但不改变对外的产品合约。
 - **预算**：最多新增/修改 14 个文件、约 900 行编写内容；不加运行时依赖或持久化机制。
@@ -72,7 +72,7 @@
 4. **合约面** — `git diff -- api/openapi.yaml cmd internal ios/Ferry/Ferry android/app/src` 为空；没有 HTTP、SQLite、UI 或运行时环境合约的改动。
 5. **原始复现** — 宽泛的 `xcodebuild test -scheme Ferry` 复现了两个干净机器上的 UI 测试失败，而 20 个单元测试通过；同一命令加上 `-only-testing:FerryTests` 以 `TEST SUCCEEDED` 结束，20/20。
 6. **当前旅程** — 最终工作树的 Docker 自测在恢复后重新读取了精确的数据库/blob 字节；之后的改动只涉及 CI/文档/检查策略，所以这份记录在运行时层面仍然有效。真机 Web/iOS/Android 局域网旅程仍是 `BLOCKED (external)`。
-7. **机制区分** — Mac mini 在没有签名时运行 `./gradlew build` 给出了精确的配置拒绝；一个一天有效的测试 keystore 随后产出了 `bundleRelease`，`jarsigner -verify` 成功。Docker 恢复成功和三类无效归档都在同一个隔离项目中观察到。
+7. **机制区分** — 测试服务器在没有签名时运行 `./gradlew build` 给出了精确的配置拒绝；一个一天有效的测试 keystore 随后产出了 `bundleRelease`，`jarsigner -verify` 成功。Docker 恢复成功和三类无效归档都在同一个隔离项目中观察到。
 8. **回归扫描** — 候选风险是悄悄丢掉 UI 覆盖；完整文件阅读确认两个 UI 旅程仍在 `FerryUITests.swift` 里，CI 只明确列出单元测试，因为那些旅程需要真实的外部 Server，仍单独设门禁。
 9. **规模/边界** — 签名为零/缺失、签名完整、归档路径已占用、不支持的源数据卷、损坏的归档和链接条目都有覆盖；备份通过 tar 流式处理，不会在 shell 内存里缓冲 64 MiB 的产品文件上限。
 10. **合约攻击** — S3 记录了双裁判、归档拼写/默认值/旁路、策略执行和不自我认证；最终探针还把 shell 里的 tar 失败改成显式处理，而不是依赖对上下文敏感的 `set -e`。

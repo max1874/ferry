@@ -30,7 +30,7 @@
 3. 既有的过期、碰撞重试、预留回滚、并发单一胜者和签发者撤销测试保持绿色。
 4. OpenAPI、Web 约束、Server 和 iOS 数字键盘对四位 ASCII 数字达成一致。
 5. 完整 Go tests、race tests、vet、签名的 iOS tests/build、Docker 构建和 `git diff --check` 通过。
-6. `macmini:42817` 上的最终 Docker 镜像给出四位数字 code；真实 Web 和 iPhone 能领取一次，重放失败。
+6. `test-server:42817` 上的最终 Docker 镜像给出四位数字 code；真实 Web 和 iPhone 能领取一次，重放失败。
 7. 七类攻击记录、13 项作者评审和全新零上下文合约结论中，没有未解决的 P0/P1/P2。
 
 ## 合约矩阵
@@ -45,8 +45,8 @@
 - `env GOCACHE=/private/tmp/ferry-go-cache go test -race -count=1 ./...` — 所有 Go 包通过；`go vet ./...` 和 `git diff --check` 也通过。
 - 签名的模拟器运行 — 20 个 `FerryTests` 全部通过，包括拒绝粘贴无效 PIN，以及证明短 PIN 不会发出任何客户端调用。之前一次用 `CODE_SIGNING_ALLOWED=NO` 的运行只在 Keychain 集成上失败，OSStatus 为 `-34018`；用正常的模拟器签名重跑后通过，确认出错的是测试命令而不是产品代码。
 - 签名真机构建 — `** BUILD SUCCEEDED **`，deep/strict 签名校验通过，没有 `.xctest` bundle，`devicectl` 在连接的 iPhone 上安装并启动了 `com.max1874.ferry`。
-- Docker — 本地镜像 `sha256:7c6d6f…` 构建完成；macmini 重建 `ferry:local`，以 UID 10001 运行在容器 IP `192.168.148.2`，只发布 `10.0.0.2:42817`，`/` 返回 HTTP 200。
-- 真实 Web — 容器重建后，已配对的 Web 身份和原有消息原样保留；Web 生成了 `5045`，证明部署的 Server/Web 候选版本给出的恰好是四位数字。前导零的保留由 `0000` 生成器测试覆盖。本地 browser-harness 录制：`ferry-four-digit-macmini`（未提交）。
+- Docker — 本地镜像 `sha256:7c6d6f…` 构建完成；测试服务器重建 `ferry:local`，以 UID 10001 运行在容器 IP `192.168.148.2`，只发布 `192.168.1.20:42817`，`/` 返回 HTTP 200。
+- 真实 Web — 容器重建后，已配对的 Web 身份和原有消息原样保留；Web 生成了 `5045`，证明部署的 Server/Web 候选版本给出的恰好是四位数字。前导零的保留由 `0000` 生成器测试覆盖。本地 browser-harness 录制：`ferry-four-digit-test-server`（未提交）。
 - 真实 iPhone — 旧的 iPhone 身份已撤销，更新后的 App 已启动，所以下一次领取会走新的四位数字输入框。领取和一次性重放仍等待用户输入，因为真机 UI 自动化在测试执行前被 iOS 拒绝了。
 
 ## 七类合约攻击
@@ -66,7 +66,7 @@
 3. 未改动的消费者 — 全仓库 `rg` 检查了所有 `NewCode`/`Reserve` 以及 UI/API 消费者；没有残留的 16 字符约束。
 4. 合约面 — OpenAPI、Web、Swift、Server、README 和部署文档一起改；SQLite/设备 token/路由没变。
 5. 原始复现 — 部署的 Web 显示 `5045`，替换掉用户否决的长输入。
-6. 当前旅程 — macmini 用候选版本重建，重建后重新读取了 Web/正文/持久化；iPhone 手动领取仍待完成。
+6. 当前旅程 — 测试服务器用候选版本重建，重建后重新读取了 Web/正文/持久化；iPhone 手动领取仍待完成。
 7. 机制区分 — `0000`、`9999`、拒绝采样、重放拒绝和无效字符集各有独立的测试，而不是共用一个只看状态的断言。
 8. 回归扫描 — 候选回归是取模偏差和更小的碰撞空间；拒绝采样加碰撞重试测试排除了前者，更小的空间是用户接受的取舍。
 9. 规模/边界 — 零值/上界、32 个并发领取、碰撞、过期值和 16 个不可用采样都有覆盖。
