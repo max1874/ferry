@@ -278,7 +278,7 @@ APK 生成在 `android/app/build/outputs/apk/debug/` 下。要做签名 release�
 | iOS App | 原生 SwiftUI MVP；仅限内部 TestFlight |
 | Android App | 原生 Compose MVP；从源码构建 |
 
-自动发现、剪贴板同步、后台传输、TLS/公网暴露和 App Store 上架都不在当前里程碑内。
+自动发现、剪贴板同步、后台传输和 TLS/公网暴露都不在当前里程碑内。iOS App 计划在中国大陆以外的 App Store 地区上架，目前尚未提交。
 
 贡献者需要：Go 1.26.3、Docker 和 Compose v2，按需安装 Xcode 26.6，或 Android Studio、JDK 17 和 SDK 35。CI 不会在推送或 pull request 时自动运行；维护者会手动启动 GitHub Actions workflow，比如在发布之前。它运行的检查是：
 
