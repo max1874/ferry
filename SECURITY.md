@@ -4,7 +4,7 @@
 
 ## Supported versions
 
-Ferry has not published a stable release. Security fixes currently target the latest commit on `main`; old commits, debug APKs and private test deployments are not maintained release channels.
+Security fixes target the latest commit on `main` and the latest [GitHub Release](https://github.com/max1874/ferry/releases/latest). Older releases, old commits, debug APKs and private test deployments are not maintained.
 
 ## Reporting a vulnerability
 

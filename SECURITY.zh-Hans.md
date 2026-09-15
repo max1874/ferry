@@ -4,7 +4,7 @@
 
 ## 支持的版本
 
-Ferry 还没有发布稳定版本。安全修复目前只针对 `main` 上的最新 commit；旧 commit、debug APK 和私人测试部署都不是维护中的发布渠道。
+安全修复针对 `main` 上的最新 commit 和最新的 [GitHub Release](https://github.com/max1874/ferry/releases/latest)。旧版本、旧 commit、debug APK 和私人测试部署都不再维护。
 
 ## 报告漏洞
 
