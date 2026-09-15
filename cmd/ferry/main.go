@@ -132,7 +132,7 @@ func run(ctx context.Context, value config) error {
 	}
 	result := make(chan error, 1)
 	go func() {
-		log.Printf("listening on %s", shownAddress)
+		log.Print(listenerMessage(value, shownAddress, address))
 		log.Print(browserAddressMessage(value, address))
 		result <- server.Serve(listener)
 	}()
@@ -155,6 +155,16 @@ func run(ctx context.Context, value config) error {
 		}
 		return err
 	}
+}
+
+// listenerMessage names the listener. When a different host address publishes
+// it, as in Docker, the listener is the container's own address, which other
+// devices cannot open, so the message says so before the address to open.
+func listenerMessage(value config, shownAddress string, listener *net.TCPAddr) string {
+	if published := net.ParseIP(value.publishedHost); published != nil && !published.Equal(listener.IP) {
+		return fmt.Sprintf("listening on %s inside the container; open the address below instead", shownAddress)
+	}
+	return fmt.Sprintf("listening on %s", shownAddress)
 }
 
 // browserAddressMessage names the address a person should open, which is not
