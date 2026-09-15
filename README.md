@@ -12,6 +12,26 @@
   <p><a href="#quick-start"><strong>Quick start</strong></a> · <a href="#troubleshooting">Troubleshooting</a> · <a href="README.zh-Hans.md">简体中文</a></p>
 </div>
 
+## Deploy with your agent
+
+Copy the prompt below and send it to an agent that can run commands on the computer where you want Ferry installed. It will guide the Docker deployment; you may need to approve installation or system permissions.
+
+```text
+Deploy Ferry with Docker on this computer so my phone and other computers on the same private network can use it. Carry out the deployment, not just describe the steps.
+
+Read https://github.com/max1874/ferry/blob/main/README.md and check https://github.com/max1874/ferry/releases/latest. Use the latest stable release's Docker Compose bundle and its matching published image.
+
+Check the OS, CPU architecture, Docker Engine and Compose v2, and whether Ferry is already installed. If dependencies are missing, explain what needs installing and get my approval. Preserve any existing deployment, configuration and data; back it up before an upgrade.
+
+For a new deployment, use a dedicated directory, keep the bundle's layout, configure persistent storage and a suitable private LAN IP, check the port is available, then pull and start Ferry. If several networks are plausible, ask which one my devices use. Keep Ferry on the trusted private network; do not expose it to the public Internet or disable the firewall.
+
+Check container status, logs and HTTP access through the chosen LAN address, and fix any deployment errors. Report the installed version, deployment directory, browser URL, and commands for stopping, starting, upgrading and backing up. Then guide me to Devices → Connect another device to scan the QR code and complete a text and file transfer. Distinguish checks you performed from anything still needing my phone or confirmation; do not claim cross-device success from a local check alone.
+```
+
+Prefer to run the commands yourself? Follow [Quick start](#quick-start).
+
+## What is Ferry?
+
 Ferry is a self-hosted clipboard and file ferry for the devices on one trusted private network. It looks like a chat: everything you send lands in a single timeline that every joined device can read, so moving a link from your phone to your laptop is a paste and a copy, not an email to yourself.
 
 One Go process serves the Web app and the API, stores messages and device identities in SQLite, and keeps uploaded bytes in a local blob directory. Nothing leaves the network you run it on, and there is no account to create.
