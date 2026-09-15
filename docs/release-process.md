@@ -54,7 +54,13 @@ Frozen on 2026-09-14. Status values: `done` with evidence, `pending` with an own
 
 Browser acceptance is not native-app acceptance, and CI container runs are not real-device evidence.
 
-- **Observed (2026-09-14)**: 1.0.0 was built from `84c355b`, before later commits on `main`. Its Web app still carries the icon that `360c300` redrew, and the `compose.yaml` in its Compose download still sets `TZ: Asia/Shanghai`, a maintainer-local default that `main` has since removed; the Alpine image has no time-zone data, so that setting has no reliable effect. Both changes reach users only in the next release.
+- **Observed (2026-09-14)**: 1.0.0 was built from `84c355b`, before later commits on `main`. Its Web app still carries the icon that `360c300` redrew, and the `compose.yaml` in its Compose download still sets `TZ: Asia/Shanghai`, a maintainer-local default that `main` has since removed; the Alpine image has no time-zone data, so that setting has no reliable effect. Both changes reach users only in the next release. They shipped in 1.0.1.
+
+## 1.0.1 record
+
+- **Observed (2026-09-15)**: `v1.0.1` points to `c7f10d7`, released by run [34922661122](https://github.com/max1874/ferry/actions/runs/34922661122) from CI run [34922312922](https://github.com/max1874/ferry/actions/runs/34922312922) under `sha256:a3dc11c83cc993d5408a2ed528a9f5df9c02bb0766be443d009c14b8ea5e84d5`. Outside CI, an anonymous manifest request returned `linux/amd64` and `linux/arm64`, and the Compose download URL answered anonymously. It was the first release from a manually started CI run.
+- **Observed (2026-09-15)**: the first CI run for 1.0.1 failed before the Android build. `setup-android` installs `tools platform-tools` by default, and `sdkmanager` now fails with `Failed to find package 'tools'`; the same runner image had passed the day before, so the SDK repository changed, not Ferry. CI now installs only `platform-tools`, and setup-android v4 still has the old default.
+- **Observed (2026-09-15)**: upgrade from 1.0.0 to 1.0.1 followed the 1.0.1 notes on an arm64 macOS host, in an isolated Compose project on loopback. A device, a text, a 200 KB file and an access password were created on 1.0.0; the notes' backup, image change, pull and `up -d` then ran. On 1.0.1 the device token still worked, the message list was identical, the downloaded file matched its SHA-256, a wrong password was refused (401) and the right one joined (201), and the log showed the new container-listener line. The `TZ` line left in the old `compose.yaml` caused no problem. Not covered: restoring that backup, a phone, and amd64.
 
 ## After 1.0.0
 

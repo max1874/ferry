@@ -54,7 +54,13 @@
 
 浏览器验收不是原生 App 验收，CI 里的容器运行也不是真机证据。
 
-- **Observed（2026-09-14）**：1.0.0 构建自 `84c355b`，早于 `main` 上后来的提交。它的 Web 应用仍是 `360c300` 重画之前的图标；它 Compose 下载包里的 `compose.yaml` 仍设置了 `TZ: Asia/Shanghai`——这是维护者本地的默认值，`main` 上已经删除，而且 Alpine 镜像里没有时区数据，这项设置本来就没有可靠效果。这两处改动要到下一个版本才会到达用户。
+- **Observed（2026-09-14）**：1.0.0 构建自 `84c355b`，早于 `main` 上后来的提交。它的 Web 应用仍是 `360c300` 重画之前的图标；它 Compose 下载包里的 `compose.yaml` 仍设置了 `TZ: Asia/Shanghai`——这是维护者本地的默认值，`main` 上已经删除，而且 Alpine 镜像里没有时区数据，这项设置本来就没有可靠效果。这两处改动要到下一个版本才会到达用户。它们已随 1.0.1 发布。
+
+## 1.0.1 记录
+
+- **Observed（2026-09-15）**：`v1.0.1` 指向 `c7f10d7`，由发布 run [34922661122](https://github.com/max1874/ferry/actions/runs/34922661122) 从 CI run [34922312922](https://github.com/max1874/ferry/actions/runs/34922312922) 发布，摘要为 `sha256:a3dc11c83cc993d5408a2ed528a9f5df9c02bb0766be443d009c14b8ea5e84d5`。在 CI 之外匿名请求清单，返回了 `linux/amd64` 和 `linux/arm64`；Compose 下载地址也能匿名访问。这是第一次从手动启动的 CI run 发布。
+- **Observed（2026-09-15）**：1.0.1 的第一次 CI run 在 Android 构建之前就失败了。`setup-android` 默认安装 `tools platform-tools`，而 `sdkmanager` 现在报 `Failed to find package 'tools'`；同一个 runner 镜像前一天还通过，所以变的是 SDK 仓库，不是 Ferry。CI 现在只安装 `platform-tools`；setup-android v4 仍保留旧的默认值。
+- **Observed（2026-09-15）**：在一台 arm64 macOS 主机上，用一个隔离的 Compose 项目、只监听 loopback，按 1.0.1 发布说明从 1.0.0 升级到 1.0.1。先在 1.0.0 上创建一台设备、一条文字、一个 200 KB 的文件和访问密码，再执行说明里的备份、改镜像、pull 和 `up -d`。升级到 1.0.1 后，设备 token 仍然有效，消息列表完全一致，下载的文件 SHA-256 一致，错误密码被拒绝（401），正确密码可以加入（201），日志显示了新的容器内监听地址那一行。旧 `compose.yaml` 里留着的 `TZ` 行没有造成问题。未覆盖：用这份备份恢复、手机，以及 amd64。
 
 ## 1.0.0 之后
 
