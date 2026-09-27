@@ -2,7 +2,7 @@
 
 > English | [简体中文](PRIVACY.zh-Hans.md)
 
-Effective date: 2026-09-14
+Effective date: 2026-09-27
 
 This policy covers the Ferry Server, the Web app it serves, the Ferry iOS App (listed as FerryDrop) and the Ferry Android App.
 
@@ -12,9 +12,9 @@ The Ferry project does not run a server, operate an account system or collect an
 
 ## What the apps store on your device
 
-- **Server address and device name** you enter, so the app can reconnect.
+- **The Server address** you enter, so the app can reconnect. Android also keeps the device name you enter. iOS does not store a device name: it uses the name of your iPhone as set in iOS Settings, and sends it to your Server when the device joins.
 - **A device token** issued by your Ferry Server when the device joins. iOS keeps it in the Keychain; Android encrypts it with a key held in the Android Keystore. Android excludes app data from system backups.
-- Files you choose to save leave Ferry and go wherever you save them, such as Photos or Downloads.
+- Files you choose to save leave Ferry and go wherever you save them: on iOS, a location you pick in Files; on Android, a location such as Downloads.
 
 The apps only connect to the Server address you enter. They do not read your clipboard in the background, do not contain analytics, advertising or crash-reporting SDKs, and do not contact any third-party service.
 
@@ -22,8 +22,8 @@ The apps only connect to the Server address you enter. They do not read your cli
 
 The Server stores what is needed to show the shared timeline:
 
-- messages and uploaded files, exactly as sent;
-- the name of each joined device and a hash of its token;
+- messages and uploaded files, exactly as sent, with each file's name, type and size, and for every message the time it was sent and the name, kind (for example iPhone or Android) and ID of the device that sent it;
+- for each joined device, its name, its kind, when it joined, and a hash of its token;
 - a verifier for the optional shared access password.
 
 This data lives in the Server's data directory on the machine that runs it. The Server's log records startup settings and errors; it does not log message contents. Whoever runs the Server controls this data, including backups and deletion. Revoking a device in the Web app invalidates its token.
