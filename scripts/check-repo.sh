@@ -32,7 +32,7 @@ oversized=$(git ls-files -z \
 
 grep -Fq 'Android App' README.md || fail "README must describe Android"
 grep -Fq 'Superseded on 2026-08-30' docs/four-digit-pairing.md || fail "pairing document must stay historical"
-grep -Fq 'Apache License 2.0' README.md || fail "README license statement is missing"
+grep -Fq 'licensed under the [MIT License](LICENSE)' README.md || fail "README license statement is missing"
 
 # The deployment bundle ships both files; a user who copies .env.example must
 # get the same image that compose.yaml would choose without it.

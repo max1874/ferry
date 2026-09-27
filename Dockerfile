@@ -15,7 +15,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags=
 FROM alpine:3.23
 
 LABEL org.opencontainers.image.source="https://github.com/max1874/ferry" \
-      org.opencontainers.image.licenses="Apache-2.0"
+      org.opencontainers.image.licenses="MIT"
 
 RUN addgroup -S ferry \
     && adduser -S -D -H -u 10001 -G ferry ferry \

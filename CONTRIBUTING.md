@@ -32,4 +32,4 @@ Write commit messages and pull requests in English. Use a focused commit message
 - screenshots only when visual behavior materially changed;
 - remaining external or device-only validation.
 
-By contributing, you agree that your contribution is licensed under Apache License 2.0.
+By contributing, you agree that your contribution is licensed under the MIT License.

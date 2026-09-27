@@ -32,4 +32,4 @@ commit message 和 pull request 用英文写。commit message 要聚焦，说清
 - 只有在视觉行为发生实质变化时才附截图；
 - 还剩哪些外部或只能在设备上完成的验证。
 
-提交贡献即表示你同意你的贡献以 Apache License 2.0 授权。
+提交贡献即表示你同意你的贡献以 MIT 许可证授权。

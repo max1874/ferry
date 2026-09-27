@@ -6,7 +6,7 @@
     <img alt="Go 1.26" src="https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white">
     <img alt="iOS 26+" src="https://img.shields.io/badge/iOS-26%2B-111827?logo=apple">
     <img alt="Android 8+" src="https://img.shields.io/badge/Android-8%2B-3DDC84?logo=android&logoColor=white">
-    <img alt="Apache 2.0 License" src="https://img.shields.io/badge/license-Apache%202.0-22c55e">
+    <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-22c55e">
     <img alt="No cloud account" src="https://img.shields.io/badge/cloud%20account-none-06b6d4">
   </p>
   <p><a href="#quick-start"><strong>Quick start</strong></a> · <a href="#troubleshooting">Troubleshooting</a> · <a href="README.zh-Hans.md">简体中文</a></p>
@@ -306,4 +306,4 @@ Ferry uses unencrypted HTTP on a trusted private network. Keep it off the public
 
 ## License
 
-Ferry is licensed under the [Apache License 2.0](LICENSE). The Web app bundles [Tabler Icons](internal/webui/assets/tabler-icons-LICENSE.txt) and the [QR Code generator library](internal/webui/assets/qrcodegen-LICENSE.txt), both under the MIT License.
+Ferry is licensed under the [MIT License](LICENSE). The Web app bundles [Tabler Icons](internal/webui/assets/tabler-icons-LICENSE.txt) and the [QR Code generator library](internal/webui/assets/qrcodegen-LICENSE.txt), both under the MIT License.

@@ -6,7 +6,7 @@
     <img alt="Go 1.26" src="https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white">
     <img alt="iOS 26+" src="https://img.shields.io/badge/iOS-26%2B-111827?logo=apple">
     <img alt="Android 8+" src="https://img.shields.io/badge/Android-8%2B-3DDC84?logo=android&logoColor=white">
-    <img alt="Apache 2.0 License" src="https://img.shields.io/badge/license-Apache%202.0-22c55e">
+    <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-22c55e">
     <img alt="No cloud account" src="https://img.shields.io/badge/cloud%20account-none-06b6d4">
   </p>
   <p><a href="#快速开始"><strong>快速开始</strong></a> · <a href="#排错">排错</a> · <a href="README.md">English</a></p>
@@ -306,4 +306,4 @@ Ferry 在可信私有网络里使用未加密的 HTTP，请不要把它暴露到
 
 ## 许可证
 
-Ferry 以 [Apache License 2.0](LICENSE) 授权。Web 应用内置了 [Tabler Icons](internal/webui/assets/tabler-icons-LICENSE.txt) 和 [QR Code generator library](internal/webui/assets/qrcodegen-LICENSE.txt)，两者均为 MIT 许可证。
+Ferry 以 [MIT 许可证](LICENSE) 授权。Web 应用内置了 [Tabler Icons](internal/webui/assets/tabler-icons-LICENSE.txt) 和 [QR Code generator library](internal/webui/assets/qrcodegen-LICENSE.txt)，两者均为 MIT 许可证。
