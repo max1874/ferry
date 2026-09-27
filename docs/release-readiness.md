@@ -10,6 +10,7 @@ This is the authoritative record for the repository-preparation milestone. It do
 - **Done**：the repository has accurate public-facing documentation, one CI gate for Go/Web/iOS/Android, a recoverable Docker data workflow, release-signing templates, and open-source contribution/security files.
 - **Non-goals**：physical-device exchange, the test server restore drill, store submission, public deployment, TLS, API/schema/database/product behavior changes, or committing secrets.
 - **Recommended and selected under user delegation**：Apache License 2.0, because its permissive terms include an explicit patent grant and patent-termination protection.
+- **Superseded (Max, 2026-09-27)**：relicensed to MIT to match Max's other public repositories; the Apache-2.0 notes below are historical.
 - **Depth**：full; this spans four deliverable surfaces but does not change an external product contract.
 - **Budget**：at most 14 added/modified files and about 900 authored lines; no runtime dependency or persistent mechanism.
 - **Boundary plan**：local builds/tests and an isolated temporary Compose volume may close repository tooling claims; real-device/LAN acceptance remains `BLOCKED (external)` and cannot be replaced by those checks.
