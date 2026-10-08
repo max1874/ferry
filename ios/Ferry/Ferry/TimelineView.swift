@@ -27,7 +27,7 @@ struct TimelineView: View {
                     if let id = model.messages.last?.id { withAnimation { proxy.scrollTo(id, anchor: .bottom) } }
                 }
             }
-            .navigationTitle("Ferry")
+            .navigationTitle("FerryDrop")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Label(model.currentDevice?.name ?? "Device", systemImage: "iphone")

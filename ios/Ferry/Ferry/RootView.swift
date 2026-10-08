@@ -27,7 +27,7 @@ private struct AccessView: View {
                     .font(.system(size: 66, weight: .semibold)).foregroundStyle(.cyan.gradient)
                     .accessibilityHidden(true)
                 VStack(spacing: 8) {
-                    Text("Ferry").font(.largeTitle.bold())
+                    Text("FerryDrop").font(.largeTitle.bold())
                     Text("Your clipboard and files, across your own devices.")
                         .multilineTextAlignment(.center).foregroundStyle(.secondary)
                 }

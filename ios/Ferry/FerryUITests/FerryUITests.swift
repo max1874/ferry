@@ -77,7 +77,7 @@ final class FerryUITests: XCTestCase {
             if browse.exists { browse.tap() }
             let onMyPhone = app.staticTexts["On My iPhone"].firstMatch
             if onMyPhone.waitForExistence(timeout: 3) { onMyPhone.tap() }
-            let ferry = app.staticTexts["Ferry"].firstMatch
+            let ferry = app.staticTexts["FerryDrop"].firstMatch
             if ferry.waitForExistence(timeout: 3) { ferry.tap() }
         }
         XCTAssertTrue(fixture.waitForExistence(timeout: 20), "The seeded fixture must appear in the system document picker")
