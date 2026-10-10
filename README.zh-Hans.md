@@ -261,7 +261,7 @@ xcodebuild archive -project ios/Ferry/Ferry.xcodeproj -scheme Ferry \
 
 商店导出是需要维护者授权的一步。获得授权后，把 `ios/ExportOptions.plist.example` 复制成被忽略的 `ios/ExportOptions.plist`，替换 `YOUR_TEAM_ID`，再把这个文件传给 `xcodebuild -exportArchive`。
 
-**Android。** 用 Android Studio 打开 `android/`，或者用 JDK 17 和 Android SDK 35 构建 debug APK：
+**Android。** 用 Android Studio 打开 `android/`，或者用 JDK 17 及以上和 Android SDK 37 构建 debug APK（wrapper 锁定 Gradle 9.8.1；Android Gradle Plugin 9.4.1，Kotlin 2.4.21）：
 
 ```bash
 cd android
@@ -280,7 +280,7 @@ APK 生成在 `android/app/build/outputs/apk/debug/` 下。要做签名 release�
 
 自动发现、剪贴板同步、后台传输和 TLS/公网暴露都不在当前里程碑内。iOS App 计划在中国大陆以外的 App Store 地区上架，目前尚未提交。
 
-贡献者需要：Go 1.26.3、Docker 和 Compose v2，按需安装 Xcode 26.6，或 Android Studio、JDK 17 和 SDK 35。CI 不会在推送或 pull request 时自动运行；维护者会手动启动 GitHub Actions workflow，比如在发布之前。它运行的检查是：
+贡献者需要：Go 1.26.3、Docker 和 Compose v2，按需安装 Xcode 26.6，或 Android Studio、JDK 17 及以上和 SDK 37。CI 不会在推送或 pull request 时自动运行；维护者会手动启动 GitHub Actions workflow，比如在发布之前。它运行的检查是：
 
 ```bash
 scripts/check-repo.sh

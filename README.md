@@ -261,7 +261,7 @@ xcodebuild archive -project ios/Ferry/Ferry.xcodeproj -scheme Ferry \
 
 Store export is a maintainer-authorized step. When it is authorized, copy `ios/ExportOptions.plist.example` to the ignored `ios/ExportOptions.plist`, replace `YOUR_TEAM_ID`, and pass that file to `xcodebuild -exportArchive`.
 
-**Android.** Open `android/` in Android Studio, or build the debug APK with JDK 17 and Android SDK 35:
+**Android.** Open `android/` in Android Studio, or build the debug APK with JDK 17 or newer and Android SDK 37 (the wrapper pins Gradle 9.8.1; Android Gradle Plugin 9.4.1, Kotlin 2.4.21):
 
 ```bash
 cd android
@@ -280,7 +280,7 @@ The APK is produced below `android/app/build/outputs/apk/debug/`. For a signed r
 
 Automatic discovery, clipboard synchronisation, background transfer, and TLS/public-Internet exposure are not part of the current milestone. An App Store release of the iOS app outside China mainland is planned but not yet submitted.
 
-Requirements for contributors: Go 1.26.3, Docker with Compose v2, and optionally Xcode 26.6 or Android Studio with JDK 17 and SDK 35. CI does not run on pushes or pull requests; the maintainer starts the GitHub Actions workflow by hand, for example before a release. Its gates are:
+Requirements for contributors: Go 1.26.3, Docker with Compose v2, and optionally Xcode 26.6 or Android Studio with JDK 17+ and SDK 37. CI does not run on pushes or pull requests; the maintainer starts the GitHub Actions workflow by hand, for example before a release. Its gates are:
 
 ```bash
 scripts/check-repo.sh
