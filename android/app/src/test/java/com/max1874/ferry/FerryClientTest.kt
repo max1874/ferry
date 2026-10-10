@@ -32,7 +32,7 @@ class FerryClientTest {
         assertEquals(false, connection.instanceFollowRedirects)
         assertEquals("android", connection.getRequestProperty("X-Ferry-Device-Kind"))
         val body = JSONObject(connection.sent.toString(Charsets.UTF_8))
-        assertEquals(setOf("device_name", "password"), body.keySet())
+        assertEquals(setOf("device_name", "password"), body.keys().asSequence().toSet())
         assertEquals("Pixel", body.getString("device_name"))
         assertEquals("secret", body.getString("password"))
         assertEquals(DeviceKind.ANDROID, claim.device.kind)

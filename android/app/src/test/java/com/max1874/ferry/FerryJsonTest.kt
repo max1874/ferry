@@ -12,7 +12,7 @@ class FerryJsonTest {
 
     @Test fun encodesJoinWithoutChangingUserInput() {
         val body = JSONObject(FerryJson.joinBody("Pixel 9", "secret").toString(Charsets.UTF_8))
-        assertEquals(setOf("device_name", "password"), body.keySet())
+        assertEquals(setOf("device_name", "password"), body.keys().asSequence().toSet())
         assertEquals("Pixel 9", body.getString("device_name"))
         assertEquals("secret", body.getString("password"))
     }
