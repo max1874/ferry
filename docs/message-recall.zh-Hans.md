@@ -27,6 +27,6 @@ Max 要求支持撤回已发送内容。Max 已确认：可信空间内任意已
 
 ## 局部界面设计
 
-仅改变消息行和撤回确认：复制或打开收到的内容，以及移除误发送内容。沿用导航、输入框、字体、颜色、间距与正常发送行为。在所有已连接设备的现有消息操作旁增加可见的 Recall。请求中禁用并显示 Recalling…；失败时保留消息，通过现有错误区提示重试。撤空后显示现有空状态。删除消息不自动滚动到底部。
+仅改变消息行和撤回确认：复制或打开收到的内容，以及移除误发送内容。沿用导航、输入框、字体、颜色、间距与正常发送行为。在所有已连接设备上，Recall 是内容下方消息操作行里的可见垃圾桶图标，紧挨 Copy（布局及 2026-11-01 的决定见 [DESIGN.zh-Hans.md](../DESIGN.zh-Hans.md)）。请求中禁用并显示 Recalling…；失败时保留消息，通过现有错误区提示重试。撤空后显示现有空状态。删除消息不自动滚动到底部。
 
-iOS 使用原生破坏性按钮和包含 Recall、Cancel 的确认面板，参考 Apple [Action sheets](https://developer.apple.com/design/human-interface-guidelines/action-sheets#Best-practices) 中 Mail 丢弃草稿的例子：删除项用 destructive 角色，Cancel 取消。说明对所有设备生效及已保存副本的边界。使用可见入口，遵循 [Context menus](https://developer.apple.com/design/human-interface-guidelines/context-menus#Best-practices) 中上下文菜单操作也要出现在主界面的规则。保持系统文本样式和 44 点操作区域，不增加动画、触感或导航结构。Android 沿用文字按钮并使用 Material 确认框；Web 沿用消息行样式并使用浏览器确认框。
+iOS 使用原生确认面板，其中 Recall 为破坏性按钮，另有 Cancel，参考 Apple [Action sheets](https://developer.apple.com/design/human-interface-guidelines/action-sheets#Best-practices) 中 Mail 丢弃草稿的例子：删除项用 destructive 角色，Cancel 取消。说明对所有设备生效及已保存副本的边界。使用可见入口，遵循 [Context menus](https://developer.apple.com/design/human-interface-guidelines/context-menus#Best-practices) 中上下文菜单操作也要出现在主界面的规则。保持 44 点操作区域，不增加触感或导航结构。Android 使用 Material 确认框；Web 使用浏览器确认框。

@@ -84,6 +84,13 @@ const DEVICE_ICON_PATHS = Object.freeze({
   browser: ["M4 8h16", "M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6", "M8 4v4"],
 });
 
+// Tabler icons, like the device icons above.
+const ACTION_ICON_PATHS = Object.freeze({
+  copy: ["M7 9.667A2.667 2.667 0 0 1 9.667 7h8.666A2.667 2.667 0 0 1 21 9.667v8.666A2.667 2.667 0 0 1 18.333 21H9.667A2.667 2.667 0 0 1 7 18.333z", "M4.012 16.737A2.005 2.005 0 0 1 3 15V5c0-1.1.9-2 2-2h10c.75 0 1.158.385 1.5 1"],
+  copied: ["M5 12l5 5L20 7"],
+  recall: ["M4 7h16", "M10 11v6", "M14 11v6", "M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12", "M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"],
+});
+
 const localDeviceKind = defaultDeviceKind();
 deviceNameInput.value = defaultDeviceName(localDeviceKind);
 
@@ -103,13 +110,17 @@ function defaultDeviceName(kind) {
 }
 
 function createDeviceIcon(kind) {
+  return createIcon(DEVICE_ICON_PATHS[kind] || DEVICE_ICON_PATHS.browser, "device-icon");
+}
+
+function createIcon(paths, className) {
   const namespace = "http://www.w3.org/2000/svg";
   const icon = document.createElementNS(namespace, "svg");
-  icon.setAttribute("class", "device-icon");
+  icon.setAttribute("class", className);
   icon.setAttribute("viewBox", "0 0 24 24");
   icon.setAttribute("aria-hidden", "true");
   icon.setAttribute("focusable", "false");
-  for (const pathData of DEVICE_ICON_PATHS[kind] || DEVICE_ICON_PATHS.browser) {
+  for (const pathData of paths) {
     const path = document.createElementNS(namespace, "path");
     path.setAttribute("d", pathData);
     icon.append(path);
@@ -327,12 +338,14 @@ function renderMessage(message) {
   time.textContent = new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   head.append(sourceIcon, sender, time);
 
+  const actions = document.createElement("div");
+  actions.className = "message-actions";
   if (message.kind === "text") {
     const text = document.createElement("p");
     text.className = "message-text";
     text.textContent = message.text;
     body.append(text);
-    head.append(copyControl(message.text));
+    actions.append(copyControl(text));
   } else if (message.kind === "file") {
     if (isImageFile(message.file)) {
       // A class rather than :has(), which this stylesheet does not rely on.
@@ -345,8 +358,8 @@ function renderMessage(message) {
     return;
   }
 
-  head.append(retractControl(message));
-  article.append(head, body);
+  actions.append(retractControl(message));
+  article.append(head, body, actions);
   messagesElement.append(article);
 }
 
@@ -366,15 +379,12 @@ function removeMessage(id) {
 }
 
 function retractControl(message) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "copy-message";
-  button.textContent = "Recall";
+  const button = actionButton("Recall", ACTION_ICON_PATHS.recall);
   button.addEventListener("click", async () => {
     if (!window.confirm("Recall this message from all devices? Copies and downloads already saved will remain.")) return;
     const generation = authGeneration;
     button.disabled = true;
-    button.textContent = "Recalling…";
+    setActionLabel(button, "Recalling…");
     try {
       const response = await authenticatedFetch(`/api/v1/messages/${message.id}`, { method: "DELETE", signal: authController.signal });
       if (generation !== authGeneration) return;
@@ -389,7 +399,7 @@ function retractControl(message) {
       renderStatus();
     } finally {
       button.disabled = false;
-      button.textContent = "Recall";
+      setActionLabel(button, "Recall");
     }
   });
   return button;
@@ -523,15 +533,36 @@ function openViewer(source, name, messageID) {
   document.body.append(overlay);
 }
 
-function copyControl(text) {
+function actionButton(label, paths) {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "copy-message";
-  button.textContent = "Copy";
+  button.className = "message-action";
+  button.append(createIcon(paths, "action-icon"));
+  setActionLabel(button, label);
+  return button;
+}
+
+function setActionLabel(button, label) {
+  button.title = label;
+  button.setAttribute("aria-label", label);
+}
+
+function copyControl(textElement) {
+  const button = actionButton("Copy", ACTION_ICON_PATHS.copy);
+  const show = (label, paths) => {
+    button.replaceChildren(createIcon(paths, "action-icon"));
+    setActionLabel(button, label);
+  };
   button.addEventListener("click", () => {
-    button.textContent = copyToClipboard(text) ? "Copied" : "Press Ctrl+C";
+    if (copyToClipboard(textElement.textContent)) {
+      show("Copied", ACTION_ICON_PATHS.copied);
+    } else {
+      // Leave the text selected so the platform's copy shortcut still works.
+      getSelection().selectAllChildren(textElement);
+      show("Text selected; press your copy shortcut", ACTION_ICON_PATHS.copy);
+    }
     clearTimeout(button.dataset.timer);
-    button.dataset.timer = setTimeout(() => { button.textContent = "Copy"; }, 1600);
+    button.dataset.timer = setTimeout(() => show("Copy", ACTION_ICON_PATHS.copy), 1600);
   });
   return button;
 }

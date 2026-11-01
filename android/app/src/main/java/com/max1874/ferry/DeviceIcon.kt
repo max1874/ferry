@@ -23,9 +23,21 @@ private val devicePaths = mapOf(
     DeviceKind.BROWSER to listOf("M4 8h16", "M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6", "M8 4v4"),
 )
 
+// Message actions, from the same Tabler set as the Web app.
+val copyIconPaths = listOf(
+    "M7 9.667A2.667 2.667 0 0 1 9.667 7h8.666A2.667 2.667 0 0 1 21 9.667v8.666A2.667 2.667 0 0 1 18.333 21H9.667A2.667 2.667 0 0 1 7 18.333z",
+    "M4.012 16.737A2.005 2.005 0 0 1 3 15V5c0-1.1.9-2 2-2h10c.75 0 1.158.385 1.5 1",
+)
+val copiedIconPaths = listOf("M5 12l5 5L20 7")
+val recallIconPaths = listOf("M4 7h16", "M10 11v6", "M14 11v6", "M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12", "M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3")
+
 @Composable
-fun DeviceIcon(kind: DeviceKind, color: Color, modifier: Modifier = Modifier, size: Dp = 20.dp) {
-    val paths = remember(kind) { devicePaths.getValue(kind).map { PathParser().parsePathString(it).toPath() } }
+fun DeviceIcon(kind: DeviceKind, color: Color, modifier: Modifier = Modifier, size: Dp = 20.dp) =
+    StrokeIcon(devicePaths.getValue(kind), color, modifier, size)
+
+@Composable
+fun StrokeIcon(pathData: List<String>, color: Color, modifier: Modifier = Modifier, size: Dp = 20.dp) {
+    val paths = remember(pathData) { pathData.map { PathParser().parsePathString(it).toPath() } }
     Canvas(modifier.size(size)) {
         val factor = this.size.minDimension / 24f
         scale(factor, pivot = androidx.compose.ui.geometry.Offset.Zero) {

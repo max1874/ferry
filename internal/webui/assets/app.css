@@ -99,7 +99,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-off
 .welcome-brand { display: flex; align-items: center; gap: 13px; }
 .welcome-mark { width: 64px; height: 64px; border-radius: 20px; }
 .welcome h1 { margin: 0; font-size: 42px; font-weight: 650; letter-spacing: -.05em; }
-.messages { width: min(704px, 100%); margin: 0 auto; display: flex; flex-direction: column; gap: 30px; }
+.messages { width: min(704px, 100%); margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
 .message { display: flex; flex-direction: column; align-items: flex-start; }
 .message.is-current-device { align-items: flex-end; }
 .message-body { max-width: 90%; padding: 8px 16px; background: var(--soft); border: 1px solid var(--border); border-radius: 24px 24px 24px 8px; }
@@ -111,9 +111,16 @@ button:focus-visible, input:focus-visible { outline: 2px solid #777; outline-off
 .sender { font-weight: 500; }
 .time { color: inherit; }
 .time::before { margin-right: 5px; content: "·"; }
-.copy-message { padding: 0; color: inherit; background: none; border: 0; font: inherit; cursor: pointer; }
-.copy-message::before { margin-right: 5px; content: "·"; }
-.copy-message:hover, .copy-message:focus-visible { color: var(--muted); outline: none; }
+/* 10px side margin puts each 18px icon's edge on the bubble's text edge. */
+.message-actions { display: flex; gap: 2px; margin: 2px 10px 0; }
+.message-action { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; color: var(--muted); background: none; border: 0; border-radius: 8px; cursor: pointer; }
+.message-action:hover, .message-action:focus-visible { color: inherit; background: var(--hover); outline: none; }
+.message-action:disabled { opacity: .45; cursor: default; }
+@media (pointer: coarse) {
+  .message-actions { margin: 0 6px; }
+  .message-action { width: 40px; height: 40px; }
+}
+.action-icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .message-text { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; font-size: 15px; line-height: 1.5; }
 .message-body.has-image { padding: 4px; }
 .message-image { width: fit-content; max-width: 100%; margin: 0; overflow: hidden; border-radius: 20px; }

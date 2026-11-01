@@ -21,20 +21,7 @@ struct MessageRow: View {
                 .font(.caption.bold()).frame(width: 30, height: 30)
                 .background(Color.accentColor.opacity(0.18), in: .circle)
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Text(message.senderName).font(.subheadline.bold())
-                    if let text = message.text {
-                        Button(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc") {
-                            copy(text)
-                        }
-                        .labelStyle(.titleOnly).font(.caption).buttonStyle(.plain)
-                        .foregroundStyle(.secondary).accessibilityIdentifier("copy-message")
-                    }
-                    Button(recalling ? "Recalling…" : "Recall", role: .destructive) { confirmingRecall = true }
-                        .font(.caption).buttonStyle(.plain)
-                        .frame(minHeight: 44).disabled(recalling)
-                        .accessibilityIdentifier("recall-message")
-                }
+                Text(message.senderName).font(.subheadline.bold())
                 if let text = message.text {
                     Text(text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
                         .accessibilityIdentifier("message-text")
@@ -60,6 +47,7 @@ struct MessageRow: View {
                 } else if let file = message.file {
                     FileCard(file: file, load: loadFile)
                 }
+                actions
             }.frame(maxWidth: .infinity, alignment: .leading)
         }
         .confirmationDialog("Recall this message from all devices?", isPresented: $confirmingRecall, titleVisibility: .visible) {
@@ -76,15 +64,38 @@ struct MessageRow: View {
         }
     }
 
+    /// Icon-only actions under the content. Each keeps a 44-point target; the
+    /// negative padding puts the first glyph on the content's leading edge and
+    /// keeps the row from adding the targets' full height to every message.
+    private var actions: some View {
+        HStack(spacing: 0) {
+            if let text = message.text {
+                Button { copy(text) } label: { actionLabel(copied ? "Copied" : "Copy", copied ? "checkmark" : "doc.on.doc") }
+                    .contentTransition(.symbolEffect(.replace))
+                    .accessibilityIdentifier("copy-message")
+            }
+            Button { confirmingRecall = true } label: { actionLabel(recalling ? "Recalling…" : "Recall", "trash") }
+                .disabled(recalling)
+                .accessibilityIdentifier("recall-message")
+        }
+        .labelStyle(.iconOnly).buttonStyle(.plain).font(.subheadline).foregroundStyle(.secondary)
+        .padding(.leading, -13).padding(.vertical, -10)
+    }
+
+    // The frame sits inside the label because a plain button hit-tests its label.
+    private func actionLabel(_ title: String, _ systemImage: String) -> some View {
+        Label(title, systemImage: systemImage).frame(width: 44, height: 44).contentShape(.rect)
+    }
+
     /// The only place Ferry writes the pasteboard. Nothing here runs without a
     /// tap, so there is no foreground check, no permission prompt and no state
     /// to keep in sync with the timeline.
     private func copy(_ text: String) {
         UIPasteboard.general.string = text
-        copied = true
+        withAnimation { copied = true }
         Task {
             try? await Task.sleep(for: .seconds(1.6))
-            copied = false
+            withAnimation { copied = false }
         }
     }
 }

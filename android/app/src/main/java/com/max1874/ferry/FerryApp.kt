@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
@@ -47,6 +48,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -297,13 +299,6 @@ private fun MessageRow(message: FerryMessage, downloading: Boolean, downloadBusy
                 Text(message.senderName, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.width(8.dp))
                 Text(formatTime(message.createdAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (message is FerryMessage.Text) {
-                    Spacer(Modifier.width(8.dp))
-                    CopyButton(message.text)
-                }
-                TextButton(onClick = { confirmingRecall = true }, enabled = !recalling) {
-                    Text(if (recalling) "Recalling…" else "Recall")
-                }
             }
             Spacer(Modifier.height(5.dp))
             when (message) {
@@ -316,7 +311,22 @@ private fun MessageRow(message: FerryMessage, downloading: Boolean, downloadBusy
                         FileCard(message, downloading, downloadBusy, onDownload)
                     }
             }
+            // Icon buttons keep their 48dp targets; the offset puts the first
+            // glyph on the content's leading edge.
+            Row(Modifier.offset(x = (-14).dp)) {
+                if (message is FerryMessage.Text) CopyButton(message.text)
+                ActionButton(recallIconPaths, if (recalling) "Recalling…" else "Recall", enabled = !recalling) {
+                    confirmingRecall = true
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun ActionButton(paths: List<String>, label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.semantics { contentDescription = label }) {
+        StrokeIcon(paths, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else .45f))
     }
 }
 
@@ -408,17 +418,10 @@ private fun CopyButton(value: String) {
             copied = false
         }
     }
-    Text(
-        if (copied) "Copied" else "Copy",
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier
-            .clickable {
-                clipboard.setText(AnnotatedString(value))
-                copied = true
-            }
-            .semantics { contentDescription = "Copy this message" },
-    )
+    ActionButton(if (copied) copiedIconPaths else copyIconPaths, if (copied) "Copied" else "Copy") {
+        clipboard.setText(AnnotatedString(value))
+        copied = true
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)

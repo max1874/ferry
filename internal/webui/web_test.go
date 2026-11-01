@@ -70,7 +70,7 @@ func TestMessagesUseCompactUserBubbles(t *testing.T) {
 		`body.className = "message-body"`,
 		`sourceIcon.className = "message-source-icon"`,
 		`article.classList.toggle("is-current-device", message.is_current_device === true)`,
-		`article.append(head, body)`,
+		`article.append(head, body, actions)`,
 	} {
 		if !strings.Contains(javascript, contract) {
 			t.Errorf("app.js does not contain bubble contract %q", contract)
