@@ -63,7 +63,7 @@ Ferry 是一个自托管的剪贴板与文件摆渡工具，服务于同一个�
 
 手机、平板和电脑在浏览器里打开 Ferry 的地址就能加入，不用在上面安装任何东西。Web 应用可以发送文字、链接、照片和文件，一点就能复制消息，能预览图片、下载文件。
 
-iOS 和 Android 原生 App 已经有了，但它们是可选的，也不属于 Ferry 版本的发布内容；见[原生 App](#原生-app)。
+iOS 和 Android 原生 App 是可选的。GitHub Release 附带 Android APK；iOS 单独分发。见[原生 App](#原生-app)。
 
 ## 快速开始
 
@@ -72,12 +72,12 @@ iOS 和 Android 原生 App 已经有了，但它们是可选的，也不属于 F
 1. 从[最新版本](https://github.com/max1874/ferry/releases/latest)**下载 Compose 文件**并进入目录：
 
    ```bash
-   curl -fLO https://github.com/max1874/ferry/releases/download/v1.0.3/ferry-1.0.3-docker-compose.tar.gz
-   tar -xzf ferry-1.0.3-docker-compose.tar.gz
+   curl -fLO https://github.com/max1874/ferry/releases/download/v1.0.4/ferry-1.0.4-docker-compose.tar.gz
+   tar -xzf ferry-1.0.4-docker-compose.tar.gz
    cd ferry
    ```
 
-   下载包里有 `compose.yaml`、`.env.example` 和用于备份的 `scripts/ferry-data.sh`，请保持这个目录结构。它不是程序本身：Ferry 启动时，Compose 会拉取公开镜像 `ghcr.io/max1874/ferry:1.0.3`。
+   下载包里有 `compose.yaml`、`.env.example` 和用于备份的 `scripts/ferry-data.sh`，请保持这个目录结构。它不是程序本身：Ferry 启动时，Compose 会拉取公开镜像 `ghcr.io/max1874/ferry:1.0.4`。
 
 2. **创建配置文件：**
 
@@ -122,7 +122,11 @@ iOS 和 Android 原生 App 已经有了，但它们是可选的，也不属于 F
 
 任何已加入的浏览器都可以在 **Devices → Access password** 里开启共享密码。它只拦截新设备；已加入的设备在被撤销前一直保持加入。
 
+在消息上选择 **Recall** 并确认，会从服务器和已更新的设备移除该内容。任意已加入设备都能撤回任意消息，不限时间；已有副本、下载和备份不在撤回范围内。
+
 ## 升级与备份
+
+要实时同步撤回，请先升级服务端，再更新原生客户端。旧客户端可能保留已加载的消息，直到刷新或重新连接。
 
 每次升级前先备份。在部署目录里运行：
 
@@ -170,7 +174,7 @@ docker compose logs --tail=100 ferry
 
 | 配置 | 默认值 | 含义 |
 | --- | --- | --- |
-| `FERRY_IMAGE` | `ghcr.io/max1874/ferry:1.0.3` | 运行的镜像和版本 |
+| `FERRY_IMAGE` | `ghcr.io/max1874/ferry:1.0.4` | 运行的镜像和版本 |
 | `FERRY_HOST_IP` | `127.0.0.1` | Docker 把端口发布到宿主机的哪个地址；必须是 loopback 或私有地址 |
 | `FERRY_PORT` | `42817` | 宿主机和容器里使用的端口 |
 | `FERRY_TRUSTED_ORIGIN` | 空 | 你自己的 TLS 反向代理的 origin |
@@ -250,12 +254,12 @@ go run ./cmd/ferry -listen 127.0.0.1:42817 -trusted-origin https://ferry.example
 
 ## 原生 App
 
-Web 应用是在所有设备上使用 Ferry 的受支持方式。原生 App 连接同一个 Server，但不随本次版本发布。
+Web 应用可在所有设备上使用。可选的原生 App 连接同一个 Server；使用撤回前请先升级服务端。
 
 | App | 当前状态 |
 | --- | --- |
-| iOS | 面向 iOS 26 的原生 SwiftUI MVP；构建只以 FerryDrop 之名分发给内部 TestFlight 测试者，没有公开下载 |
-| Android | 面向 Android 8+ 的原生 Compose MVP；已确认真机安装和启动；需要自行构建，没有发布 APK |
+| iOS | 面向 iOS 26 的原生 SwiftUI MVP；FerryDrop 已在 App Store 上架。支持撤回的 1.0.1 (1) 目前提供给已有内部 TestFlight 测试员 |
+| Android | 面向 Android 8+ 的原生 Compose MVP；[下载正式签名 APK](https://github.com/max1874/ferry/releases/download/v1.0.4/FerryDrop-1.0.0-2.apk)，App 版本 1.0.0 (2)。已在真机验证跨设备撤回 |
 
 **iOS。** 用 Xcode 26.6 或更新版本打开 `ios/Ferry/Ferry.xcodeproj`，运行 `Ferry` scheme。模拟器构建不需要 Team；真机需要你的 Apple Development Team。输入 Server 地址、设备名，以及可选的密码。要打 archive 时，在 Xcode 里设置 Team，并把证书和描述文件留在 Git 之外：
 
@@ -267,7 +271,9 @@ xcodebuild archive -project ios/Ferry/Ferry.xcodeproj -scheme Ferry \
 
 商店导出是需要维护者授权的一步。获得授权后，把 `ios/ExportOptions.plist.example` 复制成被忽略的 `ios/ExportOptions.plist`，替换 `YOUR_TEAM_ID`，再把这个文件传给 `xcodebuild -exportArchive`。
 
-**Android。** 用 Android Studio 打开 `android/`，或者用 JDK 17 及以上和 Android SDK 37 构建 debug APK（wrapper 锁定 Gradle 9.8.1；Android Gradle Plugin 9.4.1，Kotlin 2.4.21）：
+**Android。** 下载并打开[发布 APK](https://github.com/max1874/ferry/releases/download/v1.0.4/FerryDrop-1.0.0-2.apk)，如有提示则允许该来源安装，然后输入服务端地址。旧 debug 包可能使用不同签名；替换前请阅读[发布说明](docs/releases/1.0.4.zh-Hans.md#安装)。
+
+要从源码构建，用 Android Studio 打开 `android/`，或者用 JDK 17 及以上和 Android SDK 37 构建 debug APK（wrapper 锁定 Gradle 9.8.1；Android Gradle Plugin 9.4.1，Kotlin 2.4.21）：
 
 ```bash
 cd android
@@ -281,10 +287,10 @@ APK 生成在 `android/app/build/outputs/apk/debug/` 下。要做签名 release�
 | 组件 | 当前状态 |
 | --- | --- |
 | Server + Web | Go/SQLite；从 1.0.0 起以双架构容器镜像发布 |
-| iOS App | 原生 SwiftUI MVP；仅限内部 TestFlight |
-| Android App | 原生 Compose MVP；从源码构建 |
+| iOS App | 原生 SwiftUI MVP；通过 App Store / TestFlight 单独分发 |
+| Android App | 原生 Compose MVP；GitHub Release 提供签名 APK，也可从源码构建 |
 
-自动发现、剪贴板同步、后台传输和 TLS/公网暴露都不在当前里程碑内。iOS App 计划在中国大陆以外的 App Store 地区上架，目前尚未提交。
+自动发现、剪贴板同步、后台传输和 TLS/公网暴露都不在当前里程碑内。iOS 与 GitHub Release 单独分发；支持撤回的更新目前在内部 TestFlight。
 
 贡献者需要：Go 1.26.3、Docker 和 Compose v2，按需安装 Xcode 26.6，或 Android Studio、JDK 17 及以上和 SDK 37。CI 不会在推送或 pull request 时自动运行；维护者会手动启动 GitHub Actions workflow，比如在发布之前。它运行的检查是：
 

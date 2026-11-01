@@ -4,7 +4,7 @@
 
 ## 支持的版本
 
-安全修复针对 `main` 上的最新 commit 和最新的 [GitHub Release](https://github.com/max1874/ferry/releases/latest)。旧版本、旧 commit、debug APK 和私人测试部署都不再维护。
+安全修复针对 `main` 上的最新 commit 和最新的 [GitHub Release](https://github.com/max1874/ferry/releases/latest)。这也包括最新 Release 附带的签名 Android APK，其 App 版本号与服务端版本号独立。旧版本、旧 commit、debug APK 和私人测试部署都不再维护。
 
 ## 报告漏洞
 
@@ -19,7 +19,7 @@ Ferry 当前里程碑是为可信的私有网络或链路本地网络设计的�
 - 传输使用 HTTP，不是 HTTPS；
 - 能观察流量的局域网用户可能读到内容或凭据；
 - 可选的共享密码控制准入，但不是管理员账号；
-- 已准入的设备可以管理共享密码，也可以撤销其他设备；
+- 已准入的设备可以管理共享密码、撤销其他设备，以及不限时间地撤回任意消息；
 - 备份里有私密消息、文件、设备 token 的 hash 和密码校验值。
 
 通过 `-trusted-origin`（Docker 里是 `FERRY_TRUSTED_ORIGIN`），支持把 Ferry 放在私有网络或 VPN 里的 TLS 反向代理后面。它只加密浏览器到代理这一跳；代理到 Ferry 这一跳仍是 HTTP，应当留在 loopback 或私有网络里。有了代理也不代表支持公网暴露。

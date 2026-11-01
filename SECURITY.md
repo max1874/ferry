@@ -4,7 +4,7 @@
 
 ## Supported versions
 
-Security fixes target the latest commit on `main` and the latest [GitHub Release](https://github.com/max1874/ferry/releases/latest). Older releases, old commits, debug APKs and private test deployments are not maintained.
+Security fixes target the latest commit on `main` and the latest [GitHub Release](https://github.com/max1874/ferry/releases/latest). This includes the signed Android APK attached to the latest Release; its app version is independent of the server version. Older releases, old commits, debug APKs and private test deployments are not maintained.
 
 ## Reporting a vulnerability
 
@@ -19,7 +19,7 @@ The current Ferry milestone is designed for a trusted private or link-local netw
 - transport is HTTP, not HTTPS;
 - LAN users able to observe traffic may read content or credentials;
 - the optional shared password controls admission but is not an administrator account;
-- admitted devices can manage the shared password and revoke other devices;
+- admitted devices can manage the shared password, revoke other devices and recall any message without a time limit;
 - backups contain private messages, files, hashed device tokens and the password verifier.
 
 A TLS reverse proxy on a private network or VPN is supported through `-trusted-origin` (`FERRY_TRUSTED_ORIGIN` in Docker). It encrypts only the browser-to-proxy hop; the proxy-to-Ferry hop stays HTTP and should stay on loopback or a private network. The proxy does not make public exposure supported.

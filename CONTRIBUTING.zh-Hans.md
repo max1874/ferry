@@ -2,7 +2,7 @@
 
 > [English](CONTRIBUTING.md) | 简体中文
 
-Ferry 是一个公开仓库；它的 Server 和 Web 应用以带版本号的 [Release](https://github.com/max1874/ferry/releases) 发布。请把每一处改动都当作公开可见，还没验收的部分见 `README.md`。
+Ferry 是一个公开仓库；它的 Server、Web 应用和签名 Android APK 以带版本号的 [Release](https://github.com/max1874/ferry/releases) 发布，iOS 单独分发。安全修复针对 `main` 和最新 Release，见 [SECURITY.zh-Hans.md](SECURITY.zh-Hans.md)。请把每一处改动都当作公开可见，还没验收的部分见 `README.md`。
 
 ## 改代码之前
 

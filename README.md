@@ -63,7 +63,7 @@ Because the round trip is the cost. A self-chat in a messaging app sends your cl
 
 Phones, tablets and computers join Ferry by opening its address in a browser. There is nothing to install on them. The Web app sends text, links, photos and files, copies a message with one tap, previews images and downloads files.
 
-Native iOS and Android apps exist, but they are optional and are not part of Ferry releases; see [Native apps](#native-apps).
+Native iOS and Android apps are optional. GitHub Releases include the Android APK; iOS is distributed separately. See [Native apps](#native-apps).
 
 ## Quick start
 
@@ -72,12 +72,12 @@ You need one computer that stays on, with Docker and Docker Compose v2, on a 64-
 1. **Download the Compose files** from the [latest release](https://github.com/max1874/ferry/releases/latest) and enter their directory:
 
    ```bash
-   curl -fLO https://github.com/max1874/ferry/releases/download/v1.0.3/ferry-1.0.3-docker-compose.tar.gz
-   tar -xzf ferry-1.0.3-docker-compose.tar.gz
+   curl -fLO https://github.com/max1874/ferry/releases/download/v1.0.4/ferry-1.0.4-docker-compose.tar.gz
+   tar -xzf ferry-1.0.4-docker-compose.tar.gz
    cd ferry
    ```
 
-   The download holds `compose.yaml`, `.env.example` and `scripts/ferry-data.sh` for backups; keep that layout. It is not the program itself: Compose pulls the public image `ghcr.io/max1874/ferry:1.0.3` when Ferry starts.
+   The download holds `compose.yaml`, `.env.example` and `scripts/ferry-data.sh` for backups; keep that layout. It is not the program itself: Compose pulls the public image `ghcr.io/max1874/ferry:1.0.4` when Ferry starts.
 
 2. **Create your settings file:**
 
@@ -122,7 +122,11 @@ You need one computer that stays on, with Docker and Docker Compose v2, on a 64-
 
 Any joined browser can turn on the shared password in **Devices → Access password**. It gates only new devices; joined devices stay joined until revoked.
 
+Choose **Recall** on a message and confirm to remove it from the server and updated devices. Any joined device can recall any message without a time limit; existing copies, downloads and backups remain outside recall.
+
 ## Upgrade and back up
+
+For live recall, upgrade the server before updating native clients. Older clients may retain already loaded messages until reloaded or reconnected.
 
 Back up before every upgrade. From the deployment directory:
 
@@ -170,7 +174,7 @@ Skip steps 3 and 4 of the quick start. Ferry then listens on `http://127.0.0.1:4
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `FERRY_IMAGE` | `ghcr.io/max1874/ferry:1.0.3` | Image and version to run |
+| `FERRY_IMAGE` | `ghcr.io/max1874/ferry:1.0.4` | Image and version to run |
 | `FERRY_HOST_IP` | `127.0.0.1` | Host address Docker publishes the port on; must be loopback or private |
 | `FERRY_PORT` | `42817` | Port on the host and in the container |
 | `FERRY_TRUSTED_ORIGIN` | empty | Origin of your own TLS reverse proxy |
@@ -250,12 +254,12 @@ Local state goes to the ignored `./ferry-data` directory; use `-data-dir` to cho
 
 ## Native apps
 
-The Web app is the supported way to use Ferry on every device. The native apps talk to the same Server and are not published by this release.
+The Web app works on every device. Optional native apps connect to the same Server; upgrade the server first for recall.
 
 | App | Current state |
 | --- | --- |
-| iOS | Native SwiftUI MVP for iOS 26; builds go only to internal TestFlight testers under the name FerryDrop, with no public download |
-| Android | Native Compose MVP for Android 8+; real-device install and launch confirmed; build it yourself, no published APK |
+| iOS | Native SwiftUI MVP for iOS 26; FerryDrop is on the App Store. The recall update, 1.0.1 (1), is currently available to existing internal TestFlight testers |
+| Android | Native Compose MVP for Android 8+; [download the signed APK](https://github.com/max1874/ferry/releases/download/v1.0.4/FerryDrop-1.0.0-2.apk), app version 1.0.0 (2). Cross-device recall verified on a real device |
 
 **iOS.** Open `ios/Ferry/Ferry.xcodeproj` in Xcode 26.6 or newer and run the `Ferry` scheme. Simulator builds need no Team; a physical device requires your Apple Development Team. Enter the Server URL, a device name and the optional password. For an archive, set the Team in Xcode and keep certificates and profiles outside Git:
 
@@ -267,7 +271,9 @@ xcodebuild archive -project ios/Ferry/Ferry.xcodeproj -scheme Ferry \
 
 Store export is a maintainer-authorized step. When it is authorized, copy `ios/ExportOptions.plist.example` to the ignored `ios/ExportOptions.plist`, replace `YOUR_TEAM_ID`, and pass that file to `xcodebuild -exportArchive`.
 
-**Android.** Open `android/` in Android Studio, or build the debug APK with JDK 17 or newer and Android SDK 37 (the wrapper pins Gradle 9.8.1; Android Gradle Plugin 9.4.1, Kotlin 2.4.21):
+**Android.** Download and open the [release APK](https://github.com/max1874/ferry/releases/download/v1.0.4/FerryDrop-1.0.0-2.apk), allow installation from that source if prompted, then enter your server address. Earlier debug builds may use a different signing certificate; see the [release upgrade notes](docs/releases/1.0.4.md#install) before replacing one.
+
+To build from source, open `android/` in Android Studio, or build the debug APK with JDK 17 or newer and Android SDK 37 (the wrapper pins Gradle 9.8.1; Android Gradle Plugin 9.4.1, Kotlin 2.4.21):
 
 ```bash
 cd android
@@ -281,10 +287,10 @@ The APK is produced below `android/app/build/outputs/apk/debug/`. For a signed r
 | Component | Current state |
 | --- | --- |
 | Server + Web | Go/SQLite; published as a two-architecture container image from 1.0.0 |
-| iOS App | Native SwiftUI MVP; internal TestFlight only |
-| Android App | Native Compose MVP; built from source |
+| iOS App | Native SwiftUI MVP; separate App Store / TestFlight distribution |
+| Android App | Native Compose MVP; signed APK in GitHub Releases, or build from source |
 
-Automatic discovery, clipboard synchronisation, background transfer, and TLS/public-Internet exposure are not part of the current milestone. An App Store release of the iOS app outside China mainland is planned but not yet submitted.
+Automatic discovery, clipboard synchronisation, background transfer, and TLS/public-Internet exposure are not part of the current milestone. iOS distribution is separate from GitHub Releases; its recall update is currently in internal TestFlight.
 
 Requirements for contributors: Go 1.26.3, Docker with Compose v2, and optionally Xcode 26.6 or Android Studio with JDK 17+ and SDK 37. CI does not run on pushes or pull requests; the maintainer starts the GitHub Actions workflow by hand, for example before a release. Its gates are:
 
