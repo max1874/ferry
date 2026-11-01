@@ -258,7 +258,7 @@ Web 应用可在所有设备上使用。可选的原生 App 连接同一个 Serv
 
 | App | 当前状态 |
 | --- | --- |
-| iOS | 面向 iOS 26 的原生 SwiftUI MVP；FerryDrop 已在 App Store 上架。支持撤回的 1.0.1 (1) 目前提供给已有内部 TestFlight 测试员 |
+| iOS | 面向 iOS 26 的原生 SwiftUI MVP；FerryDrop 已在 [App Store](https://apps.apple.com/us/app/ferrydrop/id6810960820) 上架。支持撤回的 1.0.1 (1) 目前提供给已有内部 TestFlight 测试员 |
 | Android | 面向 Android 8+ 的原生 Compose MVP；[下载正式签名 APK](https://github.com/max1874/ferry/releases/download/v1.0.4/FerryDrop-1.0.0-2.apk)，App 版本 1.0.0 (2)。已在真机验证跨设备撤回 |
 
 **iOS。** 用 Xcode 26.6 或更新版本打开 `ios/Ferry/Ferry.xcodeproj`，运行 `Ferry` scheme。模拟器构建不需要 Team；真机需要你的 Apple Development Team。输入 Server 地址、设备名，以及可选的密码。要打 archive 时，在 Xcode 里设置 Team，并把证书和描述文件留在 Git 之外：

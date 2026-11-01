@@ -258,7 +258,7 @@ The Web app works on every device. Optional native apps connect to the same Serv
 
 | App | Current state |
 | --- | --- |
-| iOS | Native SwiftUI MVP for iOS 26; FerryDrop is on the App Store. The recall update, 1.0.1 (1), is currently available to existing internal TestFlight testers |
+| iOS | Native SwiftUI MVP for iOS 26; FerryDrop is on the [App Store](https://apps.apple.com/us/app/ferrydrop/id6810960820). The recall update, 1.0.1 (1), is currently available to existing internal TestFlight testers |
 | Android | Native Compose MVP for Android 8+; [download the signed APK](https://github.com/max1874/ferry/releases/download/v1.0.4/FerryDrop-1.0.0-2.apk), app version 1.0.0 (2). Cross-device recall verified on a real device |
 
 **iOS.** Open `ios/Ferry/Ferry.xcodeproj` in Xcode 26.6 or newer and run the `Ferry` scheme. Simulator builds need no Team; a physical device requires your Apple Development Team. Enter the Server URL, a device name and the optional password. For an archive, set the Team in Xcode and keep certificates and profiles outside Git:
