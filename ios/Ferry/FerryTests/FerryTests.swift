@@ -51,7 +51,7 @@ final class FerryTests: XCTestCase {
         let session = URLSession(configuration: configuration())
         let client = FerryClient(session: session)
         URLStub.handler = { request in
-            XCTAssertEqual(request.url?.absoluteString, "http://127.0.0.1:8080/api/v1/messages?after=7&limit=200")
+            XCTAssertEqual(request.url?.absoluteString, "http://127.0.0.1:8080/api/v1/messages?after=7&limit=200&after_retraction=0")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer device-token")
             return (HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!, Data())
         }
@@ -540,6 +540,9 @@ final class FerryTests: XCTestCase {
 // that forgets it is still a compile error.
 @MainActor
 extension FerryServicing {
+    func retract(endpoint: ServerEndpoint, token: String, id: String) async throws {
+        throw FerryClient.ClientError.invalidResponse
+    }
     func attachment(endpoint: ServerEndpoint, token: String, path: String) async throws -> Data {
         throw FerryClient.ClientError.invalidResponse
     }
@@ -553,7 +556,7 @@ private class BaseService: FerryServicing {
         AccessClaim(device: device, token: "token")
     }
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
-    func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
+    func messages(endpoint: ServerEndpoint, token: String, after: Int64, afterRetraction: Int64) async throws -> MessagesPage {
         MessagesPage(messages: [], nextCursor: after)
     }
     func sendText(endpoint: ServerEndpoint, token: String, text: String) async throws -> MessagePayload { fatalError() }
@@ -630,7 +633,7 @@ private final class ScriptedService: FerryServicing {
         return AccessClaim(device: device, token: "token-\(joinCount)")
     }
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
-    func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
+    func messages(endpoint: ServerEndpoint, token: String, after: Int64, afterRetraction: Int64) async throws -> MessagesPage {
         messageCalls += 1
         if messageCalls == 2 { throw FerryClient.ClientError.unauthorized }
         return MessagesPage(messages: [], nextCursor: after)
@@ -657,7 +660,7 @@ private final class DelayedJoinService: FerryServicing {
         continuation = nil
     }
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
-    func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
+    func messages(endpoint: ServerEndpoint, token: String, after: Int64, afterRetraction: Int64) async throws -> MessagesPage {
         MessagesPage(messages: [], nextCursor: after)
     }
     func sendText(endpoint: ServerEndpoint, token: String, text: String) async throws -> MessagePayload { fatalError() }
@@ -684,7 +687,7 @@ private final class DelayedAuthenticationService: FerryServicing {
         continuation?.resume(returning: oldDevice)
         continuation = nil
     }
-    func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
+    func messages(endpoint: ServerEndpoint, token: String, after: Int64, afterRetraction: Int64) async throws -> MessagesPage {
         MessagesPage(messages: [], nextCursor: after)
     }
     func sendText(endpoint: ServerEndpoint, token: String, text: String) async throws -> MessagePayload { fatalError() }
@@ -698,7 +701,7 @@ private final class CancellablePollingService: FerryServicing {
     private let device = Device(id: "ios", name: "Test iPhone", createdAt: "2026-08-30T00:00:00Z")
     func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim { AccessClaim(device: device, token: "token") }
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
-    func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
+    func messages(endpoint: ServerEndpoint, token: String, after: Int64, afterRetraction: Int64) async throws -> MessagesPage {
         calls += 1
         if calls == 1 { return MessagesPage(messages: [], nextCursor: after) }
         isPolling = true
@@ -715,7 +718,7 @@ private final class FileSendingService: FerryServicing {
     private let device = Device(id: "ios", name: "Test iPhone", createdAt: "2026-08-30T00:00:00Z")
     func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim { AccessClaim(device: device, token: "token") }
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
-    func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage { MessagesPage(messages: [], nextCursor: after) }
+    func messages(endpoint: ServerEndpoint, token: String, after: Int64, afterRetraction: Int64) async throws -> MessagesPage { MessagesPage(messages: [], nextCursor: after) }
     func sendText(endpoint: ServerEndpoint, token: String, text: String) async throws -> MessagePayload { fatalError() }
     func sendFile(endpoint: ServerEndpoint, token: String, file: SelectedFile) async throws -> MessagePayload {
         let data = Data("""
@@ -735,7 +738,7 @@ private final class FailedSendService: FerryServicing {
         AccessClaim(device: device, token: "token")
     }
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
-    func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
+    func messages(endpoint: ServerEndpoint, token: String, after: Int64, afterRetraction: Int64) async throws -> MessagesPage {
         messageCalls += 1
         return MessagesPage(messages: [], nextCursor: after)
     }
@@ -756,7 +759,7 @@ private final class DelayedSendService: FerryServicing {
         AccessClaim(device: device, token: "token")
     }
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
-    func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
+    func messages(endpoint: ServerEndpoint, token: String, after: Int64, afterRetraction: Int64) async throws -> MessagesPage {
         MessagesPage(messages: [], nextCursor: after)
     }
     func sendText(endpoint: ServerEndpoint, token: String, text: String) async throws -> MessagePayload {
@@ -800,7 +803,7 @@ private final class RevokingDuringSendService: FerryServicing {
 
     func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim { AccessClaim(device: device, token: "old-token") }
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device { device }
-    func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
+    func messages(endpoint: ServerEndpoint, token: String, after: Int64, afterRetraction: Int64) async throws -> MessagesPage {
         messageCalls += 1
         if messageCalls == 1 { return MessagesPage(messages: [], nextCursor: after) }
         return try await withCheckedThrowingContinuation { continuation in

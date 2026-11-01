@@ -32,6 +32,7 @@ data class FerryUiState(
     val messages: List<FerryMessage> = emptyList(),
     val selectedFile: SelectedContent? = null,
     val isSending: Boolean = false,
+    val recalling: Set<String> = emptySet(),
     val downloadingMessageId: String? = null,
     val statusMessage: String? = null,
     val sendError: String? = null,
@@ -67,6 +68,8 @@ class FerryViewModel(
     private var endpoint: ServerEndpoint? = null
     private var token: String? = null
     private var cursor = 0L
+    private var retractionCursor = 0L
+    private val retracted = mutableSetOf<String>()
     private var generation = 0L
     private var draftRevision = 0L
     private var fileRevision = 0L
@@ -233,6 +236,34 @@ class FerryViewModel(
         }
     }
 
+    fun recall(message: FerryMessage) {
+        val parsed = endpoint ?: return
+        val credential = token ?: return
+        if (message.id in mutableState.value.recalling) return
+        val current = generation
+        mutableState.update { it.copy(recalling = it.recalling + message.id, sendError = null) }
+        scope.launch {
+            try {
+                service.retract(parsed, credential, message.id)
+                if (current == generation) removeMessage(message.id)
+            } catch (_: CancellationException) {
+                return@launch
+            } catch (error: Exception) {
+                if (current == generation) {
+                    if (isUnauthorized(error)) handle(error, current, authenticated = true)
+                    else mutableState.update { it.copy(sendError = "Could not recall message: ${readable(error)}") }
+                }
+            } finally {
+                if (current == generation) mutableState.update { it.copy(recalling = it.recalling - message.id) }
+            }
+        }
+    }
+
+    private fun removeMessage(id: String) {
+        retracted.add(id)
+        mutableState.update { it.copy(messages = it.messages.filterNot { message -> message.id == id }, images = it.images - id) }
+    }
+
     // Fetches one image attachment. A message that already resolved -- decoded
     // or failed -- is never fetched again, and a response that outlives its
     // session is dropped instead of entering the timeline that replaced it.
@@ -253,7 +284,7 @@ class FerryViewModel(
                 null
             }
             loadingImages.remove(message.id)
-            if (current != generation) return@launch
+            if (current != generation || message.id in retracted) return@launch
             mutableState.update { it.copy(images = it.images + (message.id to decoded)) }
         }
     }
@@ -358,8 +389,10 @@ class FerryViewModel(
         endpoint = null
         token = null
         cursor = 0
+        retractionCursor = 0
+        retracted.clear()
         loadingImages.clear()
-        mutableState.update { it.copy(images = emptyMap()) }
+        mutableState.update { it.copy(images = emptyMap(), recalling = emptySet()) }
     }
 
     private fun startPolling() {
@@ -407,13 +440,17 @@ class FerryViewModel(
         val parsed = endpoint ?: return false
         val credential = token ?: return false
         try {
-            val page = service.messages(parsed, credential, cursor)
+            val page = service.messages(parsed, credential, cursor, retractionCursor)
             if (current != generation) return false
             val previousCursor = cursor
+            val previousRetractionCursor = retractionCursor
+            page.retractedIds.forEach(::removeMessage)
             page.messages.forEach(::append)
             cursor = maxOf(cursor, page.nextCursor)
+            retractionCursor = page.nextRetractionCursor
             mutableState.update { it.copy(phase = ConnectionPhase.CONNECTED, statusMessage = null) }
-            return page.messages.size == FerryJson.MESSAGE_PAGE_LIMIT && cursor > previousCursor
+            return (page.messages.size == FerryJson.MESSAGE_PAGE_LIMIT && cursor > previousCursor) ||
+                (page.retractedIds.size == FerryJson.MESSAGE_PAGE_LIMIT && retractionCursor > previousRetractionCursor)
         } catch (_: CancellationException) {
             return false
         } catch (error: Exception) {
@@ -423,6 +460,7 @@ class FerryViewModel(
     }
 
     private fun append(message: FerryMessage) {
+        if (message.id in retracted) return
         mutableState.update { state ->
             if (state.messages.any { it.id == message.id }) state
             else state.copy(messages = (state.messages + message).sortedBy { it.sequence })

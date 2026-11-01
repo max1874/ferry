@@ -59,7 +59,29 @@ struct SessionPayload: Decodable, Sendable { let device: Device }
 struct MessagesPage: Decodable, Sendable {
     let messages: [MessagePayload]
     let nextCursor: Int64
-    enum CodingKeys: String, CodingKey { case messages; case nextCursor = "next_cursor" }
+    let retractedIDs: [String]
+    let nextRetractionCursor: Int64
+    enum CodingKeys: String, CodingKey {
+        case messages
+        case nextCursor = "next_cursor"
+        case retractedIDs = "retracted_ids"
+        case nextRetractionCursor = "next_retraction_cursor"
+    }
+
+    init(messages: [MessagePayload], nextCursor: Int64, retractedIDs: [String] = [], nextRetractionCursor: Int64 = 0) {
+        self.messages = messages
+        self.nextCursor = nextCursor
+        self.retractedIDs = retractedIDs
+        self.nextRetractionCursor = nextRetractionCursor
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        messages = try values.decode([MessagePayload].self, forKey: .messages)
+        nextCursor = try values.decode(Int64.self, forKey: .nextCursor)
+        retractedIDs = try values.decodeIfPresent([String].self, forKey: .retractedIDs) ?? []
+        nextRetractionCursor = try values.decodeIfPresent(Int64.self, forKey: .nextRetractionCursor) ?? 0
+    }
 }
 
 struct APIErrorEnvelope: Decodable, Sendable {

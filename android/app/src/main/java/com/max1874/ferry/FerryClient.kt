@@ -17,7 +17,8 @@ import java.util.UUID
 interface FerryService {
     suspend fun join(endpoint: ServerEndpoint, deviceName: String, password: String): AccessClaim
     suspend fun session(endpoint: ServerEndpoint, token: String): FerryDevice
-    suspend fun messages(endpoint: ServerEndpoint, token: String, after: Long): MessagesPage
+    suspend fun messages(endpoint: ServerEndpoint, token: String, after: Long, afterRetraction: Long = 0): MessagesPage
+    suspend fun retract(endpoint: ServerEndpoint, token: String, id: String)
     suspend fun sendText(endpoint: ServerEndpoint, token: String, text: String): FerryMessage
     suspend fun sendFile(endpoint: ServerEndpoint, token: String, file: SelectedContent): FerryMessage
     suspend fun download(endpoint: ServerEndpoint, token: String, file: FerryFile, destinationUri: String)
@@ -40,15 +41,19 @@ class FerryClient(
     override suspend fun session(endpoint: ServerEndpoint, token: String): FerryDevice =
         FerryJson.session(jsonRequest(endpoint.url("/api/v1/session"), "GET", token))
 
-    override suspend fun messages(endpoint: ServerEndpoint, token: String, after: Long): MessagesPage {
+    override suspend fun messages(endpoint: ServerEndpoint, token: String, after: Long, afterRetraction: Long): MessagesPage {
         require(after >= 0)
         return FerryJson.messages(
             jsonRequest(
-                endpoint.url("/api/v1/messages", "after=$after&limit=${FerryJson.MESSAGE_PAGE_LIMIT}"),
+                endpoint.url("/api/v1/messages", "after=$after&after_retraction=$afterRetraction&limit=${FerryJson.MESSAGE_PAGE_LIMIT}"),
                 "GET",
                 token,
             ),
         )
+    }
+
+    override suspend fun retract(endpoint: ServerEndpoint, token: String, id: String) {
+        jsonRequest(endpoint.url("/api/v1/messages/$id"), "DELETE", token)
     }
 
     override suspend fun sendText(endpoint: ServerEndpoint, token: String, text: String): FerryMessage =

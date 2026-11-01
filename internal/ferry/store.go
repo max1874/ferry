@@ -34,6 +34,10 @@ CREATE TABLE IF NOT EXISTS messages (
     )
 );
 CREATE INDEX IF NOT EXISTS messages_created_at ON messages(created_at);
+CREATE TABLE IF NOT EXISTS retractions (
+    message_id TEXT PRIMARY KEY CHECK(length(message_id) = 32),
+    sequence INTEGER UNIQUE CHECK(sequence > 0)
+);
 CREATE TABLE IF NOT EXISTS devices (
     id TEXT PRIMARY KEY CHECK(length(id) = 32),
     name TEXT NOT NULL,
@@ -74,6 +78,10 @@ func OpenStore(ctx context.Context, dataDir string) (*Store, error) {
 
 	store := &Store{db: db, blobsDir: blobsDir}
 	if err := store.initialize(ctx); err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := store.cleanupRetractions(ctx); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -586,6 +594,119 @@ func (s *Store) ListMessages(ctx context.Context, after int64, limit int) ([]Mes
 		return nil, after, fmt.Errorf("iterate messages: %w", err)
 	}
 	return messages, nextCursor, nil
+}
+
+// Retractions have their own cursor so removing an old message cannot be
+// missed by a client that has already read past its message sequence.
+func (s *Store) ListRetractions(ctx context.Context, after int64, limit int) ([]string, int64, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT sequence, message_id FROM retractions WHERE sequence > ? ORDER BY sequence LIMIT ?`, after, limit)
+	if err != nil {
+		return nil, after, err
+	}
+	defer rows.Close()
+	ids := make([]string, 0)
+	next := after
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&next, &id); err != nil {
+			return nil, after, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, next, rows.Err()
+}
+
+func (s *Store) RetractMessage(ctx context.Context, requesterID, id string) error {
+	if !validID(id) {
+		return ErrNotFound
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var live bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM devices WHERE id = ?)`, requesterID).Scan(&live); err != nil {
+		return err
+	}
+	if !live {
+		return ErrUnauthorized
+	}
+	// Persist intent before unlink, including for legacy messages. Any live
+	// device in the trusted space can finish or retry the same operation.
+	var exists bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM messages WHERE id = ? UNION ALL SELECT 1 FROM retractions WHERE message_id = ?)`, id, id).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		return ErrNotFound
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO retractions (message_id) VALUES (?) ON CONFLICT(message_id) DO NOTHING`, id); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return s.finishRetraction(ctx, id)
+}
+
+// Publish only after unlink succeeds. Assign the sequence at completion, not
+// intent, so a slow/failed deletion cannot fall behind a recipient's cursor.
+func (s *Store) finishRetraction(ctx context.Context, id string) error {
+	if err := s.removeRetractedBlob(id); err != nil {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `DELETE FROM messages WHERE id = ?`, id); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE retractions SET sequence = (SELECT COALESCE(MAX(sequence), 0) + 1 FROM retractions) WHERE message_id = ? AND sequence IS NULL`, id); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *Store) removeRetractedBlob(id string) error {
+	if err := os.Remove(filepath.Join(s.blobsDir, id+".blob")); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("remove retracted blob: %w", err)
+	}
+	return nil
+}
+
+// Resume durable intents before serving requests after a restart.
+func (s *Store) cleanupRetractions(ctx context.Context) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT message_id FROM retractions WHERE sequence IS NULL`)
+	if err != nil {
+		return err
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		if !validID(id) {
+			rows.Close()
+			return fmt.Errorf("invalid retracted message id")
+		}
+		ids = append(ids, id)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if err := s.finishRetraction(ctx, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Store) OpenFile(ctx context.Context, id string) (Message, *os.File, error) {

@@ -18,7 +18,9 @@ struct TimelineView: View {
                         ForEach(model.messages) { message in
                             MessageRow(message: message, image: model.images[message.id],
                                        loadImage: { await model.loadImage(for: message) },
-                                       loadFile: { await model.fileData(for: message) })
+                                       loadFile: { await model.fileData(for: message) },
+                                       recalling: model.retracting.contains(message.id),
+                                       recall: { await model.retract(message) })
                                 .id(message.id)
                         }
                     }
@@ -30,7 +32,8 @@ struct TimelineView: View {
                 // closing the keyboard; dragging or tapping the timeline closes it.
                 .scrollDismissesKeyboard(.interactively)
                 .simultaneousGesture(TapGesture().onEnded { composerFocused = false })
-                .onChange(of: model.messages.count) { _, _ in
+                .onChange(of: model.messages.count) { oldCount, newCount in
+                    guard newCount > oldCount else { return }
                     if let id = model.messages.last?.id { withAnimation { proxy.scrollTo(id, anchor: .bottom) } }
                 }
             }

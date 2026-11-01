@@ -61,6 +61,7 @@ func newHandler(store *Store, options HandlerOptions, now func() time.Time) http
 	api := http.NewServeMux()
 	api.HandleFunc("GET /api/v1/session", s.session)
 	api.HandleFunc("GET /api/v1/messages", s.listMessages)
+	api.HandleFunc("DELETE /api/v1/messages/{message_id}", s.retractMessage)
 	api.HandleFunc("POST /api/v1/messages/text", s.createText)
 	api.HandleFunc("POST /api/v1/messages/file", s.createFile)
 	api.HandleFunc("GET /api/v1/files/{message_id}", s.downloadFile)
@@ -442,7 +443,17 @@ func (s *server) listMessages(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid_request", "limit must be an integer from 1 to 200")
 		return
 	}
+	afterRetraction, err := parseNonNegativeInt64(r.URL.Query().Get("after_retraction"), 0)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "after_retraction must be a non-negative integer")
+		return
+	}
 	messages, nextCursor, err := s.store.ListMessages(r.Context(), after, limit)
+	if err != nil {
+		s.internalError(w, err)
+		return
+	}
+	retractedIDs, nextRetractionCursor, err := s.store.ListRetractions(r.Context(), afterRetraction, limit)
 	if err != nil {
 		s.internalError(w, err)
 		return
@@ -453,9 +464,30 @@ func (s *server) listMessages(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, http.StatusOK, map[string]any{
-		"messages":    messages,
-		"next_cursor": nextCursor,
+		"messages":               messages,
+		"next_cursor":            nextCursor,
+		"retracted_ids":          retractedIDs,
+		"next_retraction_cursor": nextRetractionCursor,
 	})
+}
+
+func (s *server) retractMessage(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("message_id")
+	err := s.store.RetractMessage(r.Context(), currentDevice(r).ID, id)
+	if errors.Is(err, ErrUnauthorized) {
+		s.unauthorized(w)
+		return
+	}
+	if errors.Is(err, ErrNotFound) {
+		writeError(w, http.StatusNotFound, "not_found", "message was not found")
+		return
+	}
+	if err != nil {
+		s.internalError(w, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, map[string]string{"retracted_id": id})
 }
 
 func (s *server) createText(w http.ResponseWriter, r *http.Request) {

@@ -41,6 +41,7 @@ import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -227,8 +228,10 @@ private fun TimelineScreen(
     onDownload: (String, FerryFile) -> Unit,
 ) {
     val listState = rememberLazyListState()
+    var previousCount by remember { mutableStateOf(0) }
     LaunchedEffect(state.messages.size) {
-        if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.lastIndex)
+        if (state.messages.size > previousCount) listState.animateScrollToItem(state.messages.lastIndex)
+        previousCount = state.messages.size
     }
     Column(Modifier.fillMaxSize().imePadding()) {
         Row(
@@ -258,7 +261,8 @@ private fun TimelineScreen(
                 items(state.messages, key = { it.id }) { message ->
                     MessageRow(message, state.downloadingMessageId == message.id,
                         state.downloadingMessageId != null, onDownload,
-                        images = state.images, onLoadImage = model::loadImage)
+                        images = state.images, onLoadImage = model::loadImage,
+                        recalling = message.id in state.recalling, onRecall = { model.recall(message) })
                 }
             }
         }
@@ -269,7 +273,18 @@ private fun TimelineScreen(
 @Composable
 private fun MessageRow(message: FerryMessage, downloading: Boolean, downloadBusy: Boolean,
                        onDownload: (String, FerryFile) -> Unit,
-                       images: Map<String, Bitmap?>, onLoadImage: (FerryMessage.File) -> Unit) {
+                       images: Map<String, Bitmap?>, onLoadImage: (FerryMessage.File) -> Unit,
+                       recalling: Boolean, onRecall: () -> Unit) {
+    var confirmingRecall by remember { mutableStateOf(false) }
+    if (confirmingRecall) {
+        AlertDialog(
+            onDismissRequest = { confirmingRecall = false },
+            title = { Text("Recall this message?") },
+            text = { Text("Remove it from all devices. Copies and downloads already saved will remain.") },
+            confirmButton = { TextButton(onClick = { confirmingRecall = false; onRecall() }) { Text("Recall") } },
+            dismissButton = { TextButton(onClick = { confirmingRecall = false }) { Text("Cancel") } },
+        )
+    }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF111111), modifier = Modifier.size(34.dp)) {
             Box(contentAlignment = Alignment.Center) {
@@ -279,12 +294,15 @@ private fun MessageRow(message: FerryMessage, downloading: Boolean, downloadBusy
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(message.senderName, fontWeight = FontWeight.Bold)
+                Text(message.senderName, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.width(8.dp))
                 Text(formatTime(message.createdAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (message is FerryMessage.Text) {
                     Spacer(Modifier.width(8.dp))
                     CopyButton(message.text)
+                }
+                TextButton(onClick = { confirmingRecall = true }, enabled = !recalling) {
+                    Text(if (recalling) "Recalling…" else "Recall")
                 }
             }
             Spacer(Modifier.height(5.dp))

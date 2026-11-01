@@ -50,7 +50,8 @@ sealed interface FerryMessage {
 }
 
 data class AccessClaim(val device: FerryDevice, val token: String)
-data class MessagesPage(val messages: List<FerryMessage>, val nextCursor: Long)
+data class MessagesPage(val messages: List<FerryMessage>, val nextCursor: Long,
+                        val retractedIds: List<String> = emptyList(), val nextRetractionCursor: Long = 0)
 
 class FerryProtocolException(message: String, cause: Throwable? = null) : Exception(message, cause)
 class FerryApiException(val status: Int, val code: String, message: String, val cleanupFailed: Boolean = false) : Exception(message)
@@ -78,7 +79,13 @@ object FerryJson {
         if (cursor < 0 || messages.zipWithNext().any { (a, b) -> a.sequence >= b.sequence }) {
             throw FerryProtocolException("Invalid message cursor or ordering")
         }
-        MessagesPage(messages, cursor)
+        val retractions = root.optJSONArray("retracted_ids") ?: JSONArray()
+        val ids = buildList(retractions.length()) {
+            for (index in 0 until retractions.length()) add(retractions.getString(index).also(::requireId))
+        }
+        val retractionCursor = root.optLong("next_retraction_cursor", 0)
+        if (retractionCursor < 0) throw FerryProtocolException("Invalid retraction cursor")
+        MessagesPage(messages, cursor, ids, retractionCursor)
     }
 
     fun message(bytes: ByteArray): FerryMessage = decode(bytes, ::message)

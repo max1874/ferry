@@ -140,6 +140,10 @@ paths:
         - name: after
           in: query
           schema: { type: integer, minimum: 0, default: 0 }
+        - name: after_retraction
+          in: query
+          description: Independent retraction cursor; continue until both pages are shorter than limit.
+          schema: { type: integer, minimum: 0, default: 0 }
         - name: limit
           in: query
           schema: { type: integer, minimum: 1, maximum: 200, default: 100 }
@@ -150,14 +154,39 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [messages, next_cursor]
+                required: [messages, next_cursor, retracted_ids, next_retraction_cursor]
                 properties:
                   messages:
                     type: array
                     items: { $ref: "#/components/schemas/Message" }
                   next_cursor: { type: integer, minimum: 0 }
+                  retracted_ids:
+                    type: array
+                    items: { type: string, pattern: '^[0-9a-f]{32}$' }
+                  next_retraction_cursor: { type: integer, minimum: 0 }
                 additionalProperties: false
         "401": { $ref: "#/components/responses/Error" }
+  /api/v1/messages/{message_id}:
+    delete:
+      description: Any authenticated connected device can recall any message, including legacy messages, without a time limit. Removes its server content and file bytes. Existing copies and in-flight downloads cannot be recalled. Retrying by any connected device is idempotent.
+      parameters:
+        - name: message_id
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[0-9a-f]{32}$' }
+      responses:
+        "200":
+          description: Message recalled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [retracted_id]
+                properties:
+                  retracted_id: { type: string }
+                additionalProperties: false
+        "401": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
   /api/v1/messages/text:
     post:
       requestBody:

@@ -23,6 +23,9 @@
 1. **Decided**: the user deliberately sends a piece of text or a file.
 2. **Decided**: other connected devices see it in the same timeline.
 3. **Decided**: the user copies the text, or previews and downloads the file.
+4. **Requested (Max, 2026-11-01)**: the user can recall sent content.
+
+**Decided (Max, 2026-11-01)**: any connected device can recall any message without a time limit. It removes the content from the server and updated clients' timelines, including stored file bytes. Copies, completed or in-flight downloads and backups remain outside recall. This includes legacy messages without a recorded sending device. See [Message recall](message-recall.md) for the acceptance contract and client upgrade boundary.
 
 The first version sticks to deliberate sending. Automatically watching the system clipboard involves accidental transfer, privacy and platform background limits, and is not in the currently confirmed scope.
 

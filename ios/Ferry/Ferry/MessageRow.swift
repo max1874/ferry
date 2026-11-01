@@ -7,6 +7,9 @@ struct MessageRow: View {
     let image: UIImage??
     let loadImage: () async -> Void
     let loadFile: () async -> Data?
+    let recalling: Bool
+    let recall: () async -> Void
+    @State private var confirmingRecall = false
     @State private var copied = false
     @State private var viewing = false
 
@@ -27,6 +30,10 @@ struct MessageRow: View {
                         .labelStyle(.titleOnly).font(.caption).buttonStyle(.plain)
                         .foregroundStyle(.secondary).accessibilityIdentifier("copy-message")
                     }
+                    Button(recalling ? "Recalling…" : "Recall", role: .destructive) { confirmingRecall = true }
+                        .font(.caption).buttonStyle(.plain)
+                        .frame(minHeight: 44).disabled(recalling)
+                        .accessibilityIdentifier("recall-message")
                 }
                 if let text = message.text {
                     Text(text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
@@ -54,6 +61,12 @@ struct MessageRow: View {
                     FileCard(file: file, load: loadFile)
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .confirmationDialog("Recall this message from all devices?", isPresented: $confirmingRecall, titleVisibility: .visible) {
+            Button("Recall", role: .destructive) { Task { await recall() } }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Copies and downloads already saved will remain.")
         }
         .accessibilityElement(children: .contain)
         .fullScreenCover(isPresented: $viewing) {

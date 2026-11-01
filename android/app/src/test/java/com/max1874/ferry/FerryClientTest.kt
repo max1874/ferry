@@ -161,7 +161,7 @@ class FerryClientTest {
             client.messages(ServerEndpoint.parse("http://10.0.0.2:42817"), "token", 0)
         }
 
-        assertTrue(requestedUrl.endsWith("after=0&limit=2"))
+        assertTrue(requestedUrl.endsWith("after=0&after_retraction=0&limit=2"))
         assertTrue(FerryJson.MESSAGE_PAGE_LIMIT * (64 shl 10) * 6 < FerryJson.MAX_JSON_BYTES)
         assertTrue(page.messages.isEmpty())
     }

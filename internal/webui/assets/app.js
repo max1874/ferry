@@ -56,6 +56,8 @@ const imageObserver = new IntersectionObserver((entries) => {
 const IMAGE_LOAD_TIMEOUT_MS = 60000;
 
 let cursor = 0;
+let retractionCursor = 0;
+const retracted = new Set();
 let loading = false;
 let sessionLoading = false;
 let currentDevice = null;
@@ -144,6 +146,8 @@ function storeToken(token) {
 
 function resetTimeline() {
   cursor = 0;
+  retractionCursor = 0;
+  retracted.clear();
   rendered.clear();
   for (const objectURL of messageImages.values()) URL.revokeObjectURL(objectURL);
   messageImages.clear();
@@ -297,7 +301,7 @@ function formatSize(bytes) {
 }
 
 function renderMessage(message) {
-  if (rendered.has(message.id)) return;
+  if (rendered.has(message.id) || retracted.has(message.id)) return;
   rendered.add(message.id);
   welcome.hidden = true;
 
@@ -341,8 +345,54 @@ function renderMessage(message) {
     return;
   }
 
+  head.append(retractControl(message));
   article.append(head, body);
   messagesElement.append(article);
+}
+
+function removeMessage(id) {
+  retracted.add(id);
+  const article = messagesElement.querySelector(`[data-message-id="${id}"]`);
+  for (const figure of article?.querySelectorAll("figure") || []) imageObserver.unobserve(figure);
+  article?.remove();
+  const objectURL = messageImages.get(id);
+  if (objectURL) {
+    document.querySelector(`.viewer[data-message-id="${id}"]`)?.dispatchEvent(new Event("click"));
+    URL.revokeObjectURL(objectURL);
+    messageImages.delete(id);
+  }
+  rendered.delete(id);
+  welcome.hidden = rendered.size !== 0;
+}
+
+function retractControl(message) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "copy-message";
+  button.textContent = "Recall";
+  button.addEventListener("click", async () => {
+    if (!window.confirm("Recall this message from all devices? Copies and downloads already saved will remain.")) return;
+    const generation = authGeneration;
+    button.disabled = true;
+    button.textContent = "Recalling…";
+    try {
+      const response = await authenticatedFetch(`/api/v1/messages/${message.id}`, { method: "DELETE", signal: authController.signal });
+      if (generation !== authGeneration) return;
+      if (response.status === 401) { showAccess("This device is no longer connected."); return; }
+      if (!response.ok) throw new Error(await readError(response));
+      removeMessage(message.id);
+      sendError = "";
+      renderStatus();
+    } catch (error) {
+      if (generation !== authGeneration || error.name === "AbortError") return;
+      sendError = `Could not recall message: ${error.message}`;
+      renderStatus();
+    } finally {
+      button.disabled = false;
+      button.textContent = "Recall";
+    }
+  });
+  return button;
 }
 
 function isImageFile(file) {
@@ -393,7 +443,7 @@ function imageAttachment(message) {
 // an answer has to be queued again or it stays a loading placeholder for good.
 async function loadMessageImage(figure) {
   const message = pendingImages.get(figure);
-  if (!message) return;
+  if (!message || retracted.has(message.id)) return;
   const generation = authGeneration;
   const authSignal = authController.signal;
   const request = new AbortController();
@@ -412,6 +462,7 @@ async function loadMessageImage(figure) {
     if (!response.ok) throw new Error(await readError(response));
     const blob = await response.blob();
     if (generation !== authGeneration) return retryMessageImage(figure);
+    if (retracted.has(message.id) || !figure.isConnected) return;
     const objectURL = URL.createObjectURL(blob);
     messageImages.set(message.id, objectURL);
     const image = figure.querySelector("img");
@@ -420,7 +471,7 @@ async function loadMessageImage(figure) {
       figure.removeAttribute("aria-busy");
     }, { once: true });
     image.addEventListener("error", () => fallBackToFileCard(figure, message), { once: true });
-    image.addEventListener("click", () => openViewer(objectURL, message.file.name));
+    image.addEventListener("click", () => openViewer(objectURL, message.file.name, message.id));
     image.src = objectURL;
   } catch (error) {
     // A reconnect aborts every request in flight; the image loads again once
@@ -443,9 +494,10 @@ function fallBackToFileCard(figure, message) {
   figure.replaceWith(fileCard(message));
 }
 
-function openViewer(source, name) {
+function openViewer(source, name, messageID) {
   const overlay = document.createElement("div");
   overlay.className = "viewer";
+  overlay.dataset.messageId = messageID;
   overlay.setAttribute("role", "dialog");
   overlay.setAttribute("aria-label", name);
   const image = document.createElement("img");
@@ -563,7 +615,7 @@ async function loadMessages() {
   loading = true;
   const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 140;
   try {
-    const response = await authenticatedFetch(`/api/v1/messages?after=${cursor}&limit=200`, { cache: "no-store", signal: authController.signal });
+    const response = await authenticatedFetch(`/api/v1/messages?after=${cursor}&after_retraction=${retractionCursor}&limit=200`, { cache: "no-store", signal: authController.signal });
     if (generation !== authGeneration) return;
     if (response.status === 401) {
       showAccess("This device is no longer connected.");
@@ -571,8 +623,11 @@ async function loadMessages() {
     }
     if (!response.ok) throw new Error(await readError(response));
     const payload = await response.json();
+    if (generation !== authGeneration) return;
+    for (const id of payload.retracted_ids || []) removeMessage(id);
     for (const message of payload.messages) renderMessage(message);
     cursor = payload.next_cursor;
+    retractionCursor = payload.next_retraction_cursor || 0;
     welcomeGuide.hidden = false;
     connectionElement.textContent = "Local";
     connectionError = "";

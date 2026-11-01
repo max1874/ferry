@@ -44,6 +44,9 @@ final class AppModel {
     private var endpoint: ServerEndpoint?
     private var token: String?
     private var cursor: Int64 = 0
+    private var retractionCursor: Int64 = 0
+    private var retracted: Set<String> = []
+    private(set) var retracting: Set<String> = []
     private var generation = UUID()
     private var loadingImages: Set<String> = []
     private var pollTask: Task<Void, Never>?
@@ -147,6 +150,31 @@ final class AppModel {
         }
     }
 
+    func retract(_ message: MessagePayload) async {
+        guard !retracting.contains(message.id), let endpoint, let token else { return }
+        let current = generation
+        retracting.insert(message.id)
+        sendError = nil
+        defer { if current == generation { retracting.remove(message.id) } }
+        do {
+            try await client.retract(endpoint: endpoint, token: token, id: message.id)
+            guard current == generation else { return }
+            removeMessage(message.id)
+        } catch is CancellationError {
+            return
+        } catch {
+            guard current == generation else { return }
+            if error as? FerryClient.ClientError == .unauthorized { handle(error, generation: current) }
+            else { sendError = "Could not recall message: \(error.localizedDescription)" }
+        }
+    }
+
+    private func removeMessage(_ id: String) {
+        retracted.insert(id)
+        messages.removeAll { $0.id == id }
+        images.removeValue(forKey: id)
+    }
+
     func selectFile(_ url: URL) {
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
@@ -214,10 +242,10 @@ final class AppModel {
         defer { loadingImages.remove(message.id) }
         do {
             let data = try await client.attachment(endpoint: endpoint, token: token, path: file.downloadURL)
-            guard current == generation else { return }
+            guard current == generation, !retracted.contains(message.id) else { return }
             images[message.id] = UIImage(data: data)
         } catch {
-            guard current == generation else { return }
+            guard current == generation, !retracted.contains(message.id) else { return }
             images[message.id] = UIImage?.none
         }
     }
@@ -230,7 +258,7 @@ final class AppModel {
         let current = generation
         do {
             let data = try await client.attachment(endpoint: endpoint, token: token, path: file.downloadURL)
-            guard current == generation else { return nil }
+            guard current == generation, !retracted.contains(message.id) else { return nil }
             return data
         } catch {
             guard current == generation else { return nil }
@@ -256,6 +284,9 @@ final class AppModel {
         images = [:]
         loadingImages = []
         cursor = 0
+        retractionCursor = 0
+        retracted = []
+        retracting = []
         draft = ""
         isSending = false
         setSelectedFile(nil)
@@ -295,10 +326,12 @@ final class AppModel {
     private func refreshMessages(generation current: UUID) async {
         guard current == generation, let endpoint, let token else { return }
         do {
-            let page = try await client.messages(endpoint: endpoint, token: token, after: cursor)
+            let page = try await client.messages(endpoint: endpoint, token: token, after: cursor, afterRetraction: retractionCursor)
             guard current == generation else { return }
+            page.retractedIDs.forEach(removeMessage)
             page.messages.forEach(append)
             cursor = page.nextCursor
+            retractionCursor = page.nextRetractionCursor
             phase = .connected
             statusMessage = nil
         } catch is CancellationError {
@@ -309,10 +342,9 @@ final class AppModel {
     }
 
     private func append(_ message: MessagePayload) {
-        guard !messages.contains(where: { $0.id == message.id }) else { return }
+        guard !retracted.contains(message.id), !messages.contains(where: { $0.id == message.id }) else { return }
         messages.append(message)
         messages.sort { $0.sequence < $1.sequence }
-        cursor = max(cursor, message.sequence)
     }
 
     private func setSelectedFile(_ file: SelectedFile?) {

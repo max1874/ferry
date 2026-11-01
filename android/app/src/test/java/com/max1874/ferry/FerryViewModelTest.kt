@@ -322,10 +322,11 @@ class FerryViewModelTest {
         val messageCursors = mutableListOf<Long>()
         override suspend fun join(endpoint: ServerEndpoint, deviceName: String, password: String) = joinResult()
         override suspend fun session(endpoint: ServerEndpoint, token: String) = sessionResult()
-        override suspend fun messages(endpoint: ServerEndpoint, token: String, after: Long): MessagesPage {
+        override suspend fun messages(endpoint: ServerEndpoint, token: String, after: Long, afterRetraction: Long): MessagesPage {
             messageCursors += after
             return MessagesPage(emptyList(), after)
         }
+        override suspend fun retract(endpoint: ServerEndpoint, token: String, id: String) { error("unexpected recall") }
         override suspend fun sendText(endpoint: ServerEndpoint, token: String, text: String) = sendTextResult(text)
         override suspend fun sendFile(endpoint: ServerEndpoint, token: String, file: SelectedContent): FerryMessage = error("unexpected")
         override suspend fun download(endpoint: ServerEndpoint, token: String, file: FerryFile, destinationUri: String) =

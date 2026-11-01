@@ -5,7 +5,8 @@ import UIKit
 protocol FerryServicing {
     func join(endpoint: ServerEndpoint, password: String, name: String) async throws -> AccessClaim
     func currentDevice(endpoint: ServerEndpoint, token: String) async throws -> Device
-    func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage
+    func messages(endpoint: ServerEndpoint, token: String, after: Int64, afterRetraction: Int64) async throws -> MessagesPage
+    func retract(endpoint: ServerEndpoint, token: String, id: String) async throws
     func sendText(endpoint: ServerEndpoint, token: String, text: String) async throws -> MessagePayload
     func sendFile(endpoint: ServerEndpoint, token: String, file: SelectedFile) async throws -> MessagePayload
     func attachment(endpoint: ServerEndpoint, token: String, path: String) async throws -> Data
@@ -40,9 +41,14 @@ struct FerryClient: FerryServicing {
         return payload.device
     }
 
-    func messages(endpoint: ServerEndpoint, token: String, after: Int64) async throws -> MessagesPage {
+    func messages(endpoint: ServerEndpoint, token: String, after: Int64, afterRetraction: Int64 = 0) async throws -> MessagesPage {
         try await json(endpoint: endpoint, path: "/api/v1/messages", token: token,
-                       query: [URLQueryItem(name: "after", value: String(after)), URLQueryItem(name: "limit", value: "200")])
+                       query: [URLQueryItem(name: "after", value: String(after)), URLQueryItem(name: "limit", value: "200"), URLQueryItem(name: "after_retraction", value: String(afterRetraction))])
+    }
+
+    func retract(endpoint: ServerEndpoint, token: String, id: String) async throws {
+        struct Receipt: Decodable { let retracted_id: String }
+        let _: Receipt = try await json(endpoint: endpoint, path: "/api/v1/messages/\(id)", method: "DELETE", token: token)
     }
 
     func sendText(endpoint: ServerEndpoint, token: String, text: String) async throws -> MessagePayload {
