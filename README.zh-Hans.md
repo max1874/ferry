@@ -72,12 +72,12 @@ iOS 和 Android 原生 App 是可选的。GitHub Release 附带 Android APK；iO
 1. 从[最新版本](https://github.com/max1874/ferry/releases/latest)**下载 Compose 文件**并进入目录：
 
    ```bash
-   curl -fLO https://github.com/max1874/ferry/releases/download/v1.0.4/ferry-1.0.4-docker-compose.tar.gz
-   tar -xzf ferry-1.0.4-docker-compose.tar.gz
+   curl -fLO https://github.com/max1874/ferry/releases/download/v1.0.5/ferry-1.0.5-docker-compose.tar.gz
+   tar -xzf ferry-1.0.5-docker-compose.tar.gz
    cd ferry
    ```
 
-   下载包里有 `compose.yaml`、`.env.example` 和用于备份的 `scripts/ferry-data.sh`，请保持这个目录结构。它不是程序本身：Ferry 启动时，Compose 会拉取公开镜像 `ghcr.io/max1874/ferry:1.0.4`。
+   下载包里有 `compose.yaml`、`.env.example` 和用于备份的 `scripts/ferry-data.sh`，请保持这个目录结构。它不是程序本身：Ferry 启动时，Compose 会拉取公开镜像 `ghcr.io/max1874/ferry:1.0.5`。
 
 2. **创建配置文件：**
 
@@ -174,7 +174,7 @@ docker compose logs --tail=100 ferry
 
 | 配置 | 默认值 | 含义 |
 | --- | --- | --- |
-| `FERRY_IMAGE` | `ghcr.io/max1874/ferry:1.0.4` | 运行的镜像和版本 |
+| `FERRY_IMAGE` | `ghcr.io/max1874/ferry:1.0.5` | 运行的镜像和版本 |
 | `FERRY_HOST_IP` | `127.0.0.1` | Docker 把端口发布到宿主机的哪个地址；必须是 loopback 或私有地址 |
 | `FERRY_PORT` | `42817` | 宿主机和容器里使用的端口 |
 | `FERRY_TRUSTED_ORIGIN` | 空 | 你自己的 TLS 反向代理的 origin |
@@ -258,8 +258,8 @@ Web 应用可在所有设备上使用。可选的原生 App 连接同一个 Serv
 
 | App | 当前状态 |
 | --- | --- |
-| iOS | 面向 iOS 26 的原生 SwiftUI MVP；FerryDrop 已在 [App Store](https://apps.apple.com/us/app/ferrydrop/id6810960820) 上架。支持撤回的 1.0.1 (1) 目前提供给已有内部 TestFlight 测试员 |
-| Android | 面向 Android 8+ 的原生 Compose MVP；[下载正式签名 APK](https://github.com/max1874/ferry/releases/download/v1.0.4/FerryDrop-1.0.0-2.apk)，App 版本 1.0.0 (2)。已在真机验证跨设备撤回 |
+| iOS | 面向 iOS 26 的原生 SwiftUI MVP；FerryDrop 已在 [App Store](https://apps.apple.com/us/app/ferrydrop/id6810960820) 上架。支持撤回和新时间线的 1.0.1 (2) 目前提供给已有内部 TestFlight 测试员 |
+| Android | 面向 Android 8+ 的原生 Compose MVP；[下载正式签名 APK](https://github.com/max1874/ferry/releases/download/v1.0.5/FerryDrop-1.0.1-3.apk)，App 版本 1.0.1 (3)。已在真机验证跨设备撤回 |
 
 **iOS。** 用 Xcode 26.6 或更新版本打开 `ios/Ferry/Ferry.xcodeproj`，运行 `Ferry` scheme。模拟器构建不需要 Team；真机需要你的 Apple Development Team。输入 Server 地址、设备名，以及可选的密码。要打 archive 时，在 Xcode 里设置 Team，并把证书和描述文件留在 Git 之外：
 
@@ -271,7 +271,7 @@ xcodebuild archive -project ios/Ferry/Ferry.xcodeproj -scheme Ferry \
 
 商店导出是需要维护者授权的一步。获得授权后，把 `ios/ExportOptions.plist.example` 复制成被忽略的 `ios/ExportOptions.plist`，替换 `YOUR_TEAM_ID`，再把这个文件传给 `xcodebuild -exportArchive`。
 
-**Android。** 下载并打开[发布 APK](https://github.com/max1874/ferry/releases/download/v1.0.4/FerryDrop-1.0.0-2.apk)，如有提示则允许该来源安装，然后输入服务端地址。旧 debug 包可能使用不同签名；替换前请阅读[发布说明](docs/releases/1.0.4.zh-Hans.md#安装)。
+**Android。** 下载并打开[发布 APK](https://github.com/max1874/ferry/releases/download/v1.0.5/FerryDrop-1.0.1-3.apk)，如有提示则允许该来源安装，然后输入服务端地址。旧 debug 包可能使用不同签名；替换前请阅读[发布说明](docs/releases/1.0.5.zh-Hans.md#安装)。
 
 要从源码构建，用 Android Studio 打开 `android/`，或者用 JDK 17 及以上和 Android SDK 37 构建 debug APK（wrapper 锁定 Gradle 9.8.1；Android Gradle Plugin 9.4.1，Kotlin 2.4.21）：
 

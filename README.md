@@ -72,12 +72,12 @@ You need one computer that stays on, with Docker and Docker Compose v2, on a 64-
 1. **Download the Compose files** from the [latest release](https://github.com/max1874/ferry/releases/latest) and enter their directory:
 
    ```bash
-   curl -fLO https://github.com/max1874/ferry/releases/download/v1.0.4/ferry-1.0.4-docker-compose.tar.gz
-   tar -xzf ferry-1.0.4-docker-compose.tar.gz
+   curl -fLO https://github.com/max1874/ferry/releases/download/v1.0.5/ferry-1.0.5-docker-compose.tar.gz
+   tar -xzf ferry-1.0.5-docker-compose.tar.gz
    cd ferry
    ```
 
-   The download holds `compose.yaml`, `.env.example` and `scripts/ferry-data.sh` for backups; keep that layout. It is not the program itself: Compose pulls the public image `ghcr.io/max1874/ferry:1.0.4` when Ferry starts.
+   The download holds `compose.yaml`, `.env.example` and `scripts/ferry-data.sh` for backups; keep that layout. It is not the program itself: Compose pulls the public image `ghcr.io/max1874/ferry:1.0.5` when Ferry starts.
 
 2. **Create your settings file:**
 
@@ -174,7 +174,7 @@ Skip steps 3 and 4 of the quick start. Ferry then listens on `http://127.0.0.1:4
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `FERRY_IMAGE` | `ghcr.io/max1874/ferry:1.0.4` | Image and version to run |
+| `FERRY_IMAGE` | `ghcr.io/max1874/ferry:1.0.5` | Image and version to run |
 | `FERRY_HOST_IP` | `127.0.0.1` | Host address Docker publishes the port on; must be loopback or private |
 | `FERRY_PORT` | `42817` | Port on the host and in the container |
 | `FERRY_TRUSTED_ORIGIN` | empty | Origin of your own TLS reverse proxy |
@@ -258,8 +258,8 @@ The Web app works on every device. Optional native apps connect to the same Serv
 
 | App | Current state |
 | --- | --- |
-| iOS | Native SwiftUI MVP for iOS 26; FerryDrop is on the [App Store](https://apps.apple.com/us/app/ferrydrop/id6810960820). The recall update, 1.0.1 (1), is currently available to existing internal TestFlight testers |
-| Android | Native Compose MVP for Android 8+; [download the signed APK](https://github.com/max1874/ferry/releases/download/v1.0.4/FerryDrop-1.0.0-2.apk), app version 1.0.0 (2). Cross-device recall verified on a real device |
+| iOS | Native SwiftUI MVP for iOS 26; FerryDrop is on the [App Store](https://apps.apple.com/us/app/ferrydrop/id6810960820). The recall and timeline update, 1.0.1 (2), is currently available to existing internal TestFlight testers |
+| Android | Native Compose MVP for Android 8+; [download the signed APK](https://github.com/max1874/ferry/releases/download/v1.0.5/FerryDrop-1.0.1-3.apk), app version 1.0.1 (3). Cross-device recall verified on a real device |
 
 **iOS.** Open `ios/Ferry/Ferry.xcodeproj` in Xcode 26.6 or newer and run the `Ferry` scheme. Simulator builds need no Team; a physical device requires your Apple Development Team. Enter the Server URL, a device name and the optional password. For an archive, set the Team in Xcode and keep certificates and profiles outside Git:
 
@@ -271,7 +271,7 @@ xcodebuild archive -project ios/Ferry/Ferry.xcodeproj -scheme Ferry \
 
 Store export is a maintainer-authorized step. When it is authorized, copy `ios/ExportOptions.plist.example` to the ignored `ios/ExportOptions.plist`, replace `YOUR_TEAM_ID`, and pass that file to `xcodebuild -exportArchive`.
 
-**Android.** Download and open the [release APK](https://github.com/max1874/ferry/releases/download/v1.0.4/FerryDrop-1.0.0-2.apk), allow installation from that source if prompted, then enter your server address. Earlier debug builds may use a different signing certificate; see the [release upgrade notes](docs/releases/1.0.4.md#install) before replacing one.
+**Android.** Download and open the [release APK](https://github.com/max1874/ferry/releases/download/v1.0.5/FerryDrop-1.0.1-3.apk), allow installation from that source if prompted, then enter your server address. Earlier debug builds may use a different signing certificate; see the [release upgrade notes](docs/releases/1.0.5.md#install) before replacing one.
 
 To build from source, open `android/` in Android Studio, or build the debug APK with JDK 17 or newer and Android SDK 37 (the wrapper pins Gradle 9.8.1; Android Gradle Plugin 9.4.1, Kotlin 2.4.21):
 
