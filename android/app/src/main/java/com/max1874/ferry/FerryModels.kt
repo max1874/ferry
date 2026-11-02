@@ -29,6 +29,7 @@ sealed interface FerryMessage {
     val senderName: String
     val senderKind: DeviceKind
     val createdAt: String
+    val isCurrentDevice: Boolean
 
     data class Text(
         override val id: String,
@@ -37,6 +38,7 @@ sealed interface FerryMessage {
         override val senderKind: DeviceKind,
         override val createdAt: String,
         val text: String,
+        override val isCurrentDevice: Boolean = false,
     ) : FerryMessage
 
     data class File(
@@ -46,6 +48,7 @@ sealed interface FerryMessage {
         override val senderKind: DeviceKind,
         override val createdAt: String,
         val file: FerryFile,
+        override val isCurrentDevice: Boolean = false,
     ) : FerryMessage
 }
 
@@ -124,12 +127,13 @@ object FerryJson {
         val senderKind = DeviceKind.decode(requiredString(value, "sender_kind"))
         val createdAt = requiredString(value, "created_at")
         requireTimestamp(createdAt)
+        val mine = value.optBoolean("is_current_device", false)
         val hasText = value.has("text") && !value.isNull("text")
         val hasFile = value.has("file") && !value.isNull("file")
         return when (requiredString(value, "kind")) {
             "text" -> {
                 if (!hasText || hasFile) throw FerryProtocolException("Text message payload does not match kind")
-                FerryMessage.Text(id, sequence, sender, senderKind, createdAt, requiredString(value, "text"))
+                FerryMessage.Text(id, sequence, sender, senderKind, createdAt, requiredString(value, "text"), mine)
             }
             "file" -> {
                 if (hasText || !hasFile) throw FerryProtocolException("File message payload does not match kind")
@@ -141,6 +145,7 @@ object FerryJson {
                 FerryMessage.File(
                     id, sequence, sender, senderKind, createdAt,
                     FerryFile(requiredString(file, "name"), requiredString(file, "media_type"), size, downloadUrl),
+                    mine,
                 )
             }
             else -> throw FerryProtocolException("Unknown message kind")

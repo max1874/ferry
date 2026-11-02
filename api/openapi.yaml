@@ -325,6 +325,7 @@ components:
         sender_name: { type: string }
         sender_kind: { $ref: "#/components/schemas/DeviceKind" }
         created_at: { type: string, format: date-time }
+        is_current_device: { type: boolean, description: True when the requesting device sent this message. }
         text: { type: string }
       additionalProperties: false
     FileInfo:
@@ -353,6 +354,7 @@ components:
         sender_name: { type: string }
         sender_kind: { $ref: "#/components/schemas/DeviceKind" }
         created_at: { type: string, format: date-time }
+        is_current_device: { type: boolean, description: True when the requesting device sent this message. }
         file: { $ref: "#/components/schemas/FileInfo" }
       additionalProperties: false
     Message:

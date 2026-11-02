@@ -48,7 +48,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -287,22 +286,24 @@ private fun MessageRow(message: FerryMessage, downloading: Boolean, downloadBusy
             dismissButton = { TextButton(onClick = { confirmingRecall = false }) { Text("Cancel") } },
         )
     }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-        Surface(shape = RoundedCornerShape(10.dp), color = Color(0xFF111111), modifier = Modifier.size(34.dp)) {
-            Box(contentAlignment = Alignment.Center) {
-                DeviceIcon(message.senderKind, Color.White, size = 19.dp)
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(message.senderName, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.width(8.dp))
-                Text(formatTime(message.createdAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Spacer(Modifier.height(5.dp))
+    // Other devices' text reads as plain full-width text; this device's sends sit
+    // in a bubble on the right, as in a chat. Attachments keep their own shape.
+    val mine = message.isCurrentDevice
+    val side = if (mine) Alignment.End else Alignment.Start
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = side) {
+        Text("${message.senderName} · ${formatTime(message.createdAt)}", maxLines = 1, overflow = TextOverflow.Ellipsis,
+             style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(6.dp))
+        Box(Modifier.fillMaxWidth(if (mine) .85f else 1f), contentAlignment = if (mine) Alignment.TopEnd else Alignment.TopStart) {
             when (message) {
-                is FerryMessage.Text -> CopyableText(message.text)
+                is FerryMessage.Text ->
+                    if (mine) {
+                        Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                            CopyableText(message.text, Modifier.padding(horizontal = 14.dp, vertical = 9.dp))
+                        }
+                    } else {
+                        CopyableText(message.text, Modifier.fillMaxWidth())
+                    }
                 is FerryMessage.File ->
                     if (message.file.mediaType.startsWith("image/")) {
                         ImageAttachment(message, images[message.id], images.containsKey(message.id),
@@ -311,22 +312,27 @@ private fun MessageRow(message: FerryMessage, downloading: Boolean, downloadBusy
                         FileCard(message, downloading, downloadBusy, onDownload)
                     }
             }
-            // Icon buttons keep their 48dp targets; the offset puts the first
-            // glyph on the content's leading edge.
-            Row(Modifier.offset(x = (-14).dp)) {
-                if (message is FerryMessage.Text) CopyButton(message.text)
-                ActionButton(recallIconPaths, if (recalling) "Recalling…" else "Recall", enabled = !recalling) {
-                    confirmingRecall = true
-                }
+        }
+        // The offset puts the outer glyph on the content's edge.
+        Row(Modifier.offset(x = if (mine) 9.dp else (-9).dp)) {
+            if (message is FerryMessage.Text) CopyButton(message.text)
+            ActionButton(recallIconPaths, if (recalling) "Recalling…" else "Recall", enabled = !recalling) {
+                confirmingRecall = true
             }
         }
     }
 }
 
+// Compact like ChatGPT's action row: 18dp glyphs on a 36dp pitch, below
+// Material's 48dp guidance in exchange for a row that stays out of the way.
 @Composable
 private fun ActionButton(paths: List<String>, label: String, enabled: Boolean = true, onClick: () -> Unit) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.semantics { contentDescription = label }) {
-        StrokeIcon(paths, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else .45f))
+    Box(
+        Modifier.size(36.dp).clip(CircleShape).clickable(enabled = enabled, onClick = onClick)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        StrokeIcon(paths, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else .45f), size = 18.dp)
     }
 }
 
@@ -334,20 +340,18 @@ private fun ActionButton(paths: List<String>, label: String, enabled: Boolean = 
 private fun FileCard(message: FerryMessage.File, downloading: Boolean, downloadBusy: Boolean,
                      onDownload: (String, FerryFile) -> Unit) {
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        tonalElevation = 2.dp,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier.fillMaxWidth().clickable(enabled = !downloadBusy) { onDownload(message.id, message.file) },
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(9.dp), color = ferryBlue, modifier = Modifier.size(42.dp)) {
-                Box(contentAlignment = Alignment.Center) { Text("FILE", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
-            }
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            StrokeIcon(fileIconPaths, MaterialTheme.colorScheme.onSurfaceVariant, size = 24.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(message.file.name, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(message.file.name, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(byteCount(message.file.size), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text(if (downloading) "Saving…" else "Save", color = MaterialTheme.colorScheme.primary)
+            Text(if (downloading) "Saving…" else "Save", style = MaterialTheme.typography.labelLarge)
         }
     }
 }
@@ -399,9 +403,9 @@ private fun ImageAttachment(message: FerryMessage.File, bitmap: Bitmap?, resolve
 }
 
 @Composable
-private fun CopyableText(value: String) {
+private fun CopyableText(value: String, modifier: Modifier) {
     SelectionContainer {
-        Text(value, modifier = Modifier.fillMaxWidth())
+        Text(value, modifier = modifier, style = MaterialTheme.typography.bodyLarge)
     }
 }
 

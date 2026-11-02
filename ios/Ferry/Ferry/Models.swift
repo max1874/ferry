@@ -30,6 +30,7 @@ struct MessagePayload: Codable, Equatable, Identifiable, Sendable {
     let kind: Kind
     let senderName: String
     let createdAt: String
+    let isCurrentDevice: Bool
     let text: String?
     let file: FileInfo?
 
@@ -37,6 +38,7 @@ struct MessagePayload: Codable, Equatable, Identifiable, Sendable {
         case id, sequence, kind, text, file
         case senderName = "sender_name"
         case createdAt = "created_at"
+        case isCurrentDevice = "is_current_device"
     }
 
     init(from decoder: Decoder) throws {
@@ -46,6 +48,7 @@ struct MessagePayload: Codable, Equatable, Identifiable, Sendable {
         kind = try values.decode(Kind.self, forKey: .kind)
         senderName = try values.decode(String.self, forKey: .senderName)
         createdAt = try values.decode(String.self, forKey: .createdAt)
+        isCurrentDevice = try values.decodeIfPresent(Bool.self, forKey: .isCurrentDevice) ?? false
         text = try values.decodeIfPresent(String.self, forKey: .text)
         file = try values.decodeIfPresent(FileInfo.self, forKey: .file)
         guard kind == .text ? text != nil && file == nil : file != nil && text == nil else {

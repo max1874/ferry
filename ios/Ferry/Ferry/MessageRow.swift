@@ -15,16 +15,31 @@ struct MessageRow: View {
 
     private var isImage: Bool { message.file?.mediaType.hasPrefix("image/") == true }
 
+    private var mine: Bool { message.isCurrentDevice }
+
+    /// "iPhone · 14:08". The server writes RFC 3339 with up to nanosecond
+    /// fractions, which the ISO 8601 parser rejects, and minutes are enough.
+    private var meta: String {
+        let date = try? Date(message.createdAt.replacing(/\.\d+/, with: ""), strategy: .iso8601)
+        return [message.senderName, date?.formatted(date: .omitted, time: .shortened)].compactMap(\.self).joined(separator: " · ")
+    }
+
+    // Other devices' text reads as plain full-width text; this device's sends sit
+    // in a bubble on the trailing side, as in a chat. Attachments keep their shape.
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Text(String(message.senderName.prefix(1)).uppercased())
-                .font(.caption.bold()).frame(width: 30, height: 30)
-                .background(Color.accentColor.opacity(0.18), in: .circle)
-            VStack(alignment: .leading, spacing: 8) {
-                Text(message.senderName).font(.subheadline.bold())
+        VStack(alignment: mine ? .trailing : .leading, spacing: 6) {
+            Text(meta).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Group {
                 if let text = message.text {
-                    Text(text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibilityIdentifier("message-text")
+                    if mine {
+                        Text(text).textSelection(.enabled)
+                            .padding(.horizontal, 14).padding(.vertical, 9)
+                            .background(Color(.systemGray6), in: .rect(cornerRadius: 20))
+                            .accessibilityIdentifier("message-text")
+                    } else {
+                        Text(text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityIdentifier("message-text")
+                    }
                 } else if isImage, let file = message.file {
                     // No entry yet means the fetch is still running; an entry
                     // holding nil means it failed, and the file card stays.
@@ -47,9 +62,11 @@ struct MessageRow: View {
                 } else if let file = message.file {
                     FileCard(file: file, load: loadFile)
                 }
-                actions
-            }.frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(mine ? .leading : .trailing, mine ? 56 : 0)
+            actions
         }
+        .frame(maxWidth: .infinity, alignment: mine ? .trailing : .leading)
         .confirmationDialog("Recall this message from all devices?", isPresented: $confirmingRecall, titleVisibility: .visible) {
             Button("Recall", role: .destructive) { Task { await recall() } }
             Button("Cancel", role: .cancel) { }
@@ -64,13 +81,14 @@ struct MessageRow: View {
         }
     }
 
-    /// Icon-only actions under the content. Each keeps a 44-point target; the
-    /// negative padding puts the first glyph on the content's leading edge and
-    /// keeps the row from adding the targets' full height to every message.
+    /// Icon-only actions under the content, compact like ChatGPT's: 36-point
+    /// targets, under the 44-point guideline in exchange for a row that stays
+    /// out of the way. The negative padding puts the outer glyph on the
+    /// content's edge and keeps the targets' height from spacing out messages.
     private var actions: some View {
         HStack(spacing: 0) {
             if let text = message.text {
-                Button { copy(text) } label: { actionLabel(copied ? "Copied" : "Copy", copied ? "checkmark" : "doc.on.doc") }
+                Button { copy(text) } label: { actionLabel(copied ? "Copied" : "Copy", copied ? "checkmark" : "square.on.square") }
                     .contentTransition(.symbolEffect(.replace))
                     .accessibilityIdentifier("copy-message")
             }
@@ -78,13 +96,13 @@ struct MessageRow: View {
                 .disabled(recalling)
                 .accessibilityIdentifier("recall-message")
         }
-        .labelStyle(.iconOnly).buttonStyle(.plain).font(.subheadline).foregroundStyle(.secondary)
-        .padding(.leading, -13).padding(.vertical, -10)
+        .labelStyle(.iconOnly).buttonStyle(.plain).font(.callout).foregroundStyle(.secondary)
+        .padding(mine ? .trailing : .leading, -9).padding(.vertical, -6)
     }
 
     // The frame sits inside the label because a plain button hit-tests its label.
     private func actionLabel(_ title: String, _ systemImage: String) -> some View {
-        Label(title, systemImage: systemImage).frame(width: 44, height: 44).contentShape(.rect)
+        Label(title, systemImage: systemImage).frame(width: 36, height: 36).contentShape(.rect)
     }
 
     /// The only place Ferry writes the pasteboard. Nothing here runs without a
