@@ -61,7 +61,7 @@ This file is Ferry's repository-level collaboration contract and the single auth
 
 ## Apple account
 
-- For the Apple account, App Store releases and names, Developer ID signing or notarization, read `/Users/max/Projects/Repo/apple-developer/skill/SKILL.md` first; for name lookups or reservations also read that repository's `.agents/skills/ios-app-name/SKILL.md`. Ferry's own build and release steps still follow this repository's rules.
+- For the Apple account, App Store releases and names, Developer ID signing or notarization, read `/Users/max/Projects/Repo/apple-developer/knowledge/README.md` first; for name lookups or reservations also read that repository's `.agents/skills/ios-app-name/SKILL.md`. Ferry's own build and release steps still follow this repository's rules.
 
 ## Verification standard
 

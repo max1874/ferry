@@ -61,7 +61,7 @@
 
 ## Apple 账号
 
-- 涉及 Apple 账号、App Store 发布与名称、Developer ID 签名或公证时，先读 `/Users/max/Projects/Repo/apple-developer/skill/SKILL.md`；名称查询或占用再读该仓库的 `.agents/skills/ios-app-name/SKILL.md`。Ferry 自身的构建和发布流程仍以本仓库规则为准。
+- 涉及 Apple 账号、App Store 发布与名称、Developer ID 签名或公证时，先读 `/Users/max/Projects/Repo/apple-developer/knowledge/README.md`；名称查询或占用再读该仓库的 `.agents/skills/ios-app-name/SKILL.md`。Ferry 自身的构建和发布流程仍以本仓库规则为准。
 
 ## 验证标准
 
